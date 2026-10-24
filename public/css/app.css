@@ -3,12 +3,12 @@
    near-black blue surfaces, hairline borders, one violet accent, signal green/red reserved for money. */
 :root{
   color-scheme:dark;
-  /* Surfaces and text follow Coinbase's dark system; green/red are its dark-mode delta colours. Panels take Kraken Pro's 12px radius. */
-  --bg:#0a0b0d;--bg-1:#0f1013;--surface:#141519;--surface-2:#1e2025;--surface-3:#27292f;--surface-4:#32353c;
-  --line:#26282d;--line-2:#32353c;--line-3:#43474f;
-  --fg:#ffffff;--fg-2:#d2d5db;--fg-3:#8a919e;--fg-4:#5b616e;
-  --accent:#0052ff;--accent-hover:#0040cc;--accent-2:#4f7bff;--accent-fg:#ffffff;--accent-soft:rgba(0,82,255,.14);--accent-glow:rgba(0,82,255,.3);
-  --up:#27ad75;--up-soft:rgba(39,173,117,.14);--down:#f0616d;--down-soft:rgba(240,97,109,.14);--warn:#f5ac37;--warn-soft:rgba(245,172,55,.14);--info:#4f7bff;--gold:#f5ac37;
+  /* v3 "Ember": ink-navy surfaces, hairlines, one champagne-gold accent reserved for actions, green/red only for money. */
+  --bg:#0a0c11;--bg-1:#0e1117;--surface:#12151c;--surface-2:#181c25;--surface-3:#212632;--surface-4:#2b313f;
+  --line:#1c212b;--line-2:#262c38;--line-3:#363d4c;
+  --fg:#f3f4f8;--fg-2:#c6ccd9;--fg-3:#8891a3;--fg-4:#5a6275;
+  --accent:#e6b655;--accent-hover:#f0c56a;--accent-2:#e9bf6a;--accent-fg:#1b1405;--accent-soft:rgba(230,182,85,.14);--accent-glow:rgba(230,182,85,.32);
+  --up:#3ccf8f;--up-soft:rgba(60,207,143,.14);--down:#ff5c7a;--down-soft:rgba(255,92,122,.14);--warn:#f0a040;--warn-soft:rgba(240,160,64,.14);--info:#8b9cff;--gold:#e6b655;
   --font:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   --r-xs:6px;--r-sm:8px;--r:12px;--r-lg:12px;--r-xl:16px;
@@ -909,3 +909,89 @@ a.card:hover .art img{transform:scale(1.04)}
 
 .rball{filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
 .rps-stage.counting .rps-vs{opacity:0}
+
+/* ============ v3 Ember: premium, less chrome ============ */
+a{color:var(--fg)}
+.eyebrow{color:var(--accent)}
+.btn.primary,.btn.accent,.btn.purple{color:var(--accent-fg)}
+.btn.primary:hover:not(:disabled),.btn.accent:hover:not(:disabled){background:var(--accent-hover)}
+.btn.accent{background:var(--surface-3);color:var(--fg)}
+.btn.accent:hover:not(:disabled){background:var(--surface-4)}
+.wallet{background:var(--surface);border-color:var(--line-2)}
+.wallet .go{color:var(--accent-fg)}
+.wallet .ic{fill:var(--accent)}
+.avatar{background:var(--surface-3);color:var(--fg);border:1px solid var(--line-2)}
+.logo .mark{background:var(--accent)}
+.logo .mark svg{fill:var(--accent-fg)}
+.logo small{color:var(--fg-4)}
+.side .group{background:transparent;padding:4px 0}
+.side .group-title{color:var(--fg-4);padding:12px 12px 4px}
+.nav-item{height:36px;color:var(--fg-3);font-weight:500}
+.nav-item svg{width:17px;height:17px;opacity:.85}
+.nav-item:hover{background:var(--surface);color:var(--fg)}
+.nav-item[aria-current=page]{background:var(--surface-2);color:var(--fg)}
+.nav-item[aria-current=page] svg{color:var(--accent);opacity:1}
+.nav-item .g{width:17px;height:17px;flex:none;fill:currentColor}
+.side .foot{background:transparent;border:1px solid var(--line);color:var(--fg-4)}
+.top{background:rgba(10,12,17,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.tabbar a[aria-current=page]{color:var(--accent)}
+.tabbar a[aria-current=page] svg{color:var(--accent)}
+.progress i{background:var(--accent)}
+.chip{background:var(--surface-2);color:var(--fg-2)}
+.chip[aria-pressed=true],.chip.on{background:var(--fg);color:var(--bg)}
+.panel,.board,.tile,.cta-card{border-color:var(--line)}
+.board{background:linear-gradient(180deg,var(--surface),var(--bg-1))}
+.tile{background:var(--surface)}
+.tile .t-stat,.tile b{font-weight:600}
+/* game tiles: dark card with a tinted glow instead of a full colour field */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.card .art{background:radial-gradient(120% 90% at 30% 15%,color-mix(in srgb,var(--c,#334) 36%,var(--surface)),var(--surface) 78%)}
+.card .art svg{width:38%;height:38%;fill:color-mix(in srgb,var(--c,#fff) 55%,#fff);filter:drop-shadow(0 6px 14px color-mix(in srgb,var(--c,#000) 45%,transparent))}
+.card .art .rtp-chip{display:none}
+.card .art::after{height:48%;background:linear-gradient(0deg,rgba(8,10,14,.85),rgba(8,10,14,.3) 60%,transparent)}
+.card .art .name{font-size:13px;font-weight:600;letter-spacing:0;text-shadow:none}
+a.card:hover{border-color:var(--line-3);background:var(--surface-2)}
+a.card:hover .art{filter:brightness(1.08)}
+/* featured islands: same restraint */
+.island{background:var(--surface);border:1px solid var(--line);color:var(--fg)}
+.island:not(.has-img){background:radial-gradient(140% 110% at 100% 0%,color-mix(in srgb,var(--c,#334) 34%,var(--surface)),var(--surface) 70%)}
+.island::before{background:linear-gradient(0deg,rgba(8,10,14,.35),transparent 60%)}
+.island h3{color:var(--fg);font-weight:700}
+.island p{color:var(--fg-2);opacity:1}
+.island-kicker{color:var(--fg-3);opacity:1;font-weight:600}
+.island-art{opacity:.9;right:6px;top:6px;width:120px;height:120px;transform:rotate(-8deg)}
+.island-art svg{fill:color-mix(in srgb,var(--c,#fff) 55%,#fff);filter:drop-shadow(0 10px 24px color-mix(in srgb,var(--c,#000) 55%,transparent))}
+.island .btn.white{background:var(--accent);color:var(--accent-fg)}
+.island.has-img{background:var(--bg);border-color:var(--line-2)}
+.island.has-img h3,.island.has-img p{color:#fff}
+.island.has-img .island-kicker{color:rgba(255,255,255,.75)}
+a.island:hover{transform:translateY(-2px);filter:none;border-color:var(--line-3)}
+/* lobby bar: balance, the lesson number, one action */
+.balance-row{padding:14px 18px;gap:22px;background:var(--surface)}
+.balance-row .big{font-size:26px}
+.balance-row .stat .l{color:var(--fg-4)}
+/* game header */
+.game-head .icon{background:var(--surface-2)!important;border:1px solid var(--line)}
+.game-head .icon svg{fill:var(--accent)}
+.game-head.has-art::before{background:linear-gradient(90deg,rgba(10,12,17,.94) 0%,rgba(10,12,17,.74) 50%,rgba(10,12,17,.45) 100%)}
+.hero-banner,.hero-banner::before{--none:0}
+.hero-banner{background:var(--bg)}
+.search{background:var(--surface);border-color:var(--line)}
+.search:focus-within{border-color:var(--line-3)}
+.chips .chip svg{opacity:.8}
+.tier-badge{background:var(--surface-2)}
+.bubble{background:var(--surface-2);color:var(--fg-2)}
+input,select,textarea{border-color:var(--line-2)}
+.field input:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.bignum{font-weight:600;letter-spacing:-.035em}
+.banner{background:var(--accent-soft);border-color:rgba(230,182,85,.3)}
+.banner b{color:var(--accent)}
+@media (max-width:860px){.side .group{padding:0}}
+@media (max-width:860px){
+  .balance-row{gap:12px 10px}
+  .balance-row .big{order:0}
+  .balance-row .tier-badge{order:1;margin-left:auto}
+  .balance-row .stat{order:2;flex:1 1 40%}
+  .balance-row>.btn{order:3;flex:1 1 40%;width:auto;margin-top:2px}
+}
+@media (max-width:860px){.reality,.stat-grid{grid-template-columns:1fr 1fr;gap:8px}}

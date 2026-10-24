@@ -22,7 +22,6 @@ const NAV = [
   ['#/', 'Home', 'ph-house'], ['#/rewards', 'Rewards', 'ph-trophy'], ['#/stats', 'Stats', 'ph-chart-bar'], ['#/learn', 'Learn', 'ph-book-open'], ['#/fair', 'Fairness', 'ph-shield-check'],
 ];
 const isCurrent = (href, route) => route === href || (href !== '#/' && route.startsWith(href));
-const GAME_DOT = GAME_COLOR;
 
 function renderChrome() {
   const u = user();
@@ -31,7 +30,7 @@ function renderChrome() {
   side.replaceChildren(
     h('a', { class: 'logo', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning')), h('span', {}, h('b', {}, 'Pentropy'), h('small', {}, 'Play money casino'))),
     h('div', { class: 'group' }, ...NAV.map(([href, label, icon]) => navItem(href, label, icon))),
-    ...CATEGORIES.map((cat) => h('div', { class: 'group' }, h('div', { class: 'group-title' }, cat.label), ...CATALOG.filter((g) => g.cat === cat.id).map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, h('span', { class: 'dot', style: { background: GAME_DOT[g.id] } }), g.name, h('span', { class: 'r' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)))))),
+    ...CATEGORIES.map((cat) => h('div', { class: 'group' }, h('div', { class: 'group-title' }, cat.label), ...CATALOG.filter((g) => g.cat === cat.id).map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, svgUse(gameIcon(g.id)), g.name)))),
     u && me()?.rewards ? tierFoot(me().rewards) : h('div', { class: 'foot' }, svgUse('ph-info'), 'Tokens have no cash value'),
   );
   const crumb = (() => {
@@ -139,7 +138,8 @@ function landingPage() {
 
 /** Game tile: artwork image when public/art/<id>.webp is listed in ART, otherwise the flat colour field with the icon. */
 function gameTile(g, linked, href = null) {
-  const art = h('div', { class: `art ${g.id}`, style: { background: GAME_COLOR[g.id] } }, svgUse(gameIcon(g.id)));
+  const art = h('div', { class: `art ${g.id}` }, svgUse(gameIcon(g.id)));
+  art.style.setProperty('--c', GAME_COLOR[g.id]);
   if (ART.has(g.id)) {
     const img = h('img', { src: `art/${g.id}.webp`, alt: '', loading: 'lazy', decoding: 'async' });
     img.addEventListener('load', () => art.classList.add('has-img'));
@@ -167,9 +167,11 @@ function featured(linked) {
   return h('div', { class: 'islands' }, ...FEATURED.map((f, i) => {
     const g = gameById(f.id);
     const hasBanner = BANNERS.has(f.id);
-    return h(linked ? 'a' : 'div', { class: `island${hasBanner ? ' has-img' : ''}${i === 0 ? ' lead' : ''}`, href: linked ? `#/play/${f.id}` : '#/signup', style: { background: GAME_COLOR[f.id] } },
+    const isle = h(linked ? 'a' : 'div', { class: `island${hasBanner ? ' has-img' : ''}${i === 0 ? ' lead' : ''}`, href: linked ? `#/play/${f.id}` : '#/signup' },
       hasBanner ? h('img', { class: 'island-img', src: `art/${f.id}-banner.webp`, alt: '', decoding: 'async' }) : h('div', { class: 'island-art' }, svgUse(gameIcon(f.id))),
       h('div', { class: 'island-body' }, h('div', { class: 'island-kicker' }, `${fmtPct(g.rtp, 2)} RTP · max ${g.ceiling}`), h('h3', {}, f.title), h('p', {}, f.text), h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
+    isle.style.setProperty('--c', GAME_COLOR[f.id]);
+    return isle;
   }));
 }
 const TRENDING = ['crash', 'mines', 'plinko', 'chicken', 'dice', 'roulette', 'limbo', 'wheel'];
@@ -216,11 +218,8 @@ async function lobbyPage() {
     h('div', { class: 'balance-row' },
       h('div', { class: 'big num' }, fmt(m.user.balance), h('small', {}, 'AGT')),
       h('div', { class: 'sep' }),
-      stat('Session', fmtSigned(sessNet), sessNet > 0 ? 'good' : sessNet < 0 ? 'bad' : ''),
-      stat('All time', fmtSigned(net), net > 0 ? 'good' : net < 0 ? 'bad' : ''),
-      stat('Deposited', fmt(m.user.deposited ?? 0, 0)),
+      stat('Today', fmtSigned(sessNet), sessNet > 0 ? 'good' : sessNet < 0 ? 'bad' : ''),
       stat('Edge taken', '−' + fmt(s.expectedLoss), 'bad'),
-      stat('Rebates', '+' + fmt(m.rewards?.rebateClaimed ?? 0), 'good'),
       h('div', { class: 'spacer' }),
       h('a', { class: 'tier-badge lg', href: '#/rewards', style: { color: tierById(m.rewards?.tier).colour } }, svgUse('ph-medal'), tierById(m.rewards?.tier).name),
       button('Deposit', { kind: 'primary', size: 'sm', onClick: () => openWallet('deposit') }),
@@ -367,16 +366,16 @@ function balanceChart(actual, expected) {
     svg.append(el('text', { x: px - 6, y: y(b) + 4, 'text-anchor': 'end', fill: 'rgba(255,255,255,.4)', 'font-size': 10, 'font-family': 'JetBrains Mono, monospace' }, fmt(b, 0)));
   }
   svg.append(el('path', { d: path(expected), fill: 'none', stroke: 'rgba(255,255,255,.45)', 'stroke-width': 2, 'stroke-dasharray': '6 5', 'stroke-linejoin': 'round' }));
-  svg.append(el('path', { d: path(actual), fill: 'none', stroke: '#4f7bff', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+  svg.append(el('path', { d: path(actual), fill: 'none', stroke: '#e6b655', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
   for (const p of actual.filter((q) => q.refill)) svg.append(el('circle', { cx: x(p.t), cy: y(p.b), r: 4, fill: '#f5ac37', stroke: '#0c1017', 'stroke-width': 2 }));
   const last = actual[actual.length - 1];
-  svg.append(el('circle', { cx: x(last.t), cy: y(last.b), r: 4, fill: '#4f7bff', stroke: '#0c1017', 'stroke-width': 2 }));
+  svg.append(el('circle', { cx: x(last.t), cy: y(last.b), r: 4, fill: '#e6b655', stroke: '#0a0c11', 'stroke-width': 2 }));
   svg.append(el('text', { x: Math.min(x(last.t) + 8, W - 60), y: y(last.b) - 8, fill: '#fff', 'font-size': 11, 'font-weight': 700, 'font-style': 'italic' }, `Actual ${fmt(last.b, 0)}`));
   const le = expected[expected.length - 1];
   svg.append(el('text', { x: Math.min(x(le.t) + 8, W - 70), y: y(le.b) + 14, fill: 'rgba(255,255,255,.6)', 'font-size': 11, 'font-weight': 700, 'font-style': 'italic' }, `Expected ${fmt(le.b, 0)}`));
   const tip = h('div', { class: 'tip' });
   const wrap = h('div', { class: 'chart' },
-    h('div', { class: 'legend' }, h('span', {}, h('i', { style: { background: '#4f7bff' } }), 'Actual balance'), h('span', {}, h('i', { style: { background: 'rgba(255,255,255,.45)', height: '0', borderTop: '2px dashed rgba(255,255,255,.6)' } }), 'Expected balance'), h('span', {}, h('i', { style: { background: '#f5ac37', width: '8px', height: '8px', borderRadius: '50%' } }), 'Refill')),
+    h('div', { class: 'legend' }, h('span', {}, h('i', { style: { background: '#e6b655' } }), 'Actual balance'), h('span', {}, h('i', { style: { background: 'rgba(255,255,255,.45)', height: '0', borderTop: '2px dashed rgba(255,255,255,.6)' } }), 'Expected balance'), h('span', {}, h('i', { style: { background: '#8b9cff', width: '8px', height: '8px', borderRadius: '50%' } }), 'Refill')),
     svg, tip);
   svg.addEventListener('mousemove', (e) => {
     const rect = svg.getBoundingClientRect();
