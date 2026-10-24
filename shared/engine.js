@@ -1,8 +1,8 @@
 // Game engines. Pure state machines: (params, rng, state, action) -> result. Money is handled by routes.js.
 // Every multiplier is settled at exactly the 2-decimal value shown to the player.
-import { v, bad } from './security.js';
-import * as M from '../shared/math.js';
-import { replay } from '../shared/replay.js';
+import { v, bad } from './validate.js';
+import * as M from './math.js';
+import { replay } from './replay.js';
 
 const r2 = M.round2;
 const settled = (multiplier, outcome) => ({ settled: true, multiplier, outcome });

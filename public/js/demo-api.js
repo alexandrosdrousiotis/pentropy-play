@@ -1,0 +1,156 @@
+// Browser-only demo runtime. Mirrors the server API (server/routes.js) against localStorage so the
+// platform can be previewed without a backend. The real deployment never uses this file: it is only
+// loaded when index.html carries <meta name="pentropy-mode" content="demo">.
+import { GAMES, GAME_IDS } from '../shared/engine.js';
+import { v, HttpError, bad } from '../shared/validate.js';
+import { sha256, hmacSha256, toHex } from '../shared/sha256.js';
+
+const KEY = 'pentropy.demo.v2';
+const START = 1000_00, REFILL = 1000_00, MIN_BET = 10, MAX_BET = 1_000_000_00;
+const LESSON_IDS = ['rtp', 'turnover', 'ceiling', 'fallacy', 'chasing', 'design', 'fair', 'skill', 'help'];
+const cents = (x) => Math.round(x * 100), agt = (c) => c / 100, now = () => Date.now();
+const randomHex = (n = 32) => toHex(crypto.getRandomValues(new Uint8Array(n)));
+const sha256Hex = (s) => toHex(sha256(s));
+
+let db = load();
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || { users: {}, session: null }; } catch { return { users: {}, session: null }; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* storage unavailable: demo keeps running in memory */ } }
+
+function hashPassword(password, salt) { let h = `${salt}:${password}`; for (let i = 0; i < 2000; i++) h = sha256Hex(h); return h; }
+const bytesToFloat = (b0, b1, b2, b3) => b0 / 256 + b1 / 65536 + b2 / 16777216 + b3 / 4294967296;
+class FairRng {
+  constructor(serverSeed, clientSeed, nonce, skip = 0) { Object.assign(this, { serverSeed, clientSeed, nonce, cursor: 0, buffer: [], used: 0 }); if (skip) this.take(skip); }
+  take(n = 1) { const out = []; while (out.length < n) { if (!this.buffer.length) { const b = hmacSha256(this.serverSeed, `${this.clientSeed}:${this.nonce}:${this.cursor++}`); for (let i = 0; i < 32; i += 4) this.buffer.push(bytesToFloat(b[i], b[i + 1], b[i + 2], b[i + 3])); } out.push(this.buffer.shift()); } this.used += n; return out; }
+  one() { return this.take(1)[0]; }
+}
+
+const current = () => (db.session ? db.users[db.session] : null);
+const need = () => { const u = current(); if (!u) throw new HttpError(401, 'Sign in required'); return u; };
+const openRound = (u) => u.rounds.find((r) => r.status === 'open') || null;
+
+const publicRound = (r, view) => ({
+  id: r.id, game: r.game, base: agt(r.base), amount: agt(r.amount), rtp: r.rtp, params: r.params, nonce: r.nonce, serverSeedHash: r.serverSeedHash, clientSeed: r.clientSeed, status: r.status,
+  ...(r.status === 'settled' ? { multiplier: r.multiplier, payout: agt(r.payout), net: agt(r.payout - r.amount), outcome: r.outcome, floatsUsed: r.floatsUsed, settledAt: r.settledAt, balanceAfter: agt(r.balanceAfter) } : { view, openedAt: r.openedAt }),
+});
+const viewOf = (r) => GAMES[r.game].view(r.state, r.params);
+function statsOf(u) {
+  const s = u.rounds.filter((r) => r.status === 'settled');
+  const wagered = s.reduce((a, r) => a + r.amount, 0), returned = s.reduce((a, r) => a + r.payout, 0);
+  return { bets: s.length, wagered: agt(wagered), returned: agt(returned), net: agt(returned - wagered), wins: s.filter((r) => r.payout > r.amount).length, losses: s.filter((r) => r.payout <= r.amount).length,
+    biggestWin: agt(Math.max(0, ...s.map((r) => r.payout - r.amount))), biggestLoss: agt(Math.max(0, ...s.map((r) => r.amount - r.payout))), expectedLoss: agt(s.reduce((a, r) => a + r.amount * (1 - r.rtp), 0)), playMs: now() - (db.sessionStart || now()) + (u.playMs || 0) };
+}
+const me = (u) => ({
+  user: { username: u.username, balance: agt(u.balance), notional: agt(u.notionalCents), limits: u.limits, lessonsRead: u.lessons, refills: u.refills, createdAt: u.createdAt },
+  session: { startedAt: db.sessionStart, startBalance: agt(db.startBalance) },
+  seeds: { serverSeedHash: u.seeds.serverSeedHash, clientSeed: u.seeds.clientSeed, nonce: u.seeds.nonce },
+  openRound: (() => { const r = openRound(u); return r ? publicRound(r, viewOf(r)) : null; })(),
+  stats: statsOf(u),
+});
+function checkLimits(u) {
+  const l = u.limits;
+  if (l.lossLimit > 0 && db.startBalance - u.balance >= cents(l.lossLimit)) throw new HttpError(403, 'You reached the loss limit you set for this session. Sign out and back in to start a new session.');
+  if (l.sessionMinutes > 0 && now() - db.sessionStart >= l.sessionMinutes * 60e3) throw new HttpError(403, 'You reached the session time limit you set. Sign out to end the session.');
+}
+
+const S = {
+  credentials: { username: v.string({ min: 3, max: 20, pattern: /^[a-zA-Z0-9_]+$/ }), password: v.string({ min: 1, max: 128 }) },
+  profile: { notional: v.number({ min: 0, max: 1000, decimals: 2, optional: true }), limits: v.obj({ lossLimit: v.number({ min: 0, max: 1_000_000, decimals: 2 }), sessionMinutes: v.number({ min: 0, max: 1440, integer: true }), realityEvery: v.number({ min: 5, max: 500, integer: true }) }, { optional: true }) },
+  lesson: { id: v.oneOf(LESSON_IDS) }, rotate: { clientSeed: v.string({ min: 1, max: 64, pattern: /^[a-zA-Z0-9_-]+$/, optional: true }) }, password: { password: v.string({ min: 1, max: 128 }) },
+};
+const rawObj = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
+
+const routes = {
+  'POST /api/auth/signup': (b) => {
+    const { username, password } = v.object(b, S.credentials);
+    if (password.length < 10) throw bad('Password must be 10–128 characters.');
+    if (password.toLowerCase().includes(username.toLowerCase())) throw bad('Password must not contain the username.');
+    const key = username.toLowerCase();
+    if (db.users[key]) throw new HttpError(409, 'That username is unavailable.');
+    const salt = randomHex(8), serverSeed = randomHex(32);
+    db.users[key] = { username, salt, hash: hashPassword(password, salt), balance: START, notionalCents: 100, limits: { lossLimit: 0, sessionMinutes: 0, realityEvery: 25 }, lessons: [], refills: 0, createdAt: now(), seeds: { serverSeed, serverSeedHash: sha256Hex(serverSeed), clientSeed: randomHex(8), nonce: 0 }, seedHistory: [], rounds: [], events: [], nextId: 1, playMs: 0 };
+    db.session = key; db.sessionStart = now(); db.startBalance = START; save();
+    return { status: 201, body: me(db.users[key]) };
+  },
+  'POST /api/auth/login': (b) => {
+    const { username, password } = v.object(b, S.credentials);
+    const u = db.users[username.toLowerCase()];
+    if (!u || hashPassword(password, u.salt) !== u.hash) throw new HttpError(401, 'Invalid username or password.');
+    db.session = username.toLowerCase(); db.sessionStart = now(); db.startBalance = u.balance; save();
+    return { body: me(u) };
+  },
+  'POST /api/auth/logout': () => { const u = current(); if (u) u.playMs = (u.playMs || 0) + (now() - db.sessionStart); db.session = null; save(); return { body: { ok: true } }; },
+  'GET /api/me': () => ({ body: me(need()) }),
+  'PATCH /api/me': (b) => { const u = need(); const p = v.object(b, S.profile); if (p.notional != null) u.notionalCents = cents(p.notional); if (p.limits) u.limits = { ...u.limits, ...p.limits }; save(); return { body: me(u) }; },
+  'DELETE /api/me': (b) => { const u = need(); const { password } = v.object(b, S.password); if (hashPassword(password, u.salt) !== u.hash) throw new HttpError(401, 'Invalid password.'); delete db.users[db.session]; db.session = null; save(); return { body: { ok: true } }; },
+  'GET /api/stats': () => {
+    const u = need();
+    const settled = u.rounds.filter((r) => r.status === 'settled');
+    const curve = [{ t: u.createdAt, b: START }, ...settled.map((r) => ({ t: r.settledAt, b: r.balanceAfter })), ...u.events.map((e) => ({ t: e.at, b: e.balanceAfter, refill: true }))].sort((a, b) => a.t - b.t).map((p) => ({ ...p, b: agt(p.b) }));
+    const byGame = {};
+    for (const r of settled) { const g = (byGame[r.game] ||= { game: r.game, bets: 0, wagered: 0, returned: 0, best: 0 }); g.bets++; g.wagered += r.amount; g.returned += r.payout; g.best = Math.max(g.best, r.multiplier); }
+    return { body: { stats: statsOf(u), byGame: Object.values(byGame).map((g) => ({ ...g, wagered: agt(g.wagered), returned: agt(g.returned) })), curve, history: settled.slice(-100).reverse().map((r) => publicRound(r)) } };
+  },
+  'GET /api/rounds': (b, q) => { const u = need(); const n = Math.min(300, Number(q.get('limit')) || 50); return { body: { rounds: u.rounds.filter((r) => r.status === 'settled').slice(-n).reverse().map((r) => publicRound(r)) } }; },
+  'GET /api/rounds/current': () => { const u = need(); const r = openRound(u); return { body: { round: r ? publicRound(r, viewOf(r)) : null, balance: agt(u.balance) } }; },
+  'POST /api/rounds': (b) => {
+    const u = need();
+    const { game, amount } = v.object({ game: b.game, amount: b.amount }, { game: v.oneOf(GAME_IDS), amount: v.number({ min: 0.1, max: 1_000_000, decimals: 2 }) });
+    const engine = GAMES[game]; const p = engine.params(rawObj(b.params)); const stake = cents(amount);
+    if (openRound(u)) throw new HttpError(409, 'Finish the current round first.');
+    checkLimits(u);
+    if (stake < MIN_BET) throw bad('Minimum bet is 0.1 AGT.'); if (stake > MAX_BET) throw bad('Maximum bet is 1,000,000 AGT.'); if (stake > u.balance) throw bad('Not enough tokens.');
+    const seeds = u.seeds; const nonce = seeds.nonce++;
+    const rng = new FairRng(seeds.serverSeed, seeds.clientSeed, nonce);
+    const t = now(); const result = engine.start(p, rng, t); const rtp = engine.rtp(p);
+    let balance = u.balance - stake;
+    const r = { id: u.nextId++, game, base: stake, amount: stake, rtp, params: p, nonce, serverSeedHash: seeds.serverSeedHash, clientSeed: seeds.clientSeed, status: 'open', state: null, floatsUsed: rng.used, openedAt: t };
+    if (result.settled) { const units = result.multiplierUnits ?? result.multiplier; const payout = Math.round(stake * units); balance += payout; Object.assign(r, { status: 'settled', multiplier: payout / stake, payout, outcome: result.outcome, balanceAfter: balance, settledAt: t }); }
+    else r.state = result.state;
+    u.balance = balance; u.rounds.push(r); if (u.rounds.length > 400) u.rounds.splice(0, u.rounds.length - 400); save();
+    return { status: 201, body: { round: publicRound(r, result.settled ? null : engine.view(result.state, p)), balance: agt(balance) } };
+  },
+  'POST /api/rounds/current/action': (b) => {
+    const u = need(); const r = openRound(u);
+    if (!r) throw new HttpError(404, 'No open round.');
+    const { action } = v.object({ action: b.action }, { action: v.string({ min: 1, max: 20, pattern: /^[a-z]+$/ }) });
+    const engine = GAMES[r.game]; const state = structuredClone(r.state);
+    const rng = new FairRng(u.seeds.serverSeed, r.clientSeed, r.nonce, r.floatsUsed);
+    const t = now(); const result = engine.action(state, r.params, action, rawObj(b.payload), rng, t);
+    let balance = u.balance, amount = r.amount;
+    if (result.extraUnits) { const extra = Math.round(r.base * result.extraUnits); if (extra > balance) throw bad('Not enough tokens for that action.'); balance -= extra; amount += extra; }
+    if (result.settled) { const units = result.multiplierUnits ?? result.multiplier; const payout = Math.round(r.base * units); balance += payout; Object.assign(r, { status: 'settled', state: null, amount, multiplier: payout / amount, payout, outcome: result.outcome, floatsUsed: rng.used, balanceAfter: balance, settledAt: t }); }
+    else Object.assign(r, { state: result.state, amount, floatsUsed: rng.used });
+    u.balance = balance; save();
+    return { body: { round: publicRound(r, result.settled ? null : engine.view(result.state, r.params)), balance: agt(balance) } };
+  },
+  'GET /api/seeds': () => { const u = need(); return { body: { current: { serverSeedHash: u.seeds.serverSeedHash, clientSeed: u.seeds.clientSeed, nonce: u.seeds.nonce }, revealed: u.seedHistory } }; },
+  'POST /api/seeds/rotate': (b) => {
+    const u = need(); const { clientSeed } = v.object(b, S.rotate);
+    if (openRound(u)) throw new HttpError(409, 'Finish the current round before rotating seeds.');
+    const old = u.seeds;
+    u.seedHistory.unshift({ serverSeed: old.serverSeed, serverSeedHash: old.serverSeedHash, clientSeed: old.clientSeed, nonces: old.nonce, revealedAt: now() }); u.seedHistory.length = Math.min(u.seedHistory.length, 20);
+    const next = randomHex(32);
+    u.seeds = { serverSeed: next, serverSeedHash: sha256Hex(next), clientSeed: clientSeed || old.clientSeed, nonce: 0 }; save();
+    return { body: { previous: { serverSeed: old.serverSeed, serverSeedHash: old.serverSeedHash, clientSeed: old.clientSeed, nonces: old.nonce }, current: { serverSeedHash: u.seeds.serverSeedHash, clientSeed: u.seeds.clientSeed, nonce: 0 } } };
+  },
+  'POST /api/lessons/read': (b) => { const u = need(); const { id } = v.object(b, S.lesson); if (!u.lessons.includes(id)) u.lessons.push(id); save(); return { body: { lessonsRead: u.lessons } }; },
+  'POST /api/refill': (b) => {
+    const u = need(); const { id } = v.object(b, S.lesson);
+    if (openRound(u)) throw new HttpError(409, 'Finish the current round first.');
+    if (u.balance >= MIN_BET) throw bad('You still have tokens to play with.');
+    if (!u.lessons.includes(id)) u.lessons.push(id);
+    u.balance = REFILL; u.refills++; u.events.push({ type: 'refill', amount: REFILL, balanceAfter: REFILL, at: now() }); save();
+    return { body: { balance: agt(REFILL) } };
+  },
+};
+
+/** Same contract as fetch-based call(): resolves with the body, rejects with {status, message}. */
+export async function call(method, path, body = {}) {
+  const url = new URL(path, 'http://demo');
+  const handler = routes[`${method} ${url.pathname}`];
+  if (!handler) throw new HttpError(404, 'Not found');
+  await new Promise((r) => setTimeout(r, 40)); // a touch of latency so the UI behaves as it would online
+  const out = handler(body || {}, url.searchParams);
+  return structuredClone(out.body);
+}
+export const isDemo = true;

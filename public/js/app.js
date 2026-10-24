@@ -1,6 +1,6 @@
 // Shell, router and pages. Games are lazy-loaded modules in ./games/.
 import { api, state, me, user, subscribe, sessionNet, sessionMinutes } from './api.js';
-import { h, toy, svgUse, button, fmt, fmtAgt, fmtSigned, fmtPct, fmtMult, fmtMoney, fmtDuration, modal, toast, numberInput, segmented } from './ui.js';
+import { h, svgUse, button, fmt, fmtAgt, fmtSigned, fmtPct, fmtMult, fmtMoney, fmtDuration, modal, toast, numberInput, segmented } from './ui.js';
 import { CATALOG, gameById } from './games/index.js';
 import * as edu from './edu.js';
 import { replayFloats, sha256Hex } from './verify-rng.js';
@@ -8,30 +8,57 @@ import { replayRound, canonicalOutcome } from '../shared/replay.js';
 import { gameHeader } from './games/common.js';
 
 const app = document.getElementById('app');
-const topbar = document.getElementById('topbar');
+const side = document.getElementById('side');
+const top = document.getElementById('top');
+const tabbar = document.getElementById('tabbar');
 const footer = document.getElementById('footer');
 let activeGame = null; // { module, unmount }
 
 /* ---------------- shell ---------------- */
-function renderTopbar() {
+const NAV = [
+  ['#/', 'Home', 'i-home'], ['#/learn', 'Learn', 'i-book'], ['#/stats', 'Stats', 'i-chart'], ['#/fair', 'Fairness', 'i-shield'], ['#/account', 'Account', 'i-user'],
+];
+const isCurrent = (href, route) => route === href || (href !== '#/' && route.startsWith(href));
+const GAME_DOT = { limbo: '#5f8bff', mines: '#8a97b3', dice: '#7b6cff', crash: '#ff6b7f', tower: '#1fd690', hilo: '#ff5c72', plinko: '#4cc3ff', keno: '#f6b73c', videopoker: '#8ef0d8', blackjack: '#f3c969' };
+
+function renderChrome() {
   const u = user();
   const route = location.hash || '#/';
-  const link = (href, label) => h('a', { href, 'aria-current': route === href || (href !== '#/' && route.startsWith(href)) ? 'page' : null }, label);
-  topbar.replaceChildren(h('div', { class: 'in' },
-    h('a', { class: 'logo', href: '#/' }, toy('gold', 30, 'coin agt'), h('b', { class: 'gt' }, 'Pentropy Play')),
-    h('nav', { class: 'nav', 'aria-label': 'Main' }, link('#/', 'Games'), link('#/learn', 'Learn'), link('#/stats', 'Stats'), link('#/fair', 'Fairness')),
+  const navItem = (href, label, icon) => h('a', { class: 'nav-item', href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label);
+  side.replaceChildren(
+    h('a', { class: 'logo', href: '#/' }, h('span', { class: 'mark' }, svgUse('i-logo')), h('span', {}, h('b', {}, 'Pentropy Play'), h('small', {}, 'No-money casino lab'))),
+    h('div', { class: 'group' }, ...NAV.map(([href, label, icon]) => navItem(href, label, icon))),
+    h('div', { class: 'group-title' }, 'Games'),
+    h('div', { class: 'group' }, ...CATALOG.map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, h('span', { class: 'dot', style: { background: GAME_DOT[g.id] } }), g.name, h('span', { class: 'r' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2))))),
+    h('div', { class: 'foot' }, h('b', {}, 'AGT has no value'), 'Tokens cannot be bought, sold or withdrawn. Every game here pays less than it takes. That is the point.'),
+  );
+  const crumb = (() => {
+    const g = route.match(/^#\/play\/([a-z]+)$/);
+    if (g) return [h('span', {}, 'Games'), h('span', {}, '/'), h('b', {}, gameById(g[1])?.name ?? '')];
+    const found = NAV.find(([href]) => isCurrent(href, route));
+    if (route === '#/signup') return [h('b', {}, 'Create account')];
+    if (route === '#/login') return [h('b', {}, 'Log in')];
+    return [h('b', {}, found ? found[1] : 'Home')];
+  })();
+  const sessNet = u ? sessionNet() : 0;
+  top.replaceChildren(
+    h('a', { class: 'logo brand-sm', href: '#/' }, h('span', { class: 'mark' }, svgUse('i-logo'))),
+    h('div', { class: 'crumb' }, ...crumb),
     h('div', { class: 'spacer' }),
-    u ? h('div', { class: 'row', style: { gap: '8px' } },
-      h('div', { class: 'balance', id: 'balance', title: 'Anti-gambling tokens. Imaginary. No value.' }, toy('gold', 24, 'coin agt'), h('span', { class: 'num' }, fmt(u.balance)), h('small', {}, 'AGT')),
-      h('a', { class: 'btn ghost sm', href: '#/account' }, svgUse('i-user'), h('span', {}, u.username)))
-      : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Sign up'))),
-  ));
+    u ? h('div', { class: 'row', style: { gap: '10px' } },
+      h('div', { class: 'wallet', id: 'balance', title: 'Anti-gambling tokens. Imaginary. No value.' },
+        h('span', { class: 'amt num' }, fmt(u.balance)), h('span', { class: 'cur' }, 'AGT'),
+        h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta' }, `${fmtSigned(sessNet)} today`)),
+      h('a', { class: 'avatar', href: '#/account', title: u.username }, u.username.slice(0, 2)))
+      : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Get 1,000 AGT'))),
+  );
+  tabbar.replaceChildren(...NAV.map(([href, label, icon]) => h('a', { href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label)));
 }
 function renderFooter() {
-  footer.replaceChildren(...[
+  footer.replaceChildren(
     h('p', {}, 'Pentropy Play is an educational simulator. Anti-gambling tokens (AGT) are imaginary: they cannot be bought, sold, withdrawn or exchanged for anything. Nothing here is a gambling service.'),
-    h('p', {}, 'If gambling with real money is causing harm, free confidential help exists: see the “If this stopped being a game” lesson. Every outcome on this site is provably fair and still built to lose. That is the lesson.'),
-  ].flat().filter(Boolean));
+    h('p', {}, 'If gambling with real money is causing harm, free confidential help exists: see the “If this stopped being a game” lesson. Every outcome on this site is provably fair and still built to lose.'),
+  );
 }
 
 /* ---------------- router ---------------- */
@@ -49,7 +76,7 @@ async function render() {
   if (activeGame) { try { await activeGame.unmount?.(); } catch { /* ignore */ } activeGame = null; }
   const hash = location.hash || '#/';
   const found = routes.find(([re]) => re.test(hash));
-  renderTopbar();
+  renderChrome();
   if (!found) { location.hash = '#/'; return; }
   const needsAuth = /^#\/(play|stats|fair|account)/.test(hash);
   if (needsAuth && !user()) { app.replaceChildren(...[authPage('login', 'Sign in to continue.')].flat().filter(Boolean)); return; }
@@ -62,32 +89,47 @@ async function render() {
 window.addEventListener('hashchange', render);
 
 /* ---------------- landing ---------------- */
+const tile = (v, l, d, cls = '') => h('div', { class: `tile ${cls}` }, h('div', { class: 'v' }, v), h('div', { class: 'l' }, l), d && h('div', { class: 'd' }, d));
+const feature = (icon, title, text) => h('div', { class: 'feature' }, h('span', { class: 'ic' }, svgUse(icon)), h('b', {}, title), h('p', {}, text));
+
 function landingPage() {
+  const demo = demoWalletCard();
   return h('div', { class: 'stack', style: { gap: '36px' } },
-    h('section', { class: 'hero' },
-      h('div', { class: 'eyebrow' }, 'Ten casino games · zero money · full transparency'),
-      h('h1', { class: 'gt' }, 'Learn how the house wins,', h('br'), 'without paying for the lesson'),
-      h('p', { class: 'lead' }, 'Sign up and receive 1,000 anti-gambling tokens. Play the exact games real sites run, at the exact same odds, and watch the house edge take them back. Every round is provably fair. Every number is honest. Nothing has value.'),
-      h('div', { class: 'row' }, h('a', { class: 'btn primary lg', href: '#/signup' }, h('span', {}, 'Get 1,000 AGT')), h('a', { class: 'btn tertiary lg', href: '#/learn' }, h('span', {}, 'Read the lessons')))),
-    h('section', { class: 'plate' },
-      h('h3', {}, 'What you get'),
-      h('div', { class: 'reality' },
-        tile('99%', 'Return to player', 'Same as the real thing. The 1% is the product.'),
-        tile('−€', 'Live expected loss', 'Every bet shows what it costs on average, in money.'),
-        tile('HMAC', 'Provably fair', 'Rotate seeds and replay any round in your browser.'),
-        tile('0', 'Value of a token', 'Cannot be bought, sold or withdrawn. Ever.'))),
+    h('section', { class: 'hero-grid' },
+      h('div', { class: 'hero' },
+        h('div', { class: 'eyebrow' }, 'Ten casino games · zero money · full transparency'),
+        h('h1', {}, 'The house edge, shown to you before every bet'),
+        h('p', { class: 'lead' }, 'Sign up and receive 1,000 anti-gambling tokens. Play the exact games real sites run, at the exact same odds, and watch the edge take them back. Every round is provably fair. Every figure is converted to money. Nothing has value.'),
+        h('div', { class: 'row', style: { marginTop: '6px' } }, h('a', { class: 'btn primary lg', href: '#/signup' }, h('span', {}, 'Get 1,000 AGT')), h('a', { class: 'btn secondary lg', href: '#/learn' }, h('span', {}, 'Read the lessons')))),
+      demo),
+    h('section', { class: 'features' },
+      feature('i-chart', 'Live expected loss', 'Every bet shows what it costs on average, in tokens and in money, before you click.'),
+      feature('i-shield', 'Provably fair', 'HMAC-SHA256 seeds you can rotate and replay in your browser. Fair dice, fixed edge.'),
+      feature('i-lock', 'Server-side everything', 'Outcomes, balances and seeds never leave the server until a round is settled.'),
+      feature('i-coin', 'Zero value, by design', 'No deposits, no cash-out, no leaderboard. Running out of tokens requires reading a lesson.')),
     gamesGrid(false));
 }
-const tile = (v, l, d, cls = '') => h('div', { class: `tile ${cls}` }, h('div', { class: 'v' }, v), h('div', { class: 'l' }, l), d && h('div', { class: 'd' }, d));
+
+function demoWalletCard() {
+  return h('div', { class: 'wallet-card' },
+    h('div', { class: 't-label' }, 'Example · 100 bets of 10 AGT at 99% RTP'),
+    h('div', { class: 'big num' }, '1,000.00', h('small', {}, 'AGT')),
+    h('div', { class: 'chips' }, h('span', { class: 'delta-chip down' }, '−10.00 expected'), h('span', { class: 'delta-chip' }, '1,000 wagered'), h('span', { class: 'delta-chip' }, '1.00% edge')),
+    h('div', { class: 'mini-grid' },
+      h('div', {}, h('div', { class: 'l' }, 'If 1 AGT = €1'), h('div', { class: 'v bad' }, '−€10.00')),
+      h('div', {}, h('div', { class: 'l' }, 'Ceiling'), h('div', { class: 'v' }, '1,000,000x')),
+      h('div', {}, h('div', { class: 'l' }, 'Odds of ceiling'), h('div', { class: 'v' }, '0.000099%'))));
+}
 
 function gamesGrid(linked = true) {
-  return h('section', { class: 'stack' },
-    h('div', { class: 'row between' }, h('h2', { class: 'gt' }, 'Games'), h('span', { class: 'muted t-desc' }, 'Ordered by how good the odds look. They all lose.')),
+  return h('section', { class: 'stack', style: { gap: '14px' } },
+    h('div', { class: 'section-head' }, h('h2', {}, 'Games'), h('span', { class: 't-desc' }, 'Ordered by how good the odds look. They all lose.')),
     h('div', { class: 'cards' }, ...CATALOG.map((g, i) => h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null },
-      h('div', { class: 'row', style: { gap: '8px', zIndex: 1 } }, h('span', { class: 'rank ' + (i === 0 ? 'g' : i === 1 ? 's' : i === 2 ? 'b' : ''), style: i > 2 ? { background: 'var(--white-10)', color: '#fff' } : {} }, i + 1), h('h4', {}, g.name)),
-      h('p', { class: 'sub' }, g.blurb),
-      h('div', { class: 'meta' }, h('span', { class: 'tag' }, `RTP ${fmtPct(g.rtp, 2)}`), h('span', { class: 'tag hot' }, `max ${g.ceiling}`)),
-      toy(g.toy, 64, 'corner')))));
+      h('div', { class: `art ${g.id}` }, h('span', { class: 'n' }, String(i + 1).padStart(2, '0')), svgUse(`g-${g.id}`)),
+      h('div', { class: 'body' },
+        h('h4', {}, g.name),
+        h('p', { class: 'sub' }, g.blurb),
+        h('div', { class: 'meta' }, h('span', { class: 'tag' }, `RTP ${fmtPct(g.rtp, 2)}`), h('span', { class: 'tag hot' }, `max ${g.ceiling}`)))))));
 }
 
 /* ---------------- lobby ---------------- */
@@ -95,22 +137,29 @@ function lobbyPage() {
   const m = me();
   const s = m.stats;
   const open = m.openRound;
+  const net = s.net;
+  const sessNet = sessionNet();
   return h('div', { class: 'stack', style: { gap: '28px' } },
-    h('section', { class: 'hero', style: { paddingTop: '8px' } },
-      h('div', { class: 'eyebrow' }, `Welcome back, ${m.user.username}`),
-      h('h1', { class: 'gt' }, s.bets ? `${fmt(s.wagered, 0)} AGT wagered so far` : 'Pick a game. Watch the edge.'),
-      h('p', { class: 'lead' }, s.bets
-        ? `Across ${s.bets} bets the house edge expected to take ${fmt(s.expectedLoss)} AGT. Your actual result is ${fmtSigned(s.net)} AGT. ${s.net > -s.expectedLoss ? 'Variance is being kind to you. It does not last.' : 'The maths is doing what it said it would.'}`
-        : 'Every game shows its return-to-player, the chance your bet wins, and what it costs on average before you click. Nothing here is hidden.')),
-    open && h('div', { class: 'banner' }, h('b', {}, 'Unfinished round'), h('span', {}, `You have an open ${gameById(open.game)?.name} round for ${fmtAgt(open.amount)}.`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
-    gamesGrid(true),
-    h('section', { class: 'plate' },
-      h('div', { class: 'row between' }, h('h3', {}, 'Your reality'), h('a', { class: 'btn tertiary sm', href: '#/stats' }, h('span', {}, 'Full stats'))),
-      h('div', { class: 'reality' },
-        tile(fmt(m.user.balance), 'Balance', 'AGT, imaginary'),
-        tile(fmtSigned(s.net), 'All-time net', `${s.bets} bets`, s.net >= 0 ? 'good' : 'bad'),
-        tile('−' + fmt(s.expectedLoss), 'House edge predicted', 'Σ stake × (1 − RTP)'),
-        tile(fmtMoney(Math.abs(s.net) * m.user.notional), s.net >= 0 ? 'Equivalent gain' : 'Equivalent loss', `if 1 AGT = ${fmtMoney(m.user.notional)}`))));
+    h('section', { class: 'hero-grid' },
+      h('div', { class: 'hero' },
+        h('div', { class: 'eyebrow' }, `Signed in as ${m.user.username}`),
+        h('h1', {}, s.bets ? `${fmt(s.wagered, 0)} AGT has passed through the house` : 'Pick a game. Watch the edge.'),
+        h('p', { class: 'lead' }, s.bets
+          ? `Across ${s.bets} bets the edge expected to take ${fmt(s.expectedLoss)} AGT. Your actual result is ${fmtSigned(net)} AGT. ${net > -s.expectedLoss ? 'Variance is being kind to you. It does not last.' : 'The maths is doing what it said it would.'}`
+          : 'Every game shows its return-to-player, the chance your bet wins, and what it costs on average before you click. Nothing here is hidden.'),
+        open && h('div', { class: 'banner' }, h('b', {}, 'Unfinished round'), h('span', {}, `An open ${gameById(open.game)?.name} round for ${fmtAgt(open.amount)} is waiting.`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume')))),
+      h('div', { class: 'wallet-card' },
+        h('div', { class: 't-label' }, 'Balance'),
+        h('div', { class: 'big num' }, fmt(m.user.balance), h('small', {}, 'AGT')),
+        h('div', { class: 'chips' },
+          h('span', { class: `delta-chip ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}` }, `${fmtSigned(sessNet)} this session`),
+          h('span', { class: `delta-chip ${net > 0 ? 'up' : net < 0 ? 'down' : ''}` }, `${fmtSigned(net)} all time`),
+          h('span', { class: 'delta-chip' }, `${fmtMoney(m.user.notional)} per token`)),
+        h('div', { class: 'mini-grid' },
+          h('div', {}, h('div', { class: 'l' }, 'Wagered'), h('div', { class: 'v' }, fmt(s.wagered, 0))),
+          h('div', {}, h('div', { class: 'l' }, 'Edge predicted'), h('div', { class: 'v bad' }, '−' + fmt(s.expectedLoss))),
+          h('div', {}, h('div', { class: 'l' }, 'In money'), h('div', { class: `v ${net >= 0 ? 'good' : 'bad'}` }, (net < 0 ? '−' : '') + fmtMoney(Math.abs(net) * m.user.notional)))))),
+    gamesGrid(true));
 }
 
 /* ---------------- auth ---------------- */
@@ -131,7 +180,7 @@ function authPage(mode, note) {
       location.hash = '#/';
     } catch (ex) { err.textContent = ex.message; submit.disabled = false; }
   } },
-    h('h2', { class: 'gt' }, isSignup ? 'Create your account' : 'Welcome back'),
+    h('h2', {}, isSignup ? 'Create your account' : 'Log in'),
     note && h('p', { class: 'help warn' }, note),
     h('div', { class: 'field' }, h('label', {}, 'Username'), h('div', { class: 'input' }, userIn)),
     h('div', { class: 'field' }, h('label', {}, 'Password'), h('div', { class: 'input' }, passIn)),
@@ -139,7 +188,7 @@ function authPage(mode, note) {
     h('p', { class: 'help' }, isSignup ? ['Already have an account? ', h('a', { href: '#/login' }, 'Log in')] : ['New here? ', h('a', { href: '#/signup' }, 'Create an account')]),
     isSignup && h('p', { class: 'help muted' }, 'We store a username and a scrypt password hash. No email, no payment details, no tracking.'));
   return h('div', { class: 'stack', style: { gap: '24px' } },
-    h('div', { class: 'hero', style: { textAlign: 'center', justifyItems: 'center', padding: '8px 0' } }, h('div', { class: 'eyebrow' }, 'Pentropy Play'), h('h1', { class: 'gt' }, isSignup ? '1,000 tokens. Zero value.' : 'Log in')),
+    h('div', { class: 'hero', style: { textAlign: 'center', justifyItems: 'center', padding: '8px 0' } }, h('div', { class: 'eyebrow' }, 'Pentropy Play'), h('h1', {}, isSignup ? '1,000 tokens. Zero value.' : 'Welcome back')),
     form);
 }
 
@@ -150,9 +199,6 @@ async function gamePage(id) {
   const m = me();
   const foreign = m.openRound && m.openRound.game !== id ? m.openRound : null;
   const root = h('div', { class: 'stack', style: { gap: '20px' } },
-    h('div', { class: 'row between' },
-      h('a', { class: 'btn ghost sm', href: '#/' }, svgUse('i-back'), h('span', {}, 'All games')),
-      h('span', { class: 't-desc' }, meta.blurb)),
     gameHeader(meta),
     foreign && h('div', { class: 'banner' }, h('b', {}, 'Unfinished round'), h('span', {}, `Finish your ${gameById(foreign.game)?.name} round before starting another game.`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${foreign.game}` }, h('span', {}, 'Go there'))));
   const mountPoint = h('div');
@@ -238,16 +284,16 @@ function balanceChart(actual, expected) {
     svg.append(el('text', { x: px - 6, y: y(b) + 4, 'text-anchor': 'end', fill: 'rgba(255,255,255,.4)', 'font-size': 10, 'font-family': 'JetBrains Mono, monospace' }, fmt(b, 0)));
   }
   svg.append(el('path', { d: path(expected), fill: 'none', stroke: 'rgba(255,255,255,.45)', 'stroke-width': 2, 'stroke-dasharray': '6 5', 'stroke-linejoin': 'round' }));
-  svg.append(el('path', { d: path(actual), fill: 'none', stroke: '#a685ff', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
-  for (const p of actual.filter((q) => q.refill)) svg.append(el('circle', { cx: x(p.t), cy: y(p.b), r: 4, fill: '#ffc628', stroke: '#10101c', 'stroke-width': 2 }));
+  svg.append(el('path', { d: path(actual), fill: 'none', stroke: '#7b6cff', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+  for (const p of actual.filter((q) => q.refill)) svg.append(el('circle', { cx: x(p.t), cy: y(p.b), r: 4, fill: '#f3c969', stroke: '#0c1017', 'stroke-width': 2 }));
   const last = actual[actual.length - 1];
-  svg.append(el('circle', { cx: x(last.t), cy: y(last.b), r: 4, fill: '#a685ff', stroke: '#10101c', 'stroke-width': 2 }));
+  svg.append(el('circle', { cx: x(last.t), cy: y(last.b), r: 4, fill: '#7b6cff', stroke: '#0c1017', 'stroke-width': 2 }));
   svg.append(el('text', { x: Math.min(x(last.t) + 8, W - 60), y: y(last.b) - 8, fill: '#fff', 'font-size': 11, 'font-weight': 700, 'font-style': 'italic' }, `Actual ${fmt(last.b, 0)}`));
   const le = expected[expected.length - 1];
   svg.append(el('text', { x: Math.min(x(le.t) + 8, W - 70), y: y(le.b) + 14, fill: 'rgba(255,255,255,.6)', 'font-size': 11, 'font-weight': 700, 'font-style': 'italic' }, `Expected ${fmt(le.b, 0)}`));
   const tip = h('div', { class: 'tip' });
   const wrap = h('div', { class: 'chart' },
-    h('div', { class: 'legend' }, h('span', {}, h('i', { style: { background: '#a685ff' } }), 'Actual balance'), h('span', {}, h('i', { style: { background: 'rgba(255,255,255,.45)', height: '0', borderTop: '2px dashed rgba(255,255,255,.6)' } }), 'Expected balance'), h('span', {}, h('i', { style: { background: '#ffc628', width: '8px', height: '8px', borderRadius: '50%' } }), 'Refill')),
+    h('div', { class: 'legend' }, h('span', {}, h('i', { style: { background: '#7b6cff' } }), 'Actual balance'), h('span', {}, h('i', { style: { background: 'rgba(255,255,255,.45)', height: '0', borderTop: '2px dashed rgba(255,255,255,.6)' } }), 'Expected balance'), h('span', {}, h('i', { style: { background: '#f3c969', width: '8px', height: '8px', borderRadius: '50%' } }), 'Refill')),
     svg, tip);
   svg.addEventListener('mousemove', (e) => {
     const rect = svg.getBoundingClientRect();
@@ -382,7 +428,9 @@ subscribe((type, payload) => {
   if (type === 'balance') {
     const el = document.getElementById('balance');
     if (el && user()) {
-      el.querySelector('.num').textContent = fmt(user().balance);
+      el.querySelector('.amt').textContent = fmt(user().balance);
+      const d = document.getElementById('session-delta'); const n = sessionNet();
+      if (d) { d.textContent = `${fmtSigned(n)} today`; d.className = `delta ${n > 0 ? 'up' : n < 0 ? 'down' : ''}`; }
       el.classList.remove('flash-up', 'flash-down'); void el.offsetWidth;
       if (payload?.delta > 0) el.classList.add('flash-up'); else if (payload?.delta < 0) el.classList.add('flash-down');
     }

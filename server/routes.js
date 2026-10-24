@@ -2,7 +2,7 @@
 import { HttpError, bad, v, assertSameOrigin, parseCookies, sessionCookie, cookieName } from './security.js';
 import { transaction } from './db.js';
 import { FairRng, randomHex, sha256Hex } from './fairness.js';
-import { GAMES, GAME_IDS } from './engine.js';
+import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { LESSON_IDS } from './lessons.js';
 
 const cents = (agt) => Math.round(agt * 100);

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GAMES } from '../server/engine.js';
+import { GAMES } from '../shared/engine.js';
 import { FairRng } from '../server/fairness.js';
 import { replayRound, canonicalOutcome, floatsAtStart } from '../shared/replay.js';
 import * as M from '../shared/math.js';

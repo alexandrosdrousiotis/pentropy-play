@@ -4,13 +4,19 @@ export const subscribe = (fn) => (listeners.add(fn), () => listeners.delete(fn))
 const emit = (type, payload) => listeners.forEach((fn) => fn(type, payload));
 
 export const state = { me: null, loading: true };
+export const DEMO = document.querySelector('meta[name="pentropy-mode"]')?.content === 'demo';
+const demo = DEMO ? await import('./demo-api.js') : null;
 
 export class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
 async function call(method, path, body) {
-  const res = await fetch(path, {
+  if (demo) {
+    try { return await demo.call(method, path, body); }
+    catch (e) { if (e.status === 401 && state.me) { state.me = null; emit('auth'); } throw new ApiError(e.status || 500, e.message); }
+  }
+  const res = await fetch(path.replace(/^\//, ''), {
     method,
     headers: { 'content-type': 'application/json', 'x-requested-with': 'pentropy' },
     body: body === undefined ? undefined : JSON.stringify(body),

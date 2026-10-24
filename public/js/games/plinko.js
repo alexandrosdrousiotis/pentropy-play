@@ -4,7 +4,7 @@ import { PLINKO_ROWS, PLINKO_RISKS, plinkoTable, plinkoRtp, binomialProbs } from
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
-const binColor = (m) => (m >= 100 ? 'var(--red-50)' : m >= 10 ? 'var(--orange-50)' : m >= 2 ? 'var(--yellow-50)' : m >= 1 ? 'var(--green-50)' : 'var(--purple-20)');
+const binColor = (m) => (m >= 100 ? 'var(--down)' : m >= 10 ? 'var(--warn)' : m >= 2 ? 'var(--gold)' : m >= 1 ? 'var(--up)' : 'var(--fg-3)');
 
 export function mount(root, meta) {
   const L = layout(root);

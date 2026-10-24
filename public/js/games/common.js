@@ -57,13 +57,17 @@ export function controlsPanel(...children) {
 }
 
 export function gameHeader(game) {
-  return h('div', { class: 'row between' },
-    h('div', { class: 'stack', style: { gap: '2px' } },
-      h('div', { class: 'eyebrow' }, game.tagline),
-      h('h2', { class: 'gt' }, game.name)),
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', `#g-${game.id}`); svg.append(use);
+  return h('div', { class: 'game-head' },
+    h('div', { class: 'title' },
+      h('span', { class: `icon art ${game.id}` }, svg),
+      h('div', {}, h('h2', {}, game.name), h('div', { class: 'sub' }, game.blurb))),
     h('div', { class: 'row' },
       h('span', { class: 'tag' }, `RTP ${fmtPct(game.rtp, 2)}`),
-      h('span', { class: 'tag hot' }, `ceiling ${game.ceiling}`)));
+      h('span', { class: 'tag hot' }, `max ${game.ceiling}`),
+      h('a', { class: 'btn ghost sm', href: '#/' }, h('span', {}, 'All games'))));
 }
 
 /** Open a round; shows a toast on refusal and returns null. */
