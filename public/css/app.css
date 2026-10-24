@@ -639,3 +639,4 @@ a.island:hover{text-decoration:none;transform:translateY(-3px);filter:brightness
 .card .art.has-img img{opacity:1}
 .card .art.has-img svg{display:none}
 @media (max-width:860px){.islands{grid-template-columns:1fr;gap:10px}.island{min-height:130px;padding:14px}.island h3{font-size:18px}}
+@media (max-width:860px){.rtable{grid-template-columns:32px 1fr 32px;gap:3px}.rgrid,.rdozens,.routs{gap:2px}.rcell{height:28px;font-size:10px;padding:0;border-radius:5px}.rcols .rcell{font-size:9px}}
