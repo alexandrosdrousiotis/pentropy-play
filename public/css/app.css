@@ -760,3 +760,32 @@ a.card:hover .art img{transform:scale(1.04)}
 .game-head.has-art::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,11,13,.92) 0%,rgba(10,11,13,.72) 50%,rgba(10,11,13,.45) 100%);z-index:-1}
 .game-head.has-art .icon{display:none}
 @media (max-width:860px){.islands{grid-template-columns:1fr}.island.lead{min-height:170px}.island.lead h3{font-size:22px}.grow .card{flex-basis:132px}.all-games .cards{grid-template-columns:repeat(3,1fr)}}
+
+/* ---- landing ---- */
+.hero-banner{position:relative;min-height:380px;border-radius:16px;overflow:hidden;background:#0a0b0d;display:flex;align-items:flex-end;isolation:isolate}
+.hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 40%;z-index:-2}
+.hero-banner::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(10,11,13,.9) 0%,rgba(10,11,13,.6) 45%,rgba(10,11,13,.15) 100%),linear-gradient(0deg,rgba(10,11,13,.85),transparent 55%)}
+.hero-copy{position:relative;display:grid;gap:12px;max-width:560px;padding:32px}
+.hero-copy h1{font-size:clamp(30px,4vw,44px);color:#fff}
+.hero-copy .lead{color:#d2d5db}
+.cta-card{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:22px 24px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.cta-card h2{font-size:20px}
+.landing .grow .card{flex-basis:150px}
+.main:has(.tabbar[hidden]) .wrap{padding-bottom:40px}
+@media (max-width:860px){
+  .hero-banner{min-height:440px;border-radius:14px;margin:0 -2px}
+  .hero-banner::before{background:linear-gradient(0deg,rgba(10,11,13,.97) 0%,rgba(10,11,13,.85) 40%,rgba(10,11,13,.35) 70%,rgba(10,11,13,.05) 100%)}
+  .hero-img{object-position:center 20%}
+  .hero-copy h1,.hero-copy .lead{text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .hero-copy{padding:20px 18px 22px;gap:10px}
+  .hero-copy h1{font-size:30px}
+  .hero-copy .lead{font-size:14px}
+  .hero-copy .row{gap:8px}
+  .hero-copy .row .btn{flex:1}
+  .landing .reality{grid-template-columns:1fr 1fr}
+  .landing .grow .card{flex-basis:124px}
+  .cta-card{padding:18px}
+  .cta-card .btn{width:100%}
+  body:has(.tabbar[hidden]) .wrap{padding-bottom:40px}
+  body:has(.tabbar[hidden]) .foot-note{padding-bottom:28px}
+}

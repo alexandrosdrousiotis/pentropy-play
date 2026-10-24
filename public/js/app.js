@@ -55,6 +55,7 @@ function renderChrome() {
       h('a', { class: 'avatar', href: '#/account', title: u.username }, u.username.slice(0, 2)))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Sign up'))),
   );
+  tabbar.hidden = !u;
   tabbar.replaceChildren(...NAV.map(([href, label, icon]) => h('a', { href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label)));
 }
 function soundToggle() {
@@ -101,23 +102,34 @@ window.addEventListener('hashchange', render);
 const tile = (v, l, d, cls = '') => h('div', { class: `tile ${cls}` }, h('div', { class: 'v' }, v), h('div', { class: 'l' }, l), d && h('div', { class: 'd' }, d));
 
 function landingPage() {
-  return h('div', { class: 'stack', style: { gap: '28px' } },
-    h('section', { class: 'hero-landing' },
-      h('div', { class: 'hero' },
-        h('h1', {}, 'Casino games. Play money. Real odds.'),
+  const rowsOf = (cat) => CATALOG.filter((g) => g.cat === cat.id);
+  const tileRow = (title, games) => {
+    const cards = h('div', { class: 'cards' }, ...games.map((g) => gameTile(g, false, '#/signup')));
+    return h('section', { class: 'grow stack', style: { gap: '10px' } }, h('div', { class: 'section-head' }, h('h2', {}, title), h('span', { class: 't-desc' }, `${games.length} games`)), cards);
+  };
+  return h('div', { class: 'stack landing', style: { gap: '28px' } },
+    h('section', { class: 'hero-banner' },
+      h('img', { class: 'hero-img', src: 'art/roulette-banner.webp', alt: '', decoding: 'async', fetchpriority: 'high' }),
+      h('div', { class: 'hero-copy' },
+        h('div', { class: 'eyebrow' }, '19 games · play money · real odds'),
+        h('h1', {}, 'The casino, with the price tag showing'),
         h('p', { class: 'lead' }, '1,000 free tokens. The same games and the same odds as the real sites, with the cost of every bet shown before you place it.'),
-        h('div', { class: 'row', style: { marginTop: '6px' } }, h('a', { class: 'btn primary lg', href: '#/signup' }, h('span', {}, 'Play free')), h('a', { class: 'btn tertiary lg', href: '#/learn' }, h('span', {}, 'How it works')))),
-      h('div', { class: 'hero-art' }, ...CATALOG.slice(0, 6).map((g) => h('a', { class: `art ${g.id}`, href: '#/signup', 'aria-label': g.name }, svgUse(gameIcon(g.id)))))),
-    gamesGrid(false),
+        h('div', { class: 'row' }, h('a', { class: 'btn primary lg', href: '#/signup' }, h('span', {}, 'Play free')), h('a', { class: 'btn white lg', href: '#/learn' }, h('span', {}, 'How it works'))))),
     h('div', { class: 'reality' },
       tile('99%', 'Return to player', 'same as the real thing'),
-      tile('−€1', 'Costs you, per 100 AGT', 'shown before every bet'),
-      tile('Provably fair', 'Every round', 'verify in your browser'),
-      tile('€0', 'Token value', 'ever')));
+      tile('−€1', 'Per 100 AGT wagered', 'shown before every bet'),
+      tile('Fair', 'Every round', 'verify in your browser'),
+      tile('€0', 'Token value', 'ever')),
+    tileRow('Originals', rowsOf(CATEGORIES[0])),
+    tileRow('Streak games', rowsOf(CATEGORIES[1])),
+    tileRow('Table games', rowsOf(CATEGORIES[2])),
+    h('section', { class: 'cta-card' },
+      h('div', {}, h('h2', {}, 'Start with 1,000 AGT'), h('p', { class: 'help' }, 'No email. No card. Nothing to withdraw, because nothing is worth anything.')),
+      h('a', { class: 'btn primary lg', href: '#/signup' }, h('span', {}, 'Create account'))));
 }
 
 /** Game tile: artwork image when public/art/<id>.webp is listed in ART, otherwise the flat colour field with the icon. */
-function gameTile(g, linked) {
+function gameTile(g, linked, href = null) {
   const art = h('div', { class: `art ${g.id}`, style: { background: GAME_COLOR[g.id] } }, svgUse(gameIcon(g.id)));
   if (ART.has(g.id)) {
     const img = h('img', { src: `art/${g.id}.webp`, alt: '', loading: 'lazy', decoding: 'async' });
@@ -126,7 +138,7 @@ function gameTile(g, linked) {
     art.append(img);
   }
   art.append(h('span', { class: 'rtp-chip' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)), h('div', { class: 'name' }, g.name));
-  return h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null }, art);
+  return h(linked || href ? 'a' : 'div', { class: 'card', href: href || (linked ? `#/play/${g.id}` : null) }, art);
 }
 /** A horizontally scrolling row with arrow buttons. */
 function gameRow(title, games, linked, sub) {
