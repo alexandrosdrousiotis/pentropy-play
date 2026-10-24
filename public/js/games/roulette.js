@@ -29,7 +29,8 @@ export function mount(root, meta) {
   const svg = el('svg', { viewBox: '-100 -100 200 200' }); const disc = el('g', {});
   const step = 360 / 37;
   ORDER.forEach((n, i) => { const a0 = (i * step - 90) * Math.PI / 180, a1 = a0 + step * Math.PI / 180; const p = (a, r) => `${(Math.cos(a) * r).toFixed(2)},${(Math.sin(a) * r).toFixed(2)}`; disc.append(el('path', { d: `M${p(a0, 96)} A96,96 0 0 1 ${p(a1, 96)} L${p(a1, 66)} A66,66 0 0 0 ${p(a0, 66)} Z`, fill: colourOf(n), stroke: '#0a0b0d', 'stroke-width': .8 })); const am = (a0 + a1) / 2; const t = el('text', { x: (Math.cos(am) * 82).toFixed(2), y: (Math.sin(am) * 82).toFixed(2), 'text-anchor': 'middle', 'dominant-baseline': 'middle', fill: '#fff', 'font-size': 7, 'font-weight': 700, transform: `rotate(${(i * step + step / 2)} ${(Math.cos(am) * 82).toFixed(2)} ${(Math.sin(am) * 82).toFixed(2)})` }); t.textContent = String(n); disc.append(t); });
-  svg.append(disc, el('circle', { r: 62, fill: 'var(--surface)' }));
+  const ball = el('circle', { r: 4.5, cx: 0, cy: -80, fill: '#fff', class: 'rball' });
+  svg.append(disc, el('circle', { r: 62, fill: 'var(--surface)' }), ball);
   const pointer = h('div', { class: 'wheel-pointer' }); const readout = h('div', { class: 'wheel-readout num' }, '—');
   wrap.append(svg, pointer, readout);
   L.stage.append(h('div', { class: 'roulette-stage' }, wrap, tableEl));
@@ -54,7 +55,15 @@ export function mount(root, meta) {
     const { round } = out; const n = round.outcome.number; const idx = ORDER.indexOf(n);
     const target = 360 * 4 + (360 - (idx * step + step / 2));
     const from = angle % 360, to = from + target; let lastTick = -1;
-    await tween(3600, (e) => { const a = from + (to - from) * e; disc.style.transform = `rotate(${a}deg)`; const tk = Math.floor(a / step); if (tk !== lastTick) { lastTick = tk; sound.play('tick'); } }, ease.outCubic);
+    // ball orbits the other way on the outer rim, decelerates, then drops into the pocket under the pointer
+    const ballTurns = -(360 * 6 + 90);
+    await tween(3600, (e, k) => {
+      const a = from + (to - from) * e; disc.style.transform = `rotate(${a}deg)`;
+      const ba = ballTurns * e; const r = 80 + 12 * (1 - Math.min(1, k * 1.25)) ** 2 + 10 * (k < 0.8 ? 1 : 0);
+      ball.setAttribute('cx', (Math.cos((ba - 90) * Math.PI / 180) * r).toFixed(2)); ball.setAttribute('cy', (Math.sin((ba - 90) * Math.PI / 180) * r).toFixed(2));
+      const tk = Math.floor(a / step); if (tk !== lastTick) { lastTick = tk; sound.play('tick'); }
+    }, ease.outCubic);
+    ball.setAttribute('cx', 0); ball.setAttribute('cy', -80); sound.play('land');
     angle = to % 360;
     const win = round.multiplier > 0;
     readout.textContent = String(n); readout.style.color = n === 0 ? '#27ad75' : ROULETTE_RED.has(n) ? '#f0616d' : '#fff';

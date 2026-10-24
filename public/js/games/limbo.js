@@ -1,4 +1,4 @@
-import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
 import { limboWinChance, LIMBO_MAX } from '../../shared/math.js';
 import { sound, ticker, flashGreen, flashRed, winBurst, pulse } from '../fx.js';
@@ -15,7 +15,8 @@ export function mount(root, meta) {
 
   const big = h('div', { class: 'bignum num' }, '1.00x');
   const sub = h('div', { class: 'bubble' }, 'place a bet to roll');
-  L.stage.append(h('div', { class: 'stack', style: { justifyItems: 'center', gap: '14px' } }, big, sub));
+  const rocket = h('div', { class: 'limbo-rocket' }, svgUse('ph-rocket-launch'), h('span', { class: 'flame' }));
+  L.stage.append(h('div', { class: 'limbo-stage' }, rocket, h('div', { class: 'stack', style: { justifyItems: 'center', gap: '14px' } }, big, sub)));
   const banner = outcomeBanner(L.board);
   const strip = resultsStrip();
   L.results.append(h('h3', {}, 'Recent results'), strip.el);
@@ -31,11 +32,14 @@ export function mount(root, meta) {
     const point = round.outcome.point;
     big.className = 'bignum num';
     sub.textContent = `target ${fmtMult(target)}`; sub.className = 'bubble';
+    rocket.className = 'limbo-rocket'; rocket.style.transform = 'translateY(0) rotate(-45deg)'; void rocket.offsetWidth;
+    const rise = Math.min(1, Math.log(point) / Math.log(50)); rocket.style.transform = `translateY(${-(80 + rise * 240)}px) rotate(-45deg)`; sound.play('launch');
     const t0 = performance.now(); const spin = setInterval(() => { if (performance.now() - t0 < 700) sound.play('tick'); }, 70);
     await ticker(big, point, 900, (v) => fmtMult(Math.max(1, v)), { noise: Math.max(2, point * 0.6) });
     clearInterval(spin);
     const win = round.multiplier > 0;
     big.classList.add(win ? 'win' : 'loss'); pulse(big);
+    if (!win) rocket.classList.add('burst');
     if (win) { sound.play(round.multiplier >= 10 ? 'bigwin' : 'win'); flashGreen(L.board); if (round.multiplier >= 10) winBurst(L.board); } else { sound.play('lose'); flashRed(L.board); }
     sub.className = `bubble ${win ? 'win' : 'lose'}`;
     banner.show(win ? `WIN ${payoutLine(round)}` : `${fmtMult(point)} < ${fmtMult(target)} · −${fmt(round.amount)} AGT`, win);
