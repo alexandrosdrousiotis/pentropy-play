@@ -105,7 +105,7 @@ export function outcomeBanner(board) {
   return {
     show(text, win) {
       el.textContent = text;
-      el.className = `outcome show ${win ? 'win' : 'loss'}`;
+      el.className = `outcome show ${win === 'push' ? 'push' : win ? 'win' : 'loss'}`;
       clearTimeout(timer);
       timer = setTimeout(() => el.classList.remove('show'), 2600);
     },
@@ -125,11 +125,26 @@ export function resultsStrip(max = 14) {
   };
 }
 
-/* ---- playing card ---- */
+/* ---- playing card: a 3D flip card. data-face="up|down" drives the rotation ---- */
 import { RANKS, SUITS } from '../shared/math.js';
-export function cardEl(card, { big = false, back = false, held = false, selectable = false, onClick } = {}) {
-  if (back) return h('div', { class: `pcard back${big ? ' big' : ''}` });
-  const red = card.suit === 1 || card.suit === 2;
-  return h('button', { type: 'button', class: `pcard${red ? ' red' : ''}${big ? ' big' : ''}${held ? ' held' : ''}${selectable ? ' sel' : ''}`, onClick, 'aria-label': `${RANKS[card.rank - 1]} of ${['spades', 'hearts', 'diamonds', 'clubs'][card.suit]}` },
-    h('span', { class: 'r' }, RANKS[card.rank - 1]), h('span', { class: 's' }, SUITS[card.suit]));
+export function cardEl(card, { big = false, back = false, held = false, selectable = false, onClick, faceDown = false } = {}) {
+  const red = card && (card.suit === 1 || card.suit === 2);
+  const front = card
+    ? h('div', { class: 'face front' }, h('span', { class: 'r' }, RANKS[card.rank - 1]), h('span', { class: 's' }, SUITS[card.suit]), h('span', { class: 'r b' }, RANKS[card.rank - 1]))
+    : h('div', { class: 'face front' });
+  const el = h('button', {
+    type: 'button',
+    class: `pcard${red ? ' red' : ''}${big ? ' big' : ''}${held ? ' held' : ''}${selectable ? ' sel' : ''}`,
+    'data-face': back || faceDown || !card ? 'down' : 'up',
+    'aria-label': card ? `${RANKS[card.rank - 1]} of ${['spades', 'hearts', 'diamonds', 'clubs'][card.suit]}` : 'Face-down card',
+    onClick,
+  }, h('div', { class: 'inner' }, front, h('div', { class: 'face back' })));
+  el.flip = (up = true) => { el.dataset.face = up ? 'up' : 'down'; };
+  el.setCard = (c) => {
+    const r2 = c.suit === 1 || c.suit === 2;
+    el.classList.toggle('red', r2);
+    front.replaceChildren(h('span', { class: 'r' }, RANKS[c.rank - 1]), h('span', { class: 's' }, SUITS[c.suit]), h('span', { class: 'r b' }, RANKS[c.rank - 1]));
+    el.setAttribute('aria-label', `${RANKS[c.rank - 1]} of ${['spades', 'hearts', 'diamonds', 'clubs'][c.suit]}`);
+  };
+  return el;
 }

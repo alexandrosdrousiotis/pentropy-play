@@ -6,6 +6,7 @@ import * as edu from './edu.js';
 import { replayFloats, sha256Hex } from './verify-rng.js';
 import { replayRound, canonicalOutcome } from '../shared/replay.js';
 import { gameHeader } from './games/common.js';
+import { countTo, sound } from './fx.js';
 
 const app = document.getElementById('app');
 const side = document.getElementById('side');
@@ -49,10 +50,18 @@ function renderChrome() {
       h('div', { class: 'wallet', id: 'balance', title: 'Anti-gambling tokens. Imaginary. No value.' },
         h('span', { class: 'amt num' }, fmt(u.balance)), h('span', { class: 'cur' }, 'AGT'),
         h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta' }, `${fmtSigned(sessNet)} today`)),
+      soundToggle(),
       h('a', { class: 'avatar', href: '#/account', title: u.username }, u.username.slice(0, 2)))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Get 1,000 AGT'))),
   );
   tabbar.replaceChildren(...NAV.map(([href, label, icon]) => h('a', { href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label)));
+}
+function soundToggle() {
+  const b = h('button', { type: 'button', class: 'sound-toggle', 'aria-pressed': String(sound.enabled), title: 'Sound', 'aria-label': 'Toggle sound' });
+  const paint = () => { b.setAttribute('aria-pressed', String(sound.enabled)); b.replaceChildren(svgUse(sound.enabled ? 'i-sound' : 'i-mute')); };
+  b.addEventListener('click', () => { sound.enabled = !sound.enabled; paint(); if (sound.enabled) sound.play('click'); });
+  paint();
+  return b;
 }
 function renderFooter() {
   footer.replaceChildren(
@@ -428,7 +437,9 @@ subscribe((type, payload) => {
   if (type === 'balance') {
     const el = document.getElementById('balance');
     if (el && user()) {
-      el.querySelector('.amt').textContent = fmt(user().balance);
+      const amt = el.querySelector('.amt');
+      const from = Number(amt.textContent.replace(/,/g, '')) || user().balance;
+      countTo(amt, from, user().balance, 650, (v) => fmt(v));
       const d = document.getElementById('session-delta'); const n = sessionNet();
       if (d) { d.textContent = `${fmtSigned(n)} today`; d.className = `delta ${n > 0 ? 'up' : n < 0 ? 'down' : ''}`; }
       el.classList.remove('flash-up', 'flash-down'); void el.offsetWidth;

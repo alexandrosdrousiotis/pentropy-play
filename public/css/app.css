@@ -180,7 +180,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
 .chip.loss{background:var(--down-soft);border-color:rgba(255,92,114,.3);color:var(--down)}
 .outcome{position:absolute;inset:auto 0 0 0;padding:14px 20px;text-align:center;font-weight:600;font-size:15px;letter-spacing:-.01em;background:linear-gradient(180deg,transparent,var(--bg-1) 40%);transform:translateY(100%);transition:transform var(--med) var(--ease);font-variant-numeric:tabular-nums}
 .outcome.show{transform:none}
-.outcome.win{color:var(--up)}.outcome.loss{color:var(--down)}
+.outcome.win{color:var(--up)}.outcome.loss{color:var(--down)}.outcome.push{color:var(--fg-2)}
 
 /* ---------- lobby tiles ---------- */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:14px}
@@ -238,7 +238,7 @@ a.card:hover{text-decoration:none;transform:translateY(-4px);border-color:var(--
 .game-head .sub{font-size:12px;color:var(--fg-3)}
 
 /* dice */
-.dice-track{position:relative;height:46px;border-radius:999px;background:var(--bg-1);border:1px solid var(--line);width:100%;max-width:640px}
+.dice-track{position:relative;height:46px;border-radius:999px;background:var(--bg-1);border:1px solid var(--line);width:calc(100% - 64px);max-width:640px;margin:12px 32px 0}
 .dice-track .zone{position:absolute;top:14px;bottom:14px;border-radius:999px}
 .dice-track .zone.lose{background:var(--down);opacity:.85}.dice-track .zone.win{background:var(--up);opacity:.9}
 .dice-track .marker{position:absolute;top:-10px;width:56px;height:66px;margin-left:-28px;display:grid;place-items:center;transition:left .5s var(--ease)}
@@ -384,3 +384,103 @@ table.data tr:last-child td{border-bottom:0}
 .defs{position:absolute;width:0;height:0;overflow:hidden}
 .top .brand-sm{display:none;padding:0;margin-right:4px}
 @media (max-width:860px){.top .brand-sm{display:flex}}
+
+/* ===================== motion layer ===================== */
+.fx-shake{animation:fx-shake .45s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes fx-shake{10%,90%{transform:translate3d(-1px,0,0)}20%,80%{transform:translate3d(2px,0,0)}30%,50%,70%{transform:translate3d(-4px,0,0)}40%,60%{transform:translate3d(4px,0,0)}}
+.fx-pulse{animation:fx-pulse .5s var(--ease)}
+@keyframes fx-pulse{0%{transform:scale(1)}35%{transform:scale(1.06)}100%{transform:scale(1)}}
+.fx-flash-red{animation:fx-flash-red .6s ease-out}
+@keyframes fx-flash-red{0%{box-shadow:inset 0 0 0 999px rgba(255,92,114,.25)}100%{box-shadow:inset 0 0 0 999px rgba(255,92,114,0)}}
+.fx-flash-green{animation:fx-flash-green .7s ease-out}
+@keyframes fx-flash-green{0%{box-shadow:inset 0 0 0 999px rgba(31,214,144,.18)}100%{box-shadow:inset 0 0 0 999px rgba(31,214,144,0)}}
+.fx-pop{animation:fx-pop .55s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes fx-pop{0%{transform:scale(.4);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}
+.fx-rise{animation:fx-rise .5s var(--ease) both}
+@keyframes fx-rise{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+
+/* 3D cards */
+.pcard{width:66px;height:94px;border:0;padding:0;background:transparent;perspective:900px;position:relative;cursor:default;font-size:15px;font-weight:700;color:#111827;animation:none;box-shadow:none;transition:transform var(--fast) var(--ease)}
+.pcard .inner{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.2,.75,.2,1);border-radius:9px}
+.pcard[data-face=down] .inner{transform:rotateY(180deg)}
+.pcard .face{position:absolute;inset:0;border-radius:9px;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 10px 24px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.25)}
+.pcard .face.front{background:linear-gradient(160deg,#fff 0%,#f1f3f8 100%);display:grid;grid-template-rows:auto 1fr auto;padding:7px}
+.pcard .face.front .r{line-height:1;letter-spacing:-.02em}
+.pcard .face.front .r.b{transform:rotate(180deg);justify-self:end}
+.pcard .face.front .s{font-size:28px;place-self:center;line-height:1}
+.pcard .face.back{transform:rotateY(180deg);background:
+  linear-gradient(135deg,rgba(255,255,255,.08),transparent 40%),
+  repeating-linear-gradient(45deg,#2b2f5e 0 4px,#1b1f45 4px 8px);box-shadow:0 10px 24px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.1);outline:3px solid #10122b;outline-offset:-6px}
+.pcard.red .face.front{color:#d92d4a}
+.pcard.big{width:112px;height:158px;font-size:26px}.pcard.big .face.front .s{font-size:54px}
+.pcard.held{transform:translateY(-10px)}
+.pcard.held .face.front{box-shadow:0 0 0 2px var(--gold),0 14px 28px rgba(0,0,0,.5)}
+.pcard.held::after{content:"HELD";position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--gold)}
+.pcard.sel{cursor:pointer}.pcard.sel:hover{transform:translateY(-4px)}
+.pcard.sel.held:hover{transform:translateY(-12px)}
+.pcard.win .face.front{box-shadow:0 0 0 2px var(--up),0 0 24px var(--up-soft),0 14px 28px rgba(0,0,0,.5)}
+.shoe{position:absolute;right:28px;top:22px;width:56px;height:76px;border-radius:8px;background:repeating-linear-gradient(45deg,#2b2f5e 0 4px,#1b1f45 4px 8px);box-shadow:0 8px 20px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.08),-2px -2px 0 #23264d,-4px -4px 0 #1b1f45,-6px -6px 0 #15183a;opacity:.9;pointer-events:none}
+.shoe::after{content:"";position:absolute;inset:6px;border-radius:5px;outline:2px solid #10122b}
+.table-felt{position:relative;border-radius:var(--r);background:radial-gradient(ellipse 80% 70% at 50% 30%,rgba(31,214,144,.07),transparent 70%)}
+.bubble{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;background:var(--surface-3);border:1px solid var(--line-2);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--fg-2);transition:background var(--fast),color var(--fast)}
+.bubble.win{background:var(--up-soft);color:var(--up);border-color:rgba(31,214,144,.3)}
+.bubble.lose{background:var(--down-soft);color:var(--down);border-color:rgba(255,92,114,.3)}
+.bubble.bust{background:var(--down);color:#fff;border-color:transparent}
+
+/* flipping tiles (mines, keno, tower) */
+.cell{perspective:600px;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.2,.75,.2,1),background var(--fast),border-color var(--fast),opacity .4s}
+.cell.flip{transform:rotateY(180deg)}
+.cell.flip .toy{transform:rotateY(180deg)}
+.cell.flip .toy .ball{animation:fx-pop .45s cubic-bezier(.34,1.56,.64,1) .18s both}
+.cell.gem{background:linear-gradient(180deg,rgba(31,214,144,.22),rgba(31,214,144,.1));border-color:rgba(31,214,144,.5);box-shadow:0 0 18px -4px var(--up-soft)}
+.cell.mine{background:linear-gradient(180deg,rgba(255,92,114,.28),rgba(255,92,114,.12));border-color:rgba(255,92,114,.6)}
+.cell.mine.hitcell{box-shadow:0 0 0 2px var(--down),0 0 30px var(--down-soft)}
+.cell:hover:not(:disabled):not(.flip){transform:translateY(-2px) rotateY(0)}
+.keno-grid .cell{perspective:none;transform-style:flat}
+.keno-grid .cell.drawn,.keno-grid .cell.hit{animation:keno-pop .4s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes keno-pop{0%{transform:scale(.6)}100%{transform:scale(1)}}
+.keno-grid .cell.hit{box-shadow:0 0 0 2px var(--up),0 0 24px var(--up-soft)}
+.keno-grid .cell.miss{animation:none}
+.tower .cell{perspective:none;transform-style:flat}
+.tower .cell.gem .toy,.tower .cell.mine .toy{transform:none}
+.tower .trow{transition:transform .35s var(--ease),opacity .35s}
+.tower .trow.done{opacity:.55}
+
+/* dice */
+.dice-track .marker{transition:left .7s cubic-bezier(.34,1.3,.5,1)}
+.dice-track .marker b{transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .2s}
+.dice-track .marker.win b{transform:scale(1.12)}
+.dice-track .marker.loss b{transform:scale(1.04)}
+.dice-track .zone{transition:left .25s var(--ease),width .25s var(--ease)}
+
+/* crash */
+.crash-area .ticks-x,.crash-area .ticks-y{position:absolute;font-size:10px;font-weight:600;color:var(--fg-4);font-variant-numeric:tabular-nums;pointer-events:none}
+.crash-area .ticks-x{left:0;right:0;bottom:4px;display:flex;justify-content:space-between;padding:0 12px}
+.crash-area .ticks-y{top:8px;bottom:18px;right:10px;display:flex;flex-direction:column-reverse;justify-content:space-between;align-items:flex-end}
+.crash-area .readout.live{animation:crash-breathe 1.2s ease-in-out infinite}
+@keyframes crash-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+.crash-area .stamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-8deg) scale(.6);opacity:0;padding:10px 18px;border:3px solid var(--down);border-radius:10px;color:var(--down);font-weight:800;font-size:22px;letter-spacing:.08em;text-transform:uppercase;background:rgba(8,11,17,.6);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .2s;pointer-events:none}
+.crash-area.crashed .stamp{transform:translate(-50%,-50%) rotate(-8deg) scale(1);opacity:1}
+.crash-area.crashed svg path.line{stroke:var(--down)}
+.crash-area .dot{fill:#fff;filter:drop-shadow(0 0 6px var(--accent))}
+
+/* plinko */
+.plinko .ball{filter:drop-shadow(0 0 6px rgba(243,201,105,.6))}
+.plinko .peg.lit{fill:#fff;animation:peg-lit .3s ease-out}
+@keyframes peg-lit{0%{r:2.2}100%{r:1.3}}
+.bin{transition:transform .18s cubic-bezier(.34,1.56,.64,1),filter .18s}
+.bin.hit{transform:translateY(6px) scale(1.08);filter:brightness(1.3)}
+
+/* balance ticker */
+.wallet .amt{transition:color .2s}
+.wallet.flash-up .amt{color:var(--up)}.wallet.flash-down .amt{color:var(--down)}
+.sound-toggle{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);display:grid;place-items:center;color:var(--fg-3);cursor:pointer}
+.sound-toggle svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sound-toggle[aria-pressed=true]{color:var(--fg)}
+.btn:active:not(:disabled){transform:translateY(0) scale(.985)}
+
+/* win overlay */
+.win-burst{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.win-burst i{position:absolute;left:50%;top:55%;width:6px;height:6px;border-radius:2px;background:var(--gold);animation:burst .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes burst{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--bx),var(--by)) rotate(360deg) scale(.4);opacity:0}}
+@media (prefers-reduced-motion:reduce){.pcard .inner,.cell{transition:none}}

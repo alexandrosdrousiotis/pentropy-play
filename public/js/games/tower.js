@@ -1,10 +1,11 @@
 import { h, button, segmented, toy, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { TOWER_LEVELS, TOWER_ROWS, towerMultiplier, round2 } from '../../shared/math.js';
+import { sleep, sound, shake, flashRed, flashGreen, winBurst, popIn, pulse } from '../fx.js';
 
 export function mount(root, meta) {
   const L = layout(root);
-  let level = 'medium', round = null, busy = false;
+  let level = 'medium', round = null, busy = false, dead = false;
   const amount = betAmount(10, () => reality.update());
   const levelSeg = segmented(Object.entries(TOWER_LEVELS).map(([k, v]) => ({ value: k, label: v.label })), level, (v) => { level = v; build(); reality.update(); }, { block: true });
   const play = button('Start climb', { kind: 'primary', size: 'lg block', onClick: () => start() });
@@ -24,74 +25,88 @@ export function mount(root, meta) {
   });
   L.reality.append(reality);
 
-  let rows = [];
-  function build(outcome = null) {
+  let rows = []; // rows[r] = { el, cells }
+  function build() {
     const { tiles } = TOWER_LEVELS[level];
     const v = round?.view;
-    tower.replaceChildren();
-    rows = [];
+    tower.replaceChildren(); rows = [];
     for (let r = TOWER_ROWS - 1; r >= 0; r--) {
       const rowEl = h('div', { class: 'trow', style: { gridTemplateColumns: `repeat(${tiles},1fr)` } });
-      const active = round && v.row === r;
-      if (active) rowEl.classList.add('active');
+      const cellsR = [];
       for (let t = 0; t < tiles; t++) {
-        const c = h('button', { class: 'cell', type: 'button', disabled: !active || busy, 'aria-label': `Row ${r + 1} tile ${t + 1}`, onClick: () => pick(t) });
-        const picked = (v?.picks ?? outcome?.picks ?? [])[r];
-        if (outcome) {
-          const isEgg = outcome.layout[r].includes(t);
-          if (r < outcome.row || (r === outcome.row && picked === t)) {
-            if (picked === t) { c.classList.add(isEgg ? 'gem' : 'mine'); c.append(toy(isEgg ? 'dragon' : 'bomb', 22)); }
-            else if (isEgg) { c.classList.add('dim'); c.append(toy('dragon', 18)); }
-            else c.classList.add('dim');
-          } else if (isEgg) { c.classList.add('dim'); c.append(toy('dragon', 18)); } else c.classList.add('dim');
-        } else if (v && r < v.row) { if (picked === t) { c.classList.add('gem'); c.append(toy('dragon', 22)); } else c.classList.add('dim'); }
-        rowEl.append(c);
+        const c = h('button', { class: 'cell', type: 'button', disabled: true, 'aria-label': `Row ${r + 1} tile ${t + 1}`, onClick: () => pick(r, t) });
+        rowEl.append(c); cellsR.push(c);
       }
       rowEl.append(h('div', { class: 'mult num' }, fmtMult(round2(towerMultiplier(level, r + 1)))));
-      tower.append(rowEl);
-      rows[r] = rowEl;
+      tower.append(rowEl); rows[r] = { el: rowEl, cells: cellsR };
     }
-    const live = Boolean(round);
+    if (v) { for (let r = 0; r < v.row; r++) { markEgg(r, v.picks[r], false); rows[r].el.classList.add('done'); } setActive(v.row); }
+    paintControls();
+  }
+  function setActive(r) {
+    rows.forEach((row, i) => { row.el.classList.toggle('active', i === r); row.cells.forEach((c) => { if (!c.classList.contains('gem') && !c.classList.contains('mine')) c.disabled = i !== r || busy; }); });
+  }
+  function markEgg(r, t, animate = true) { const c = rows[r].cells[t]; c.className = 'cell gem'; c.replaceChildren(toy('dragon', 22)); c.disabled = true; if (animate) popIn(c.firstChild); }
+  function markBomb(r, t) { const c = rows[r].cells[t]; c.className = 'cell mine hitcell'; c.replaceChildren(toy('bomb', 22)); c.disabled = true; popIn(c.firstChild); }
+  function paintControls() {
+    const v = round?.view; const live = Boolean(round);
     play.disabled = live; amount.setDisabled(live); levelSeg.setDisabled(live);
-    cash.disabled = !live || !(v?.row > 0);
+    cash.disabled = !live || busy || !(v?.row > 0);
     cash.querySelector('span').textContent = live && v?.row ? `Cash out ${fmt(round.amount * v.multiplier)} AGT (${fmtMult(v.multiplier)})` : 'Cash out';
   }
-
+  async function revealLayout(outcome) {
+    for (let r = 0; r < TOWER_ROWS; r++) {
+      if (dead) return;
+      const picked = outcome.picks[r];
+      rows[r].cells.forEach((c, t) => {
+        if (c.classList.contains('gem') || c.classList.contains('mine')) return;
+        const egg = outcome.layout[r].includes(t);
+        c.className = `cell ${egg ? 'gem' : 'mine'} dim`; c.replaceChildren(toy(egg ? 'dragon' : 'bomb', 18)); c.disabled = true;
+      });
+      rows[r].el.classList.remove('active');
+      sound.play('tick'); await sleep(45);
+    }
+  }
   async function start() {
     if (busy || round) return;
-    busy = true;
+    busy = true; play.disabled = true;
     const out = await tryBet('tower', amount.get(), { level });
     busy = false;
-    if (!out) return;
-    round = out.round; banner.hide(); build(); reality.update();
+    if (!out) { play.disabled = false; return; }
+    round = out.round; banner.hide(); sound.play('click'); build(); reality.update();
   }
-  async function pick(t) {
-    if (busy || !round) return;
-    busy = true; build();
-    const out = await tryAct('pick', { tile: t });
-    busy = false;
-    if (!out) { build(); return; }
-    if (out.round.status === 'settled') return finish(out.round);
-    round = out.round; build(); reality.update();
+  async function pick(r, t) {
+    if (busy || !round || r !== round.view.row) return;
+    busy = true; setActive(-1);
+    const out = await tryAct('pick', { tile: t }, { defer: true });
+    if (!out) { busy = false; setActive(round.view.row); paintControls(); return; }
+    if (out.round.status === 'settled' && !out.round.outcome.cleared) {
+      markBomb(r, t); sound.play('bomb'); shake(tower); flashRed(L.board); await sleep(450);
+      out.commit(); return finish(out.round);
+    }
+    markEgg(r, t); sound.play('reveal'); rows[r].el.classList.add('done');
+    if (out.round.status === 'settled') { out.commit(); return finish(out.round); }
+    round = out.round; out.commit(); busy = false; setActive(round.view.row); paintControls(); pulse(cash); reality.update();
   }
   async function cashout() {
     if (busy || !round) return;
-    busy = true;
-    const out = await tryAct('cashout');
-    busy = false;
-    if (out) finish(out.round);
+    busy = true; paintControls(); setActive(-1);
+    const out = await tryAct('cashout', {}, { defer: true });
+    if (!out) { busy = false; setActive(round.view.row); paintControls(); return; }
+    out.commit(); finish(out.round);
   }
-  function finish(r) {
+  async function finish(r) {
     const win = r.multiplier > 0;
     round = null;
-    build(r.outcome);
+    if (win) { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.outcome.cleared || r.multiplier >= 5) winBurst(L.board); }
     banner.show(win ? `WIN ${payoutLine(r)}` : `Fell on row ${r.outcome.row + 1} · −${fmt(r.amount)} AGT`, win);
     strip.push(win ? fmtMult(r.multiplier) : `row ${r.outcome.row + 1}`, win);
-    reality.update();
+    cash.disabled = true; cash.querySelector('span').textContent = 'Cash out';
+    await revealLayout(r.outcome);
+    busy = false; paintControls(); reality.update();
   }
-
   const existing = openRoundFor('tower');
   if (existing) { round = existing; level = existing.params.level; levelSeg.set(level); amount.set(existing.amount); }
   build();
-  return { unmount() {} };
+  return { unmount() { dead = true; } };
 }

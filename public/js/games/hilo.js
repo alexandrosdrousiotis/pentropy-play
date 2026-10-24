@@ -1,6 +1,7 @@
 import { h, button, cardEl, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
-import { RANKS, HILO_MAX } from '../../shared/math.js';
+import { RANKS } from '../../shared/math.js';
+import { dealFrom, slideOut, sleep, sound, flashGreen, flashRed, shake, popIn, winBurst } from '../fx.js';
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -10,10 +11,13 @@ export function mount(root, meta) {
   const cash = button('Cash out', { kind: 'orange', size: 'lg block', disabled: true, onClick: () => cashout() });
   L.controls.append(amount, play, cash, h('p', { class: 'help' }, 'Infinite deck: every card is drawn fresh from 52. “Higher” and “lower” are strict; “same” pays 12.87x. Skipping is free and changes nothing about the odds.'));
 
-  const cardSlot = h('div', { class: 'stack', style: { justifyItems: 'center', gap: '8px' } });
+  const shoe = h('div', { class: 'shoe', 'aria-hidden': 'true' });
+  const slot = h('div', { class: 'card-slot', style: { position: 'relative', width: '112px', height: '158px' } });
+  const label = h('div', { class: 'bubble' }, 'deal to start');
   const choices = h('div', { class: 'choices' });
-  const trail = h('div', { class: 'hand', style: { minHeight: '40px', justifyContent: 'flex-start' } });
-  L.stage.append(h('div', { class: 'stack', style: { width: '100%', gap: '16px' } }, h('div', { class: 'hilo' }, cardSlot, choices), trail));
+  const trail = h('div', { class: 'hand', style: { minHeight: '60px', justifyContent: 'flex-start', gap: '6px' } });
+  L.board.classList.add('table-felt');
+  L.stage.append(shoe, h('div', { class: 'stack', style: { width: '100%', gap: '20px' } }, h('div', { class: 'hilo' }, h('div', { class: 'stack', style: { justifyItems: 'center', gap: '10px' } }, slot, label), choices), trail));
   const banner = outcomeBanner(L.board);
   const strip = resultsStrip();
   L.results.append(h('h3', {}, 'Recent hands'), strip.el);
@@ -25,65 +29,94 @@ export function mount(root, meta) {
   });
   L.reality.append(reality);
 
-  function paint() {
+  let current = null; // the big card element
+  async function showCard(card, { animate = true } = {}) {
+    const el = cardEl(card, { big: true, faceDown: true });
+    el.style.position = 'absolute'; el.style.inset = '0';
+    slot.append(el);
+    if (animate) { sound.play('deal'); await dealFrom(el, shoe, { ms: 460 }); } else el.flip(true);
+    current = el;
+    return el;
+  }
+  function trailAdd(step) {
+    const mark = step.choice === 'skip' ? 'skip' : step.ok ? '✓' : '✗';
+    const wrap = h('div', { class: 'stack', style: { gap: '2px', justifyItems: 'center' } }, cardEl(step.from), h('span', { class: `t-desc ${step.ok && step.choice !== 'skip' ? 'good' : step.choice === 'skip' ? '' : 'bad'}` }, mark));
+    trail.append(wrap); popIn(wrap);
+    while (trail.children.length > 14) trail.firstChild.remove();
+  }
+  function paintControls() {
     const v = round?.view;
-    cardSlot.replaceChildren(...[v ? cardEl(v.card, { big: true }) : cardEl(null, { big: true, back: true }), h('div', { class: 't-label' }, v ? `${fmtMult(v.multiplier)} so far` : 'deal to start')].flat().filter(Boolean));
+    label.textContent = v ? `${fmtMult(v.multiplier)} so far` : 'deal to start';
+    label.className = `bubble${v && v.correct ? ' win' : ''}`;
     choices.replaceChildren(...(v ? [
-      ...['higher', 'same', 'lower'].filter((c) => v.options[c]).map((c) => button([h('span', {}, c), h('small', {}, `${fmtPct(v.options[c].chance, 1)} · ${fmtMult(v.options[c].multiplier)}`)], { kind: c === 'same' ? 'tertiary' : 'accent', onClick: () => guess(c) })),
-      button('Skip card', { kind: 'ghost', size: 'sm', onClick: () => skip() }),
+      ...['higher', 'same', 'lower'].filter((c) => v.options[c]).map((c) => button([h('span', {}, c), h('small', {}, `${fmtPct(v.options[c].chance, 1)} · ${fmtMult(v.options[c].multiplier)}`)], { kind: c === 'same' ? 'tertiary' : 'accent', disabled: busy, onClick: () => guess(c) })),
+      button('Skip card', { kind: 'ghost', size: 'sm', disabled: busy, onClick: () => skip() }),
     ] : []));
-    trail.replaceChildren(...(v?.history ?? []).slice(-12).map((s) => h('div', { class: 'stack', style: { gap: '2px', justifyItems: 'center' } }, cardEl(s.from), h('span', { class: 't-desc' }, s.choice === 'skip' ? 'skip' : s.ok ? '✓' : '✗'))));
     const live = Boolean(round);
     play.disabled = live; amount.setDisabled(live);
-    cash.disabled = !live || !(v?.correct > 0);
+    cash.disabled = !live || busy || !(v?.correct > 0);
     cash.querySelector('span').textContent = live && v?.correct ? `Cash out ${fmt(round.amount * v.multiplier)} AGT` : 'Cash out';
     reality.update();
   }
+  async function advance(step) {
+    // old card slides into the trail, new card deals in
+    const old = current;
+    if (old) { trailAdd(step); await slideOut(old, -120, 280); }
+    await showCard(step.to);
+  }
   async function start() {
     if (busy || round) return;
-    busy = true;
+    busy = true; play.disabled = true;
     const out = await tryBet('hilo', amount.get(), {});
-    busy = false;
-    if (!out) return;
-    round = out.round; banner.hide(); paint();
+    if (!out) { busy = false; play.disabled = false; return; }
+    round = out.round; banner.hide(); trail.replaceChildren(); slot.replaceChildren(); current = null;
+    await showCard(round.view.card);
+    busy = false; paintControls();
   }
   async function guess(choice) {
     if (busy || !round) return;
-    busy = true;
-    const out = await tryAct('guess', { choice });
+    busy = true; paintControls(); sound.play('click');
+    const out = await tryAct('guess', { choice }, { defer: true });
+    if (!out) { busy = false; paintControls(); return; }
+    const steps = out.round.status === 'settled' ? out.round.outcome.steps : out.round.view.history;
+    const step = steps[steps.length - 1];
+    await advance(step);
+    if (step.ok) { sound.play('reveal'); flashGreen(L.board); } else { sound.play('lose'); flashRed(L.board); shake(slot); }
     busy = false;
-    if (!out) return;
-    if (out.round.status === 'settled') return finish(out.round);
-    round = out.round; paint();
+    if (out.round.status === 'settled') { out.commit(); return finish(out.round); }
+    round = out.round; out.commit(); paintControls();
   }
   async function skip() {
     if (busy || !round) return;
-    busy = true;
-    const out = await tryAct('skip');
-    busy = false;
-    if (out) { round = out.round; paint(); }
+    busy = true; paintControls(); sound.play('click');
+    const out = await tryAct('skip', {}, { defer: true });
+    if (!out) { busy = false; paintControls(); return; }
+    const steps = out.round.view.history; await advance(steps[steps.length - 1]);
+    round = out.round; out.commit(); busy = false; paintControls();
   }
   async function cashout() {
     if (busy || !round) return;
-    busy = true;
+    busy = true; paintControls();
     const out = await tryAct('cashout');
     busy = false;
-    if (out) finish(out.round);
+    if (out) finish(out.round); else paintControls();
   }
   function finish(r) {
     const win = r.multiplier > 0;
     const last = r.outcome.steps[r.outcome.steps.length - 1];
     round = null;
-    cardSlot.replaceChildren(...[cardEl(r.outcome.cards[r.outcome.cards.length - 1], { big: true }), h('div', { class: 't-label' }, win ? `cashed out at ${fmtMult(r.multiplier)}` : r.outcome.capped ? 'cap reached' : `wrong: ${last.choice} from ${RANKS[last.from.rank - 1]} → ${RANKS[last.to.rank - 1]}`)].flat().filter(Boolean));
+    label.textContent = win ? `cashed out at ${fmtMult(r.multiplier)}` : r.outcome.capped ? 'cap reached' : `wrong: ${last.choice} from ${RANKS[last.from.rank - 1]} → ${RANKS[last.to.rank - 1]}`;
+    label.className = `bubble ${win ? 'win' : 'lose'}`;
+    if (win) { sound.play(r.multiplier >= 10 ? 'bigwin' : 'cashout'); winBurst(L.board); current?.classList.add('win'); }
     choices.replaceChildren();
-    trail.replaceChildren(...r.outcome.steps.slice(-12).map((s) => h('div', { class: 'stack', style: { gap: '2px', justifyItems: 'center' } }, cardEl(s.from), h('span', { class: 't-desc' }, s.choice === 'skip' ? 'skip' : s.ok ? '✓' : '✗'))));
     play.disabled = false; amount.setDisabled(false); cash.disabled = true; cash.querySelector('span').textContent = 'Cash out';
     banner.show(win ? `WIN ${payoutLine(r)}` : `Wrong call · −${fmt(r.amount)} AGT`, win);
     strip.push(win ? fmtMult(r.multiplier) : '✗', win);
     reality.update();
   }
   const existing = openRoundFor('hilo');
-  if (existing) { round = existing; amount.set(existing.amount); }
-  paint();
+  if (existing) { round = existing; amount.set(existing.amount); for (const s of existing.view.history) trailAdd(s); showCard(existing.view.card, { animate: false }); }
+  else { const back = cardEl(null, { back: true, big: true }); back.style.position = 'absolute'; back.style.inset = '0'; slot.append(back); }
+  paintControls();
   return { unmount() {} };
 }
