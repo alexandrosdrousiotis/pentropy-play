@@ -491,3 +491,78 @@ table.data tr:last-child td{border-bottom:0}
 .hero-art .art svg{width:42%;height:42%;fill:#fff}
 @media (max-width:860px){.hero-landing{grid-template-columns:1fr}.hero-art{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:860px){.wallet .delta,.wallet .go{display:none}.wallet{height:36px;padding:0 12px}.top .crumb{display:none}.top .brand-sm b,.top .brand-sm small{display:none}.sound-toggle,.avatar{width:36px;height:36px}}
+
+/* ===================== phone layout ===================== */
+@media (max-width:860px){
+  .wrap{padding-top:14px;gap:16px;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .top{height:56px;gap:8px}
+  .top .crumb{display:flex;font-size:15px;min-width:0;overflow:hidden;white-space:nowrap}
+  .top .crumb span{display:none}
+  .top .crumb b{overflow:hidden;text-overflow:ellipsis}
+  .wallet{height:36px;padding:0 10px;gap:6px}
+  .wallet .amt{font-size:14px}
+  /* game page: board first, controls under it, like a phone casino */
+  .game-grid{display:flex;flex-direction:column;gap:12px;align-items:stretch}
+  .game-grid .board{order:0;min-height:0;padding:14px 12px 58px;border-radius:14px}
+  .game-grid .panel.controls{order:1;padding:14px;gap:10px}
+  .board .stage{min-height:0}
+  .game-head{gap:8px}
+  .game-head h2{font-size:20px}
+  .game-head .icon{width:36px;height:36px;border-radius:10px}
+  .game-head .icon svg{width:20px;height:20px}
+  .game-head .sub{display:none}
+  .game-head .row .btn{display:none}
+  .tag{height:22px;font-size:11px;padding:0 8px}
+  .reality,.stat-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .tile{padding:12px 12px;border-radius:12px}
+  .tile .v{font-size:17px}
+  .tile .l{font-size:11px}
+  .tile .d{font-size:11px}
+  .results{gap:5px}
+  .chip{height:24px;font-size:11px;padding:0 8px}
+  .outcome{padding:12px 14px;font-size:14px}
+  /* lobby */
+  .cards{grid-template-columns:repeat(3,1fr);gap:8px}
+  .card{border-radius:12px}
+  .card .art svg{width:46%;height:46%}
+  .card .body{padding:8px 10px 10px;flex-direction:column;align-items:flex-start;gap:1px}
+  .card h4{font-size:13px;line-height:1.2}
+  .card .rtp{font-size:11px}
+  .balance-row{gap:10px 16px;padding:14px;border-radius:12px}
+  .balance-row .big{font-size:26px}
+  .balance-row .sep{display:none}
+  .balance-row .spacer{display:none}
+  .balance-row>.btn{width:100%;margin-top:4px}
+  .section-head h2{font-size:18px}
+  .hero-landing{gap:16px}
+  .hero-landing h1{font-size:28px}
+  .hero-art{gap:8px}
+  /* games */
+  .bins{gap:2px}
+  .bin{font-size:9px;padding:5px 0;min-width:0;overflow:hidden;border-radius:4px}
+  .grid5{gap:6px}
+  .keno-grid{gap:4px}
+  .keno-grid .cell{font-size:12px;border-radius:8px}
+  .tower .cell{height:34px}
+  .pcard{width:56px;height:80px;font-size:13px}
+  .pcard .face.front .s{font-size:24px}
+  .pcard.big{width:96px;height:136px;font-size:22px}.pcard.big .face.front .s{font-size:46px}
+  .shoe{width:44px;height:60px;right:14px;top:12px}
+  .hilo .choices{min-width:0;width:100%}
+  .crash-area{height:240px}
+  .crash-area .readout{font-size:34px;left:14px;top:12px}
+  .bignum{font-size:56px}
+  .dice-track{margin:12px 28px 0;width:calc(100% - 56px)}
+  /* chart + tables */
+  .chart{padding:10px}
+  .chart svg{height:auto;aspect-ratio:380/200}
+  table.data{font-size:12px}
+  table.data th,table.data td{padding:8px 6px}
+  .plate{padding:14px;border-radius:12px}
+  .modal{padding:18px;border-radius:14px}
+  .toasts{right:12px;left:12px;width:auto;bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+  .foot-note{padding:0 16px calc(96px + env(safe-area-inset-bottom,0px))}
+  .tabbar a{padding:6px 0 4px;font-size:10px}
+  .tabbar a svg{width:24px;height:24px}
+  .tabbar a[aria-current=page] svg{color:var(--accent-2)}
+}

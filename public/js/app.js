@@ -247,7 +247,8 @@ async function statsPage() {
 }
 
 function balanceChart(actual, expected) {
-  const W = 720, H = 220, px = 44, py = 16;
+  const narrow = window.innerWidth < 860;
+  const W = narrow ? 380 : 720, H = narrow ? 200 : 220, px = narrow ? 36 : 44, py = 16;
   const all = [...actual, ...expected];
   if (all.length < 2) return h('p', { class: 'help' }, 'Place a few bets and the curve appears here.');
   const t0 = Math.min(...all.map((p) => p.t)), t1 = Math.max(...all.map((p) => p.t)) || t0 + 1;
