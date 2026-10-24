@@ -1,0 +1,13 @@
+{
+  "name": "pentropy-play",
+  "version": "1.0.0",
+  "description": "A safe, no-money gaming platform that teaches how casino-style games lose. Players get imaginary anti-gambling tokens (AGT) and watch the house edge work in real time.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning server/index.js",
+    "test": "node --no-warnings=ExperimentalWarning --test test/*.test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}
