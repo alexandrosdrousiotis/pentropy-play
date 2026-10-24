@@ -1,7 +1,7 @@
 import { h, button, cardEl, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { VP_PAYTABLE, cardOf, evaluatePoker } from '../../shared/math.js';
-import { dealFrom, sleep, sound, flashGreen, winBurst, pulse } from '../fx.js';
+import { dealFrom, sleep, sound, flashGreen, winBurst, pulse, popIn, sparkle } from '../fx.js';
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -72,7 +72,7 @@ export function mount(root, meta) {
     label.textContent = r.outcome.rank || 'Nothing';
     label.className = `bubble ${r.multiplier > 1 ? 'win' : r.multiplier === 1 ? '' : 'lose'}`;
     table(r.outcome.rank);
-    if (r.multiplier > 1) { sound.play(r.multiplier >= 25 ? 'bigwin' : 'win'); flashGreen(L.board); cards.forEach((c) => c.classList.add('win')); if (r.multiplier >= 25) winBurst(L.board); }
+    if (r.multiplier > 1) { sound.play(r.multiplier >= 25 ? 'bigwin' : 'win'); flashGreen(L.board); cards.forEach((c, i) => setTimeout(() => { c.classList.add('win'); popIn(c); sparkle(c, L.board, { color: '#e6b655', count: 6, spread: 36 }); }, i * 90)); if (r.multiplier >= 25) winBurst(L.board); }
     else if (r.multiplier === 1) sound.play('reveal'); else sound.play('lose');
     banner.show(r.outcome.rank ? `${r.outcome.rank} · ${payoutLine(r)}` : `No hand · −${fmt(r.amount)} AGT`, r.multiplier > 1 ? true : r.multiplier === 1 ? 'push' : false);
     strip.push(r.outcome.rank ? `${r.multiplier}x` : '—', r.multiplier > 1);

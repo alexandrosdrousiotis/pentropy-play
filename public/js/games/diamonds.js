@@ -1,10 +1,10 @@
 import { h, button, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
 import { DIAMOND_HANDS, DIAMOND_PAYTABLE, DIAMOND_PROBS, diamondsRtp } from '../../shared/math.js';
-import { sound, sleep, popIn, flashGreen, winBurst } from '../fx.js';
+import { sound, sleep, popIn, flashGreen, winBurst, sparkle } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
 
-const COLOURS = ['#f0616d', '#f5ac37', '#facc15', '#27ad75', '#38bdf8', '#4f7bff', '#c084fc'];
+const COLOURS = ['#ff5c7a', '#f0a040', '#f5d35e', '#3ccf8f', '#38bdf8', '#8b9cff', '#c084fc'];
 export function mount(root, meta) {
   const L = layout(root);
   let busy = false;
@@ -30,8 +30,16 @@ export function mount(root, meta) {
     if (!out) { busy = false; play.disabled = false; amount.setDisabled(false); return null; }
     const { round } = out;
     idle(); table(); label.textContent = 'dealing'; label.className = 'bubble';
-    for (let i = 0; i < 5; i++) { const g = gem(round.outcome.colours[i]); row.children[i].replaceWith(g); popIn(g); sound.play('reveal'); await sleep(170); }
-    await sleep(200);
+    const cols = round.outcome.colours;
+    for (let i = 0; i < 5; i++) {
+      const g = row.children[i]; g.classList.add('spin');
+      for (let s = 0; s < 5 + i * 2; s++) { g.style.color = COLOURS[Math.floor(Math.random() * COLOURS.length)]; sound.play('tick'); await sleep(55); }
+      g.classList.remove('spin'); g.style.color = COLOURS[cols[i]]; popIn(g); sound.play('reveal'); await sleep(80);
+    }
+    const counts = cols.reduce((a, c) => { a[c] = (a[c] || 0) + 1; return a; }, {});
+    const matched = [...row.children].filter((g, i) => counts[cols[i]] >= 2);
+    matched.forEach((g, i) => setTimeout(() => { g.classList.add('match'); if (round.multiplier > 1) sparkle(g, L.board, { color: COLOURS[cols[[...row.children].indexOf(g)]], count: 8, spread: 40 }); }, i * 90));
+    await sleep(260);
     const win = round.multiplier > 1;
     label.textContent = round.outcome.hand; label.className = `bubble ${win ? 'win' : round.multiplier > 0 ? '' : 'lose'}`;
     table(round.outcome.hand);

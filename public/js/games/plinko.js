@@ -54,13 +54,20 @@ export function mount(root, meta) {
   /** Kinematic drop: each hop is a gravity arc from one peg to the next, timed by fall height. */
   async function drop(dirs, bin, onDone) {
     const ballR = Math.max(1.3, dx * 0.3);
+    const trail = [0.45, 0.28, 0.14].map((o, i) => { const t = el('circle', { r: (ballR * (0.85 - i * 0.15)).toFixed(2), class: 'ball trail', cx: W / 2, cy: -2 }); t.style.opacity = String(o); return t; });
     const ball = el('circle', { r: ballR, class: 'ball', cx: W / 2, cy: -2 });
-    svg.append(ball);
+    svg.append(...trail, ball);
+    const hist = [];
+    const setPos = (px, py) => {
+      ball.setAttribute('cx', px.toFixed(2)); ball.setAttribute('cy', py.toFixed(2));
+      hist.push([px, py]); if (hist.length > 12) hist.shift();
+      trail.forEach((t, i) => { const p = hist[Math.max(0, hist.length - 1 - (i + 1) * 3)]; t.setAttribute('cx', p[0].toFixed(2)); t.setAttribute('cy', p[1].toFixed(2)); });
+    };
     let x = W / 2, y = -2, col = 1; // column index of the gap the ball is above (row 0 has 3 pegs → gaps 0..1 around the middle peg)
     const hop = (x0, y0, x1, y1, ms, bounce) => tween(ms, (e, k) => {
       const px = x0 + (x1 - x0) * e;
       const py = y0 + (y1 - y0) * (k * k) - (bounce ? Math.sin(k * Math.PI) * bounce : 0);
-      ball.setAttribute('cx', px.toFixed(2)); ball.setAttribute('cy', py.toFixed(2));
+      setPos(px, py);
     }, ease.linear);
     // fall onto the first peg
     await hop(x, y, pegs[0][1].x, pegs[0][1].y - pegR - ballR, 260, 0);
@@ -79,7 +86,7 @@ export function mount(root, meta) {
       await hop(x, y, tx, ty, ms, dx * 0.28);
       x = tx; y = ty; col = nextCol;
     }
-    ball.remove();
+    ball.remove(); trail.forEach((t) => t.remove());
     onDone();
   }
   async function go(amt = amount.get()) {

@@ -1,7 +1,7 @@
 import { h, button, segmented, toy, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { TOWER_LEVELS, TOWER_ROWS, towerMultiplier, round2 } from '../../shared/math.js';
-import { sleep, sound, shake, flashRed, flashGreen, winBurst, popIn, pulse } from '../fx.js';
+import { sleep, sound, shake, flashRed, flashGreen, winBurst, popIn, pulse, sparkle, shockwave } from '../fx.js';
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -45,8 +45,8 @@ export function mount(root, meta) {
   function setActive(r) {
     rows.forEach((row, i) => { row.el.classList.toggle('active', i === r); row.cells.forEach((c) => { if (!c.classList.contains('gem') && !c.classList.contains('mine')) c.disabled = i !== r || busy; }); });
   }
-  function markEgg(r, t, animate = true) { const c = rows[r].cells[t]; c.className = 'cell gem'; c.replaceChildren(toy('dragon', 22)); c.disabled = true; if (animate) popIn(c.firstChild); }
-  function markBomb(r, t) { const c = rows[r].cells[t]; c.className = 'cell mine hitcell'; c.replaceChildren(toy('bomb', 22)); c.disabled = true; popIn(c.firstChild); }
+  function markEgg(r, t, animate = true) { const c = rows[r].cells[t]; c.className = 'cell gem'; c.replaceChildren(toy('dragon', 22)); c.disabled = true; if (animate) { popIn(c.firstChild); sparkle(c, L.board, { color: '#3ccf8f', count: 9, spread: 44 }); } }
+  function markBomb(r, t) { const c = rows[r].cells[t]; c.className = 'cell mine hitcell'; c.replaceChildren(toy('bomb', 22)); c.disabled = true; popIn(c.firstChild); shockwave(c, L.board); }
   function paintControls() {
     const v = round?.view; const live = Boolean(round);
     play.disabled = live; amount.setDisabled(live); levelSeg.setDisabled(live);
@@ -101,6 +101,7 @@ export function mount(root, meta) {
     banner.show(win ? `WIN ${payoutLine(r)}` : `Fell on row ${r.outcome.row + 1} · −${fmt(r.amount)} AGT`, win);
     strip.push(win ? fmtMult(r.multiplier) : `row ${r.outcome.row + 1}`, win);
     cash.disabled = true; cash.querySelector('span').textContent = 'Cash out';
+    if (win) { for (let k = 0; k < r.outcome.row; k++) { const c = rows[k]?.cells[r.outcome.picks[k]]; if (c) { popIn(c.firstChild || c); sparkle(c, L.board, { color: '#e6b655', count: 6, spread: 34 }); } await sleep(70); } }
     await revealLayout(r.outcome);
     busy = false; paintControls(); reality.update();
   }

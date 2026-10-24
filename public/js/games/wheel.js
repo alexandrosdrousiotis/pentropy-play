@@ -1,12 +1,13 @@
 import { h, button, segmented, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
 import { WHEEL_SEGMENTS, WHEEL_RISKS, wheelTable, wheelRtp } from '../../shared/math.js';
-import { sound, tween, ease, flashGreen, winBurst } from '../fx.js';
+import { sound, tween, flashGreen, winBurst, popIn } from '../fx.js';
+const spinEase = (t) => 1 - (1 - t) ** 4;
 import { attach as attachAuto } from './autobet.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
-const colour = (m) => (m === 0 ? '#2a2d33' : m >= 20 ? '#f0616d' : m >= 5 ? '#f5ac37' : m >= 2 ? '#4f7bff' : m >= 1.5 ? '#27ad75' : '#9ca3af');
+const colour = (m) => (m === 0 ? '#262b36' : m >= 20 ? '#ff5c7a' : m >= 5 ? '#f0a040' : m >= 2 ? '#e6b655' : m >= 1.5 ? '#3ccf8f' : '#8b93a7');
 export function mount(root, meta) {
   const L = layout(root);
   let segments = 30, risk = 'medium', busy = false, angle = 0;
@@ -29,14 +30,16 @@ export function mount(root, meta) {
   L.results.append(h('h3', {}, 'Recent spins'), strip.el);
   const reality = realityPanel(meta, () => amount.get(), () => { const t = wheelTable(risk, segments); return { rtp: wheelRtp(risk, segments), winChance: t.filter((m) => m > 1).length / segments }; });
   L.reality.append(reality);
+  let paths = [];
   function build() {
     const t = wheelTable(risk, segments);
-    disc.replaceChildren();
+    disc.replaceChildren(); paths = [];
     const step = (2 * Math.PI) / segments;
     t.forEach((m, i) => {
       const a0 = i * step - Math.PI / 2, a1 = a0 + step;
       const p = (a, r) => `${(Math.cos(a) * r).toFixed(2)},${(Math.sin(a) * r).toFixed(2)}`;
-      disc.append(el('path', { d: `M${p(a0, 96)} A96,96 0 0 1 ${p(a1, 96)} L${p(a1, 62)} A62,62 0 0 0 ${p(a0, 62)} Z`, fill: colour(m), stroke: 'var(--bg)', 'stroke-width': 1.2 }));
+      const seg = el('path', { d: `M${p(a0, 96)} A96,96 0 0 1 ${p(a1, 96)} L${p(a1, 62)} A62,62 0 0 0 ${p(a0, 62)} Z`, fill: colour(m), stroke: 'var(--bg)', 'stroke-width': 1.2 });
+      disc.append(seg); paths.push(seg);
     });
     const uniq = [...new Set(t)].sort((a, b) => b - a);
     legend.replaceChildren(...uniq.map((m) => h('span', { class: 'chip', style: { background: colour(m), color: m === 0 ? 'var(--fg-3)' : '#0a0b0d' } }, fmtMult(m))));
@@ -54,10 +57,12 @@ export function mount(root, meta) {
     const from = angle % 360;
     const to = from + target;
     let lastTick = -1;
-    await tween(3200, (e) => { const a = from + (to - from) * e; disc.style.transform = `rotate(${a}deg)`; const tick = Math.floor(a / step); if (tick !== lastTick) { lastTick = tick; sound.play('tick'); } }, ease.outCubic);
+    paths.forEach((s) => s.classList.remove('hit')); readout.classList.add('dim');
+    await tween(3800, (e) => { const a = from + (to - from) * e; disc.style.transform = `rotate(${a}deg)`; const tick = Math.floor(a / step); if (tick !== lastTick) { lastTick = tick; sound.play('tick'); pointer.classList.remove('flick'); void pointer.offsetWidth; pointer.classList.add('flick'); } }, spinEase);
     angle = to % 360; disc.style.transform = `rotate(${angle}deg)`;
+    paths[idx]?.classList.add('hit'); disc.append(paths[idx]);
     const win = round.multiplier > 1;
-    readout.textContent = fmtMult(t[idx]); readout.className = `wheel-readout num ${win ? 'good' : round.multiplier === 0 ? 'bad' : ''}`;
+    readout.textContent = fmtMult(t[idx]); readout.className = `wheel-readout num ${win ? 'good' : round.multiplier === 0 ? 'bad' : ''}`; popIn(readout);
     if (win) { sound.play(round.multiplier >= 5 ? 'bigwin' : 'win'); flashGreen(L.board); if (round.multiplier >= 10) winBurst(L.board); } else if (round.multiplier === 0) sound.play('lose'); else sound.play('reveal');
     banner.show(`${fmtMult(t[idx])} · ${payoutLine(round)}`, round.multiplier > 1 ? true : round.multiplier === 1 ? 'push' : false);
     strip.push(fmtMult(t[idx]), win);

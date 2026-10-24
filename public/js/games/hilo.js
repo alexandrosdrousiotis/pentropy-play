@@ -80,6 +80,9 @@ export function mount(root, meta) {
     if (!out) { busy = false; paintControls(); return; }
     const steps = out.round.status === 'settled' ? out.round.outcome.steps : out.round.view.history;
     const step = steps[steps.length - 1];
+    const arrow = h('div', { class: `hilo-arrow ${choice}` }, choice === 'higher' ? '↑' : choice === 'lower' ? '↓' : '=');
+    slot.append(arrow); popIn(arrow); await sleep(380);
+    arrow.classList.add(step.ok ? 'ok' : 'bad'); await sleep(220); arrow.remove();
     await advance(step);
     if (step.ok) { sound.play('reveal'); flashGreen(L.board); } else { sound.play('lose'); flashRed(L.board); shake(slot); }
     busy = false;

@@ -1,7 +1,7 @@
 import { h, button, numberInput, toy, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { minesMultiplier, minesNextSafeChance, round2, MINES_CELLS } from '../../shared/math.js';
-import { sleep, sound, shake, flashRed, flashGreen, winBurst, pulse } from '../fx.js';
+import { sleep, sound, shake, flashRed, flashGreen, winBurst, pulse, sparkle, shockwave } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
@@ -76,12 +76,12 @@ export function mount(root, meta) {
     if (!out) { busy = false; cells[i].disabled = false; paintControls(); return; }
     if (out.round.status === 'settled') {
       if (out.round.outcome.hit === i) {
-        setCell(cells[i], 'mine', { hit: true }); sound.play('bomb'); shake(grid); flashRed(L.board);
+        setCell(cells[i], 'mine', { hit: true }); sound.play('bomb'); shake(grid); flashRed(L.board); shockwave(cells[i], L.board);
         await sleep(500);
-      } else { setCell(cells[i], 'gem'); sound.play('reveal'); }
+      } else { setCell(cells[i], 'gem'); sound.play('reveal'); sparkle(cells[i], L.board, { color: '#3ccf8f', count: 9, spread: 46 }); }
       out.commit(); return finish(out.round, out.round.outcome.hit ?? -1);
     }
-    setCell(cells[i], 'gem'); sound.play('reveal');
+    setCell(cells[i], 'gem'); sound.play('reveal'); sparkle(cells[i], L.board, { color: '#3ccf8f', count: 9, spread: 46 });
     round = out.round; out.commit(); busy = false; paintControls(); pulse(cash);
   }
   async function cashout() {
@@ -116,7 +116,7 @@ export function mount(root, meta) {
       const r = await tryAct('reveal', { index: i }, { defer: true });
       if (!r) { busy = false; return null; }
       if (r.round.status === 'settled') {
-        if (r.round.outcome.hit === i) { setCell(cells[i], 'mine', { hit: true }); sound.play('bomb'); shake(grid); flashRed(L.board); await sleep(400); }
+        if (r.round.outcome.hit === i) { setCell(cells[i], 'mine', { hit: true }); sound.play('bomb'); shake(grid); flashRed(L.board); shockwave(cells[i], L.board); await sleep(400); }
         else setCell(cells[i], 'gem');
         r.commit(); await finish(r.round, r.round.outcome.hit ?? -1); settled = r.round; break;
       }

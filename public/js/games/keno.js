@@ -2,7 +2,7 @@ import { h, button, segmented, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
 import { KENO_NUMBERS, KENO_RISKS, kenoTable, kenoRtp, hypergeometric } from '../../shared/math.js';
 import { mulberry32 } from '../verify-rng.js';
-import { sleep, sound, flashGreen, winBurst, pulse } from '../fx.js';
+import { sleep, sound, flashGreen, winBurst, pulse, sparkle } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
@@ -20,7 +20,8 @@ export function mount(root, meta) {
   const cells = Array.from({ length: KENO_NUMBERS }, (_, i) => h('button', { class: 'cell num', type: 'button', onClick: () => toggle(i) }, i + 1));
   grid.append(...cells);
   const hitsBubble = h('div', { class: 'bubble' }, 'pick numbers');
-  L.stage.append(h('div', { class: 'stack', style: { justifyItems: 'center', gap: '16px', width: '100%' } }, grid, hitsBubble));
+  const balls = h('div', { class: 'keno-balls', 'aria-hidden': 'true' }, ...Array.from({ length: 10 }, () => h('span', { class: 'kball num' })));
+  L.stage.append(h('div', { class: 'stack', style: { justifyItems: 'center', gap: '16px', width: '100%' } }, balls, grid, hitsBubble));
   const banner = outcomeBanner(L.board);
   const strip = resultsStrip();
   L.results.append(h('h3', {}, 'Recent draws'), strip.el);
@@ -55,13 +56,15 @@ export function mount(root, meta) {
     const out = await tryBet('keno', amt, { picks: [...picks], risk }, { defer: true });
     if (!out) { busy = false; paint(); amount.setDisabled(false); riskSeg.setDisabled(false); return null; }
     const { round } = out;
-    let hits = 0;
+    let hits = 0, j = 0;
+    for (const b of balls.children) { b.className = 'kball num'; b.textContent = ''; }
     for (const n of round.outcome.draw) {
       if (dead) break;
       const isPick = picks.includes(n);
+      const b = balls.children[j++]; b.textContent = n + 1; b.className = `kball num show${isPick ? ' hit' : ''}`;
       cells[n].classList.add(isPick ? 'hit' : 'drawn');
-      if (isPick) { hits++; sound.play('reveal'); hitsBubble.textContent = `${hits} hit${hits === 1 ? '' : 's'}`; hitsBubble.className = 'bubble win'; pulse(hitsBubble); } else sound.play('tick');
-      await sleep(isPick ? 220 : 140);
+      if (isPick) { hits++; sound.play('reveal'); sparkle(cells[n], L.board, { color: '#e6b655', count: 9, spread: 40 }); hitsBubble.textContent = `${hits} hit${hits === 1 ? '' : 's'}`; hitsBubble.className = 'bubble win'; pulse(hitsBubble); } else sound.play('tick');
+      await sleep(isPick ? 260 : 150);
     }
     picks.forEach((n) => { if (!round.outcome.draw.includes(n)) cells[n].classList.add('miss'); });
     table(round.outcome.hits);

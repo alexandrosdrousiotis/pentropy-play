@@ -1,8 +1,8 @@
-import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { api } from '../api.js';
 import { crashMultiplierAt, limboWinChance, LIMBO_MAX } from '../../shared/math.js';
-import { sound, flashGreen, flashRed, shake, winBurst } from '../fx.js';
+import { sound, flashGreen, flashRed, shake, winBurst, sparkle, shockwave } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -21,13 +21,13 @@ export function mount(root, meta) {
   const svg = el('svg', { viewBox: '0 0 100 60', preserveAspectRatio: 'none' });
   const grid = el('g', {});
   const fill = el('path', { d: '', fill: 'url(#crashfill)', opacity: .5 });
-  const line = el('path', { d: '', class: 'line', fill: 'none', stroke: '#8b7dff', 'stroke-width': 1.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke' });
+  const line = el('path', { d: '', class: 'line', fill: 'none', stroke: '#e6b655', 'stroke-width': 1.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke' });
   const defs = el('defs', {});
   const grad = el('linearGradient', { id: 'crashfill', x1: 0, y1: 0, x2: 0, y2: 1 });
-  grad.append(el('stop', { offset: 0, 'stop-color': '#7b6cff', 'stop-opacity': .55 }), el('stop', { offset: 1, 'stop-color': '#7b6cff', 'stop-opacity': 0 }));
+  grad.append(el('stop', { offset: 0, 'stop-color': '#e6b655', 'stop-opacity': .45 }), el('stop', { offset: 1, 'stop-color': '#e6b655', 'stop-opacity': 0 }));
   defs.append(grad);
   svg.append(defs, grid, fill, line);
-  const dot = h('div', { class: 'crash-dot', style: { position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#fff', boxShadow: '0 0 12px var(--accent), 0 0 24px var(--accent-glow)', transform: 'translate(-50%,-50%)', display: 'none' } });
+  const dot = h('div', { class: 'crash-ship' }, svgUse('ph-rocket-launch'), h('i', { class: 'flame' }));
   const readout = h('div', { class: 'readout num' }, '1.00x', h('small', {}, 'ready'));
   const ticksX = h('div', { class: 'ticks-x' }), ticksY = h('div', { class: 'ticks-y' });
   const stamp = h('div', { class: 'stamp' }, 'Crashed');
@@ -49,7 +49,10 @@ export function mount(root, meta) {
     line.setAttribute('d', d);
     fill.setAttribute('d', `${d} L${pts[N][0].toFixed(2)},60 L0,60 Z`);
     const rect = area.getBoundingClientRect();
-    dot.style.display = 'block'; dot.style.left = `${(pts[N][0] / 100) * rect.width}px`; dot.style.top = `${(pts[N][1] / 60) * rect.height}px`;
+    const tipX = (pts[N][0] / 100) * rect.width, tipY = (pts[N][1] / 60) * rect.height;
+    const prevX = (pts[N - 4][0] / 100) * rect.width, prevY = (pts[N - 4][1] / 60) * rect.height;
+    const ang = elapsed > 0 ? Math.atan2(tipY - prevY, tipX - prevX) * 180 / Math.PI : -20;
+    dot.classList.add('on'); dot.style.left = `${tipX}px`; dot.style.top = `${tipY}px`; dot.style.transform = `translate(-50%,-50%) rotate(${ang + 45}deg)`;
     // axes
     ticksX.replaceChildren(...[0, .25, .5, .75, 1].map((f) => h('span', {}, fmtS(T * f))));
     const ys = [1, 1 + (M - 1) * .25, 1 + (M - 1) * .5, 1 + (M - 1) * .75, M];
@@ -83,7 +86,7 @@ export function mount(root, meta) {
   function begin(r, latency = 0) {
     round = r; done = false;
     startedAt = performance.now() - (r.view.elapsed ?? 0) - latency / 2;
-    area.classList.remove('crashed'); line.setAttribute('stroke', '#8b7dff');
+    area.classList.remove('crashed'); line.setAttribute('stroke', '#e6b655'); dot.classList.remove('boom');
     readout.lastChild.textContent = auto ? `auto at ${fmtMult(auto)}` : 'climbing';
     banner.hide(); setLive(true); sound.play('launch');
     raf = requestAnimationFrame(frame);
@@ -111,8 +114,8 @@ export function mount(root, meta) {
     drawFrame(elapsedAtPoint, point);
     readout.firstChild.textContent = fmtMult(win ? r.multiplier : point);
     readout.lastChild.textContent = win ? `cashed out${r.outcome.auto ? ' (auto)' : ''} · crashed at ${fmtMult(point)}` : `crashed at ${fmtMult(point)}`;
-    if (!win) { area.classList.add('crashed'); sound.play('crash'); shake(area); flashRed(L.board); }
-    else { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.multiplier >= 5) winBurst(L.board); }
+    if (!win) { sparkle(dot, L.board, { color: '#ff5c7a', count: 24, spread: 90 }); shockwave(dot, L.board); dot.classList.add('boom'); area.classList.add('crashed'); sound.play('crash'); shake(area); flashRed(L.board); }
+    else { sparkle(dot, L.board, { color: '#3ccf8f', count: 14, spread: 60 }); sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.multiplier >= 5) winBurst(L.board); }
     banner.show(win ? `WIN ${payoutLine(r)}` : `Crashed at ${fmtMult(point)} · −${fmt(r.amount)} AGT`, win);
     strip.push(fmtMult(point), win);
     setLive(false);

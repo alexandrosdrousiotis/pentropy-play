@@ -101,16 +101,23 @@ export function toast(text, kind = '', ms = 3200) {
 /* ---- outcome banner inside a board ---- */
 export function outcomeBanner(board) {
   const el = h('div', { class: 'outcome' });
-  board.append(el);
-  let timer;
+  const card = h('div', { class: 'win-card', 'aria-hidden': 'true' }, h('b', { class: 'num' }), h('span', {}));
+  board.append(el, card);
+  let timer, timer2;
   return {
     show(text, win) {
       el.textContent = text;
       el.className = `outcome show ${win === 'push' ? 'push' : win ? 'win' : 'loss'}`;
       clearTimeout(timer);
       timer = setTimeout(() => el.classList.remove('show'), 2600);
+      if (win === true) {
+        const m = text.match(/(\d[\d,.]*x)/), amt = text.match(/([+−][\d,.]+ AGT)/);
+        card.firstChild.textContent = m ? m[1] : 'WIN'; card.lastChild.textContent = amt ? amt[1] : '';
+        card.classList.remove('show'); void card.offsetWidth; card.classList.add('show');
+        clearTimeout(timer2); timer2 = setTimeout(() => card.classList.remove('show'), 1500);
+      } else card.classList.remove('show');
     },
-    hide() { el.classList.remove('show'); },
+    hide() { el.classList.remove('show'); card.classList.remove('show'); },
   };
 }
 

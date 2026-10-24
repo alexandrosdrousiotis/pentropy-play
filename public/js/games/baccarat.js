@@ -1,7 +1,7 @@
 import { h, button, segmented, cardEl, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
-import { BACCARAT_RTP, BACCARAT_PAYOUT } from '../../shared/math.js';
-import { dealFrom, sleep, sound, flashGreen, flashRed, winBurst } from '../fx.js';
+import { BACCARAT_RTP, BACCARAT_PAYOUT, baccaratTotal } from '../../shared/math.js';
+import { dealFrom, sleep, sound, flashGreen, flashRed, winBurst, pulse } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
@@ -29,9 +29,17 @@ export function mount(root, meta) {
     if (!out) { busy = false; play.disabled = false; amount.setDisabled(false); betSeg.setDisabled(false); return null; }
     const { round } = out; const o = round.outcome;
     pHand.replaceChildren(); bHand.replaceChildren(); pB.textContent = 'Player'; bB.textContent = 'Banker'; pB.className = bB.className = 'bubble';
-    const order = [[pHand, o.player[0]], [bHand, o.banker[0]], [pHand, o.player[1]], [bHand, o.banker[1]]];
-    if (o.player[2]) order.push([pHand, o.player[2]]); if (o.banker[2]) order.push([bHand, o.banker[2]]);
-    for (const [hand, c] of order) { if (dead) return null; const el = cardEl(c, { faceDown: true }); hand.append(el); sound.play('deal'); await dealFrom(el, shoe, { ms: 400 }); }
+    const order = [[pHand, o.player[0], 'p'], [bHand, o.banker[0], 'b'], [pHand, o.player[1], 'p'], [bHand, o.banker[1], 'b']];
+    if (o.player[2]) order.push([pHand, o.player[2], 'p']); if (o.banker[2]) order.push([bHand, o.banker[2], 'b']);
+    const dealt = { p: [], b: [] };
+    for (let i = 0; i < order.length; i++) {
+      if (dead) return null;
+      const [hand, c, side] = order[i];
+      if (i === 4) await sleep(420); // natural check, then the third-card rule
+      const el = cardEl(c, { faceDown: true }); hand.append(el); sound.play('deal'); await dealFrom(el, shoe, { ms: 400 });
+      dealt[side].push(c); const bub = side === 'p' ? pB : bB; bub.textContent = `${side === 'p' ? 'Player' : 'Banker'} · ${baccaratTotal(dealt[side])}`; pulse(bub);
+      await sleep(90);
+    }
     pB.textContent = `Player · ${o.playerTotal}`; bB.textContent = `Banker · ${o.bankerTotal}`;
     if (o.winner === 'player') pB.className = 'bubble win'; else if (o.winner === 'banker') bB.className = 'bubble win';
     const win = round.multiplier > 1, push = round.multiplier === 1;

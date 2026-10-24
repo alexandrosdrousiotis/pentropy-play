@@ -2,7 +2,7 @@
 import { h, button, segmented, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { CHICKEN_LEVELS, TRACK_LEN, trackMultiplier, trackNextSafeChance, round2 } from '../../shared/math.js';
-import { sound, sleep, shake, flashRed, flashGreen, winBurst, pulse, tween, ease } from '../fx.js';
+import { sound, sleep, shake, flashRed, flashGreen, winBurst, pulse, floatText } from '../fx.js';
 
 const LANE_W = 72;
 export function mount(root, meta) {
@@ -27,7 +27,7 @@ export function mount(root, meta) {
   L.reality.append(reality);
 
   let lanes = [], chicken = null, pos = 0; // pos: 0 = start kerb, 1..25 = lane index+1, 26 = far kerb
-  const car = (delay, dur, flip) => h('div', { class: `car${flip ? ' flip' : ''}`, style: { animationDelay: `${delay}s`, animationDuration: `${dur}s`, background: ['#f0616d', '#4f7bff', '#f5ac37', '#27ad75', '#c084fc', '#e5e7eb'][Math.floor(Math.random() * 6)] } }, h('i'), h('i'));
+  const car = (delay, dur, flip) => h('div', { class: `car${flip ? ' flip' : ''}`, style: { animationDelay: `${delay}s`, animationDuration: `${dur}s`, background: ['#ff5c7a', '#8b9cff', '#e6b655', '#3ccf8f', '#c084fc', '#e5e7eb'][Math.floor(Math.random() * 6)] } }, h('i'), h('i'));
   function build(outcome = null) {
     const hz = CHICKEN_LEVELS[level].hazards; const k = round?.view?.lane ?? outcome?.lane ?? 0;
     world.replaceChildren(); lanes = [];
@@ -91,6 +91,7 @@ export function mount(root, meta) {
     round = out.round;
     if (round.status === 'settled') { out.commit(); return finish(round); }
     lanes[k + 1]?.classList.add('next'); mult.textContent = fmtMult(round.view.multiplier); pulse(mult);
+    { const r = chicken.getBoundingClientRect(), vr = view.getBoundingClientRect(); floatText(view, r.left + r.width / 2 - vr.left, r.top - vr.top, fmtMult(round.view.multiplier), 'good'); }
     out.commit(); busy = false; paintControls(); reality.update();
   }
   async function cashout() {

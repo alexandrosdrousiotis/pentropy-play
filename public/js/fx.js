@@ -146,3 +146,35 @@ export function winBurst(container, { count = 18, colors = ['#f3c969', '#1fd690'
   }
   container.append(root); setTimeout(() => root.remove(), 1100);
 }
+
+/** Small particle burst centred on `el`, drawn inside `container` (a positioned ancestor). */
+export function sparkle(el, container, { count = 10, color = '#3ccf8f', spread = 60 } = {}) {
+  if (reduced() || !el || !container) return;
+  const cr = container.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const root = document.createElement('div'); root.className = 'win-burst';
+  const cx = r.left + r.width / 2 - cr.left, cy = r.top + r.height / 2 - cr.top;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('i');
+    const a = Math.random() * Math.PI * 2, d = spread * (0.5 + Math.random());
+    p.style.left = `${cx}px`; p.style.top = `${cy}px`;
+    p.style.setProperty('--bx', `${Math.cos(a) * d}px`); p.style.setProperty('--by', `${Math.sin(a) * d}px`);
+    p.style.background = color; p.style.width = p.style.height = `${3 + Math.random() * 4}px`;
+    root.append(p);
+  }
+  container.append(root); setTimeout(() => root.remove(), 1000);
+}
+/** Expanding ring from the centre of `el` (explosions, impacts). */
+export function shockwave(el, container, color = 'rgba(255,92,122,.75)') {
+  if (reduced() || !el || !container) return;
+  const cr = container.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const ring = document.createElement('div'); ring.className = 'shockwave';
+  ring.style.left = `${r.left + r.width / 2 - cr.left}px`; ring.style.top = `${r.top + r.height / 2 - cr.top}px`; ring.style.borderColor = color;
+  container.append(ring); setTimeout(() => ring.remove(), 700);
+}
+/** Text that rises and fades from a point inside `container` ("+1.29x"). */
+export function floatText(container, x, y, text, cls = '') {
+  if (!container) return;
+  const t = document.createElement('div'); t.className = `float-text ${cls}`; t.textContent = text;
+  t.style.left = `${x}px`; t.style.top = `${y}px`;
+  container.append(t); setTimeout(() => t.remove(), 1000);
+}

@@ -2,7 +2,7 @@ import { h, button, numberInput, segmented, fmtMult, fmtPct, outcomeBanner, resu
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
 import { user } from '../api.js';
 import { diceMultiplier, diceChanceFromMultiplier, diceThreshold, DICE_MIN_CHANCE, DICE_MAX_CHANCE } from '../../shared/math.js';
-import { sound, ticker, sleep, flashGreen, flashRed } from '../fx.js';
+import { sound, ticker, tween, ease, flashGreen, flashRed, sparkle } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
@@ -52,9 +52,15 @@ export function mount(root, meta) {
     const roll = round.outcome.roll;
     const win = round.multiplier > 0;
     marker.className = 'marker';
+    const from = parseFloat(marker.style.left) || 50, clamp = (v) => Math.max(0, Math.min(100, v));
+    const over1 = clamp(roll + (roll >= from ? 7 : -7));
+    const sweep = tween(560, (e) => { marker.style.left = `${clamp(from + (over1 - from) * e)}%`; }, ease.outCubic)
+      .then(() => tween(320, (e) => { marker.style.left = `${clamp(over1 + (roll - over1) * e)}%`; }, ease.outBack));
+    await Promise.all([sweep, ticker(markerNum, roll, 820, (v) => Math.max(0, Math.min(99.99, v)).toFixed(2), { noise: 30 })]);
     marker.style.left = `${roll}%`;
-    await ticker(markerNum, roll, 650, (v) => Math.max(0, Math.min(99.99, v)).toFixed(2), { noise: 30 });
     marker.classList.add(win ? 'win' : 'loss');
+    const zone = win ? zoneWin : zoneLose; zone.classList.add('lit'); setTimeout(() => zone.classList.remove('lit'), 700);
+    if (win) sparkle(marker, L.board, { color: '#3ccf8f', count: 12, spread: 50 });
     if (win) { sound.play(round.multiplier >= 10 ? 'bigwin' : 'win'); flashGreen(L.board); } else { sound.play('lose'); flashRed(L.board); }
     banner.show(win ? `WIN ${payoutLine(round)}` : `${roll.toFixed(2)} · −${fmt(round.amount)} AGT`, win);
     strip.push(roll.toFixed(2), win);
