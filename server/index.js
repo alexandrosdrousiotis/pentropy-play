@@ -10,6 +10,7 @@ import { makeSeedCipher } from './fairness.js';
 import { createAuth } from './auth.js';
 import { createApi } from './routes.js';
 import { HttpError, RateLimiter, securityHeaders, clientIp, readJson } from './security.js';
+import { createSocial } from './social.js';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const STATIC_ROOTS = { public: join(root, 'public'), shared: join(root, 'shared') };
@@ -20,8 +21,9 @@ export function createServer(overrides = {}) {
   const db = openDatabase(cfg.dbPath);
   const seedCipher = makeSeedCipher(cfg.secret);
   const auth = createAuth(db, cfg, seedCipher);
-  const api = createApi({ db, config: cfg, auth, seedCipher });
-  const limiters = { general: new RateLimiter(cfg.rateLimit.general), auth: new RateLimiter(cfg.rateLimit.auth), play: new RateLimiter(cfg.rateLimit.play) };
+  const social = createSocial(db, cfg);
+  const api = createApi({ db, config: cfg, auth, seedCipher, social });
+  const limiters = { general: new RateLimiter(cfg.rateLimit.general), auth: new RateLimiter(cfg.rateLimit.auth), play: new RateLimiter(cfg.rateLimit.play), chat: new RateLimiter(cfg.rateLimit.chat || { windowMs: 10e3, max: 6 }) };
   const https_ = Boolean(cfg.tlsCert && cfg.tlsKey);
 
   async function serveStatic(pathname, res) {
@@ -79,7 +81,7 @@ export function createServer(overrides = {}) {
   server.keepAliveTimeout = 5_000;
   server.maxHeadersCount = 60;
   server.on('clientError', (err, socket) => { if (!socket.destroyed) socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'); });
-  return { server, db, close: () => new Promise((r) => server.close(() => { db.close(); r(); })) };
+  return { server, db, close: () => new Promise((r) => server.close(() => { social.close(); db.close(); r(); })) };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

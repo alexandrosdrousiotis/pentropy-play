@@ -26,7 +26,7 @@ function client(name = 'default') {
 
 before(async () => {
   srv = createServer({ dbPath: ':memory:', secret: 't'.repeat(40), cookieSecure: false, isProd: false,
-    rateLimit: { general: { windowMs: 60e3, max: 100000 }, auth: { windowMs: 60e3, max: 100000 }, play: { windowMs: 60e3, max: 100000 } } });
+    rateLimit: { general: { windowMs: 60e3, max: 100000 }, auth: { windowMs: 60e3, max: 100000 }, play: { windowMs: 60e3, max: 100000 }, chat: { windowMs: 60e3, max: 100000 } }, social: { ambient: false, chatKeep: 500 } });
   await new Promise((r) => srv.server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${srv.server.address().port}`;
 });
@@ -251,4 +251,37 @@ test('rewards: rakeback accrues as a share of the edge, tiers promote on lifetim
   assert.equal(claim.status, 200); assert.equal(claim.json.rebatePending, 0); assert.ok(claim.json.rebateClaimed >= 1);
   const w = (await c('GET', '/api/wallet')).json;
   assert.ok(w.history.some((h) => h.type === 'rebate') && w.history.some((h) => h.type === 'bonus'));
+});
+
+test('social: settled bets appear in the feed, ghost mode hides the name, chat is validated and rate limited', async () => {
+  const a = client('soc-a'), b = client('soc-b');
+  await a('POST', '/api/auth/signup', { username: 'socialA', password: 'a very fine passphrase' });
+  await b('POST', '/api/auth/signup', { username: 'socialB', password: 'a very fine passphrase' });
+  const r = await a('POST', '/api/rounds', { game: 'dice', amount: 5, params: { chance: 50, over: true } });
+  assert.equal(r.status, 201);
+  let s = await b('GET', '/api/social');
+  assert.equal(s.status, 200);
+  const mine = s.json.bets.find((x) => x.username === 'socialA');
+  assert.ok(mine && mine.bot === false && mine.game === 'dice' && mine.amount === 5);
+  assert.ok(typeof s.json.online === 'number' && s.json.online >= 2);
+  // ghost mode
+  await a('PATCH', '/api/me', { ghost: true });
+  await a('POST', '/api/rounds', { game: 'dice', amount: 5, params: { chance: 50, over: true } });
+  s = await b('GET', '/api/social');
+  assert.ok(!s.json.bets.some((x) => x.username === 'socialA'));
+  assert.ok(s.json.bets.some((x) => x.username === 'Hidden'));
+  const lead = await b('GET', '/api/social/leaders');
+  assert.ok(lead.json.leaders.some((l) => l.username === 'Hidden' && l.bets === 2));
+  // chat
+  const bad = await a('POST', '/api/social/chat', { text: 'hi\u0000there' });
+  assert.equal(bad.status, 400);
+  const ok = await a('POST', '/api/social/chat', { text: '  gg   everyone <b>x</b> ' });
+  assert.equal(ok.status, 201);
+  assert.equal(ok.json.message.text, 'gg everyone <b>x</b>');
+  const fast = await a('POST', '/api/social/chat', { text: 'again' });
+  assert.equal(fast.status, 429);
+  s = await b('GET', '/api/social?chat=0');
+  assert.ok(s.json.chat.some((m) => m.username === 'socialA' && m.text === 'gg everyone <b>x</b>'));
+  const anon = await fetch(base + '/api/social');
+  assert.equal(anon.status, 401);
 });

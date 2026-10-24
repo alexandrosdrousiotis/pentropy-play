@@ -10,11 +10,11 @@ const cents = (agt) => Math.round(agt * 100);
 const agt = (c) => c / 100;
 const now = () => Date.now();
 
-export function createApi({ db, config, auth, seedCipher }) {
+export function createApi({ db, config, auth, seedCipher, social }) {
   const q = {
     user: db.prepare('SELECT * FROM users WHERE id = ?'),
     setBalance: db.prepare('UPDATE users SET balance = ? WHERE id = ?'),
-    setProfile: db.prepare('UPDATE users SET notional_cents = ?, limits = ? WHERE id = ?'),
+    setProfile: db.prepare('UPDATE users SET notional_cents = ?, limits = ?, ghost = ? WHERE id = ?'),
     setLessons: db.prepare('UPDATE users SET lessons = ? WHERE id = ?'),
     refill: db.prepare('UPDATE users SET balance = ?, refills = refills + 1, lessons = ? WHERE id = ?'),
     seeds: db.prepare('SELECT * FROM seeds WHERE user_id = ?'),
@@ -60,7 +60,7 @@ export function createApi({ db, config, auth, seedCipher }) {
 
   const limitsOf = (user) => JSON.parse(user.limits);
   const me = (user, session) => ({
-    user: { username: user.username, balance: agt(user.balance), vault: agt(user.vault), deposited: agt(user.deposited), notional: agt(user.notional_cents), limits: limitsOf(user), lessonsRead: JSON.parse(user.lessons), refills: user.refills, createdAt: user.created_at },
+    user: { username: user.username, balance: agt(user.balance), vault: agt(user.vault), deposited: agt(user.deposited), notional: agt(user.notional_cents), limits: limitsOf(user), lessonsRead: JSON.parse(user.lessons), refills: user.refills, createdAt: user.created_at, ghost: Boolean(user.ghost) },
     session: { startedAt: session.created_at, startBalance: agt(session.start_balance) },
     seeds: (() => { const s = q.seeds.get(user.id); return { serverSeedHash: s.server_seed_hash, clientSeed: s.client_seed, nonce: s.nonce }; })(),
     openRound: (() => { const r = q.openRound.get(user.id); return r ? publicRound(r, GAMES[r.game].view(JSON.parse(r.state), JSON.parse(r.params))) : null; })(),
@@ -258,7 +258,9 @@ export function createApi({ db, config, auth, seedCipher }) {
     profile: {
       notional: v.number({ min: 0, max: 1000, decimals: 2, optional: true }),
       limits: v.obj({ lossLimit: v.number({ min: 0, max: 1_000_000, decimals: 2 }), sessionMinutes: v.number({ min: 0, max: 1440, integer: true }), realityEvery: v.number({ min: 5, max: 500, integer: true }) }, { optional: true }),
+      ghost: v.boolean({ optional: true }),
     },
+    chat: { text: v.string({ min: 1, max: 200, pattern: /^[^\x00-\x1F\x7F]+$/ }) },
     lesson: { id: v.oneOf(LESSON_IDS) },
     rotate: { clientSeed: v.string({ min: 1, max: 64, pattern: /^[a-zA-Z0-9_-]+$/, optional: true }) },
     password: { password: v.string({ min: 1, max: 128 }) },
@@ -293,7 +295,7 @@ export function createApi({ db, config, auth, seedCipher }) {
     const p = v.object(c.body, S.profile);
     const u = q.user.get(c.user.id);
     const limits = p.limits ? { ...limitsOf(u), ...p.limits } : limitsOf(u);
-    q.setProfile.run(p.notional != null ? cents(p.notional) : u.notional_cents, JSON.stringify(limits), u.id);
+    q.setProfile.run(p.notional != null ? cents(p.notional) : u.notional_cents, JSON.stringify(limits), p.ghost == null ? u.ghost : p.ghost ? 1 : 0, u.id);
     return { body: me(q.user.get(u.id), c.session) };
   });
   route('DELETE', '/api/me', {}, (c) => {
@@ -340,6 +342,13 @@ export function createApi({ db, config, auth, seedCipher }) {
   route('POST', '/api/rewards/claim', {}, (c) => ({ body: claimRebate(c.user) }));
   route('POST', '/api/wallet/deposit', {}, (c) => { const b = v.object(c.body, S.deposit); return { body: deposit(c.user, b.amount, b.source) }; });
   route('POST', '/api/wallet/withdraw', {}, (c) => ({ body: withdraw(c.user, v.object(c.body, S.withdraw).amount) }));
+
+  /* ---------------- social ---------------- */
+  const num = (s, d = 0) => { const n = Number(s); return Number.isFinite(n) && n >= 0 ? n : d; };
+  route('GET', '/api/social', {}, (c) => ({ body: { bets: social.feed(num(c.query.get('after'))), chat: social.chat(num(c.query.get('chat'))), online: social.online(), ambient: social.ambient, now: now() } }));
+  route('GET', '/api/social/big', {}, () => ({ body: { bets: social.big() } }));
+  route('GET', '/api/social/leaders', {}, () => ({ body: { leaders: social.leaders() } }));
+  route('POST', '/api/social/chat', { limiter: 'chat' }, (c) => ({ status: 201, body: { message: social.say(c.user, v.object(c.body, S.chat).text) } }));
 
   /* ---------------- dispatcher ---------------- */
   return async function handleApi(req, res, { body, ip, limiters, url }) {

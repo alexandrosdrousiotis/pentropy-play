@@ -89,10 +89,19 @@ export function openDatabase(path) {
       at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS events_user ON events(user_id, id);
+    CREATE INDEX IF NOT EXISTS rounds_settled ON rounds(status, settled_at);
+    CREATE TABLE IF NOT EXISTS chat (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      username TEXT NOT NULL,
+      text TEXT NOT NULL,
+      at INTEGER NOT NULL
+    );
   `);
   // migrations for databases created before these columns existed
   const cols = new Set(db.prepare('PRAGMA table_info(users)').all().map((c) => c.name));
   if (!cols.has('vault')) db.exec('ALTER TABLE users ADD COLUMN vault INTEGER NOT NULL DEFAULT 0');
+  if (!cols.has('ghost')) db.exec('ALTER TABLE users ADD COLUMN ghost INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('deposited')) db.exec('ALTER TABLE users ADD COLUMN deposited INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('tier')) db.exec("ALTER TABLE users ADD COLUMN tier TEXT NOT NULL DEFAULT 'bronze'");
   if (!cols.has('rebate_pending')) db.exec('ALTER TABLE users ADD COLUMN rebate_pending REAL NOT NULL DEFAULT 0');

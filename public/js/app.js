@@ -9,6 +9,7 @@ import { gameHeader, gameIcon } from './games/common.js';
 import { countTo, sound } from './fx.js';
 import { openWallet } from './wallet.js';
 import { TIERS, tierById } from '../shared/tiers.js';
+import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout } from './social.js';
 
 const app = document.getElementById('app');
 const side = document.getElementById('side');
@@ -51,7 +52,7 @@ function renderChrome() {
         svgUse('ph-coins', 'ic'), h('span', { class: 'amt num' }, fmt(u.balance)),
         h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta' }, fmtSigned(sessNet)),
         h('button', { type: 'button', class: 'go', onClick: () => openWallet('deposit') }, 'Wallet')),
-      soundToggle(),
+      chatButton(), soundToggle(),
       h('a', { class: 'avatar', href: '#/account', title: u.username }, u.username.slice(0, 2)))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Sign up'))),
   );
@@ -225,7 +226,9 @@ async function lobbyPage() {
       button('Deposit', { kind: 'primary', size: 'sm', onClick: () => openWallet('deposit') }),
       button('Withdraw', { kind: 'tertiary', size: 'sm', onClick: () => openWallet('withdraw') })),
     open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
-    gamesBoard(true, recent));
+    winTicker(),
+    gamesBoard(true, recent),
+    liveBets());
 }
 
 /* ---------------- auth ---------------- */
@@ -539,6 +542,7 @@ function accountPage() {
         h('div', { class: 'kv' }, h('span', {}, 'Balance'), h('b', {}, fmtAgt(m.user.balance))),
         h('div', { class: 'kv' }, h('span', {}, 'Refills'), h('b', {}, m.user.refills)),
         h('div', { class: 'kv' }, h('span', {}, 'Lessons read'), h('b', {}, `${m.user.lessonsRead.length} / ${edu.LESSONS.length}`)),
+        h('label', { class: 'check-row' }, h('input', { type: 'checkbox', checked: Boolean(m.user.ghost), onChange: async (e) => { try { await api.updateProfile({ ghost: e.target.checked }); toast(e.target.checked ? 'Ghost mode on. The feed shows you as Hidden.' : 'Ghost mode off.', 'good'); } catch (x) { toast(x.message, 'bad'); } } }), h('span', {}, svgUse('ph-ghost', 'inline-ic'), ' Ghost mode: hide my name in the live feed and leaderboard.')),
         h('p', { class: 'help' }, 'We hold a username, a password hash, your seeds and your bet history. Nothing else. Deleting the account removes all of it immediately.'),
         button('Delete account', { kind: 'danger', size: 'sm', onClick: async () => {
           const pass = h('input', { type: 'password', autocomplete: 'current-password', placeholder: 'password' });
@@ -563,6 +567,7 @@ subscribe((type, payload) => {
     }
   }
   if (type === 'auth') { edu.resetRealityClock(); render(); }
+  if (type === 'auth' || type === 'me') { if (user()) startSocial(); else { stopSocial(); closeChatForLogout(); } }
 });
 edu.install();
 renderFooter();

@@ -5,6 +5,7 @@ import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { v, HttpError, bad } from '../shared/validate.js';
 import { sha256, hmacSha256, toHex } from '../shared/sha256.js';
 import { TIERS, tierFor, tierById, nextTier } from '../shared/tiers.js';
+import { botRound, BOT_HANDLES } from '../shared/social-bots.js';
 
 const KEY = 'pentropy.demo.v2';
 const START = 1000_00, REFILL = 1000_00, MIN_BET = 10, MAX_BET = 1_000_000_00;
@@ -41,7 +42,7 @@ function statsOf(u) {
     biggestWin: agt(Math.max(0, ...s.map((r) => r.payout - r.amount))), biggestLoss: agt(Math.max(0, ...s.map((r) => r.amount - r.payout))), expectedLoss: agt(s.reduce((a, r) => a + r.amount * (1 - r.rtp), 0)), playMs: now() - (db.sessionStart || now()) + (u.playMs || 0) };
 }
 const me = (u) => ({
-  user: { username: u.username, balance: agt(u.balance), vault: agt(u.vault || 0), deposited: agt(u.deposited || 0), notional: agt(u.notionalCents), limits: u.limits, lessonsRead: u.lessons, refills: u.refills, createdAt: u.createdAt },
+  user: { username: u.username, balance: agt(u.balance), vault: agt(u.vault || 0), deposited: agt(u.deposited || 0), notional: agt(u.notionalCents), limits: u.limits, lessonsRead: u.lessons, refills: u.refills, createdAt: u.createdAt, ghost: Boolean(u.ghost) },
   session: { startedAt: db.sessionStart, startBalance: agt(db.startBalance) },
   seeds: { serverSeedHash: u.seeds.serverSeedHash, clientSeed: u.seeds.clientSeed, nonce: u.seeds.nonce },
   openRound: (() => { const r = openRound(u); return r ? publicRound(r, viewOf(r)) : null; })(),
@@ -56,7 +57,8 @@ function checkLimits(u) {
 
 const S = {
   credentials: { username: v.string({ min: 3, max: 20, pattern: /^[a-zA-Z0-9_]+$/ }), password: v.string({ min: 1, max: 128 }) },
-  profile: { notional: v.number({ min: 0, max: 1000, decimals: 2, optional: true }), limits: v.obj({ lossLimit: v.number({ min: 0, max: 1_000_000, decimals: 2 }), sessionMinutes: v.number({ min: 0, max: 1440, integer: true }), realityEvery: v.number({ min: 5, max: 500, integer: true }) }, { optional: true }) },
+  profile: { notional: v.number({ min: 0, max: 1000, decimals: 2, optional: true }), limits: v.obj({ lossLimit: v.number({ min: 0, max: 1_000_000, decimals: 2 }), sessionMinutes: v.number({ min: 0, max: 1440, integer: true }), realityEvery: v.number({ min: 5, max: 500, integer: true }) }, { optional: true }), ghost: v.boolean({ optional: true }) },
+  chat: { text: v.string({ min: 1, max: 200, pattern: /^[^\x00-\x1F\x7F]+$/ }) },
   lesson: { id: v.oneOf(LESSON_IDS) }, rotate: { clientSeed: v.string({ min: 1, max: 64, pattern: /^[a-zA-Z0-9_-]+$/, optional: true }) }, password: { password: v.string({ min: 1, max: 128 }) },
 };
 const rawObj = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
@@ -85,7 +87,35 @@ const rewardsOf = (u) => {
   return { tier: tier.id, rate: tier.rate, wagered, next: next ? { id: next.id, name: next.name, threshold: next.threshold, remaining: Math.max(0, next.threshold - wagered), progress: Math.min(1, (wagered - tier.threshold) / (next.threshold - tier.threshold)) } : null,
     rebatePending: Math.floor(u.rebatePending) / 100, rebateClaimed: agt(u.rebateClaimed || 0), bonuses: agt(u.bonuses || 0), edgePaid: statsOf(u).expectedLoss, tiers: TIERS };
 };
+/* ---- social: simulated room, real rounds from every local account, chat kept in storage ---- */
+const bots = []; let botClock = now() - 36e3, chatSeq = Math.max(0, ...((load().chat || []).map((m) => m.id))), botChatAt = 0;
+const LINES = ['gg', 'crash did 1.01x three times in a row lol', 'anyone else down bad today', 'chicken on hard is cruel', 'took the 2x and ran', 'claimed my rebate, still down 40 for the day', 'the edge never sleeps', 'plinko high risk is a donation box', 'how is everyone', 'tower expert is unplayable', 'roulette red red red red black', 'what is the point of martingale if the limit stops you', 'nice hit', 'one more and I stop', '2.00x on limbo is just a coin flip with extra steps', 'dice 50% is the honest one', 'hit 24x on wheel then gave it back in 10 minutes', 'the stats page is brutal', 'anyone up today?', 'lost the refill already'];
+function tickBots() { while (botClock < now()) { botClock += 700 + Math.random() * 2200; bots.push(botRound(Math.random, botClock)); } while (bots.length > 200) bots.shift(); }
+function botChat() { if (now() - botChatAt < 9000 || Math.random() > 0.5) return; botChatAt = now(); db.chat ||= []; db.chat.push({ id: ++chatSeq, username: BOT_HANDLES[Math.floor(Math.random() * BOT_HANDLES.length)], text: LINES[Math.floor(Math.random() * LINES.length)], at: now(), bot: true }); if (db.chat.length > 150) db.chat.splice(0, db.chat.length - 150); save(); }
+const realBets = (after) => Object.values(db.users).flatMap((u) => u.rounds.filter((r) => r.status === 'settled' && r.settledAt > after).map((r) => ({ id: `r${u.username}${r.id}`, at: r.settledAt, username: u.ghost ? 'Hidden' : u.username, bot: false, game: r.game, amount: agt(r.amount), multiplier: r.multiplier, payout: agt(r.payout), net: agt(r.payout - r.amount) })));
 const routes = {
+  'GET /api/social': (b, qs) => {
+    need(); tickBots(); botChat();
+    const after = Number(qs.get('after')) || 0, chatAfter = Number(qs.get('chat')) || 0;
+    const bets = [...realBets(after), ...bots.filter((x) => x.at > after)].sort((x, y) => y.at - x.at).slice(0, 40);
+    const chat = (db.chat || []).filter((m) => m.id > chatAfter).slice(-60);
+    return { body: { bets, chat, online: 14 + (Math.floor(now() / 60e3) % 7), ambient: true, now: now() } };
+  },
+  'GET /api/social/big': () => { need(); tickBots(); return { body: { bets: [...realBets(now() - 864e5), ...bots].filter((x) => x.payout > x.amount).sort((x, y) => y.payout - x.payout).slice(0, 12) } }; },
+  'GET /api/social/leaders': () => {
+    need(); tickBots();
+    const agg = {};
+    for (const x of [...realBets(now() - 864e5), ...bots]) { const a = (agg[x.username] ||= { username: x.username, bot: x.bot, bets: 0, wagered: 0, net: 0, best: 0 }); a.bets++; a.wagered += x.amount; a.net += x.net; a.best = Math.max(a.best, x.multiplier); }
+    return { body: { leaders: Object.values(agg).sort((x, y) => y.wagered - x.wagered).slice(0, 10).map((a) => ({ ...a, wagered: Math.round(a.wagered * 100) / 100, net: Math.round(a.net * 100) / 100 })) } };
+  },
+  'POST /api/social/chat': (b) => {
+    const u = need(); const { text } = v.object(b, S.chat); db.chat ||= [];
+    const last = [...db.chat].reverse().find((m) => m.username === u.username && !m.bot);
+    if (last && now() - last.at < 1500) throw new HttpError(429, 'Slow down.');
+    const clean = text.replace(/\s+/g, ' ').trim(); if (!clean) throw bad('Say something.');
+    const m = { id: ++chatSeq, username: u.username, text: clean, at: now() }; db.chat.push(m); if (db.chat.length > 150) db.chat.splice(0, db.chat.length - 150); save();
+    return { status: 201, body: { message: m } };
+  },
   'GET /api/rewards': () => ({ body: rewardsOf(need()) }),
   'POST /api/rewards/claim': () => { const u = need(); const c = Math.floor(u.rebatePending || 0); if (c < 100) throw bad('Rebates can be claimed from 1.00 AGT.'); u.rebatePending -= c; u.rebateClaimed = (u.rebateClaimed || 0) + c; u.balance += c; u.events.push({ type: 'rebate', amount: c, balanceAfter: u.balance, at: now() }); save(); return { body: { ...rewardsOf(u), balance: agt(u.balance) } }; },
   'GET /api/wallet': () => ({ body: walletOf(need()) }),
@@ -124,7 +154,7 @@ const routes = {
   },
   'POST /api/auth/logout': () => { const u = current(); if (u) u.playMs = (u.playMs || 0) + (now() - db.sessionStart); db.session = null; save(); return { body: { ok: true } }; },
   'GET /api/me': () => ({ body: me(need()) }),
-  'PATCH /api/me': (b) => { const u = need(); const p = v.object(b, S.profile); if (p.notional != null) u.notionalCents = cents(p.notional); if (p.limits) u.limits = { ...u.limits, ...p.limits }; save(); return { body: me(u) }; },
+  'PATCH /api/me': (b) => { const u = need(); const p = v.object(b, S.profile); if (p.notional != null) u.notionalCents = cents(p.notional); if (p.limits) u.limits = { ...u.limits, ...p.limits }; if (p.ghost != null) u.ghost = p.ghost; save(); return { body: me(u) }; },
   'DELETE /api/me': (b) => { const u = need(); const { password } = v.object(b, S.password); if (hashPassword(password, u.salt) !== u.hash) throw new HttpError(401, 'Invalid password.'); delete db.users[db.session]; db.session = null; save(); return { body: { ok: true } }; },
   'GET /api/stats': () => {
     const u = need();
