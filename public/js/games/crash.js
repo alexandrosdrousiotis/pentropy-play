@@ -3,13 +3,14 @@ import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundF
 import { api } from '../api.js';
 import { crashMultiplierAt, limboWinChance, LIMBO_MAX } from '../../shared/math.js';
 import { sound, flashGreen, flashRed, shake, winBurst } from '../fx.js';
+import { attach as attachAuto } from './autobet.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
 
 export function mount(root, meta) {
   const L = layout(root);
-  let auto = 0, round = null, raf = 0, poll = 0, startedAt = 0, done = true;
+  let auto = 0, round = null, raf = 0, poll = 0, startedAt = 0, done = true, resolveRound = null;
   const amount = betAmount(10, () => reality.update());
   const autoField = numberInput({ label: 'Auto cash out (0 = manual)', value: auto, min: 0, max: LIMBO_MAX, step: 0.01, unit: 'x', onChange: (v) => { auto = v > 0 ? Math.max(1.01, Math.round(v * 100) / 100) : 0; reality.update(); } });
   const play = button('Launch', { kind: 'primary', size: 'lg block', onClick: () => start() });
@@ -69,13 +70,15 @@ export function mount(root, meta) {
     readout.classList.toggle('live', live);
     if (!live) cash.querySelector('span').textContent = 'Cash out';
   }
-  async function start() {
-    if (round) return;
+  async function start(amt = amount.get()) {
+    if (round) return null;
     play.disabled = true; sound.play('click');
     const t0 = performance.now();
-    const out = await tryBet('crash', amount.get(), { autoCashout: auto });
-    if (!out) { play.disabled = false; return; }
+    const out = await tryBet('crash', amt, { autoCashout: auto });
+    if (!out) { play.disabled = false; return null; }
+    const settled = new Promise((r) => { resolveRound = r; });
     begin(out.round, performance.now() - t0);
+    return settled;
   }
   function begin(r, latency = 0) {
     round = r; done = false;
@@ -113,8 +116,10 @@ export function mount(root, meta) {
     banner.show(win ? `WIN ${payoutLine(r)}` : `Crashed at ${fmtMult(point)} · −${fmt(r.amount)} AGT`, win);
     strip.push(fmtMult(point), win);
     setLive(false);
+    if (resolveRound) { const rr = resolveRound; resolveRound = null; rr(r); }
   }
   drawFrame(0, 1);
+  attachAuto({ panel: L.controls, amount, manual: [play, cash], playRound: (a) => start(a), canStart: () => (auto > 0 ? null : 'Set an auto cash out multiplier to run auto bet.'), rtp: () => 0.99 });
   const existing = openRoundFor('crash');
   if (existing) { auto = existing.params.autoCashout || 0; autoField.set(auto); amount.set(existing.amount); begin(existing); }
   return { unmount() { done = true; cancelAnimationFrame(raf); clearInterval(poll); } };

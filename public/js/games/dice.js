@@ -3,6 +3,7 @@ import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js
 import { user } from '../api.js';
 import { diceMultiplier, diceChanceFromMultiplier, diceThreshold, DICE_MIN_CHANCE, DICE_MAX_CHANCE } from '../../shared/math.js';
 import { sound, ticker, sleep, flashGreen, flashRed } from '../fx.js';
+import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -42,11 +43,11 @@ export function mount(root, meta) {
     thr.textContent = over ? `Win if the roll is ${t.toFixed(2)} or higher` : `Win if the roll is below ${t.toFixed(2)}`;
   }
   draw();
-  async function go() {
-    if (busy) return;
+  async function go(amt = amount.get()) {
+    if (busy) return null;
     busy = true; play.disabled = true; sound.play('click');
-    const out = await tryBet('dice', amount.get(), { chance, over }, { defer: true });
-    if (!out) { busy = false; play.disabled = false; return; }
+    const out = await tryBet('dice', amt, { chance, over }, { defer: true });
+    if (!out) { busy = false; play.disabled = false; return null; }
     const { round } = out;
     const roll = round.outcome.roll;
     const win = round.multiplier > 0;
@@ -60,6 +61,8 @@ export function mount(root, meta) {
     lastLost = !win;
     out.commit();
     busy = false; play.disabled = false;
+    return round;
   }
+  attachAuto({ panel: L.controls, amount, manual: [play, martingale], playRound: (a) => go(a), rtp: () => 0.99 });
   return { unmount() {} };
 }

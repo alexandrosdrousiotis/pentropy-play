@@ -2,10 +2,11 @@ import { h, button, numberInput, toy, fmtMult, fmtPct, outcomeBanner, resultsStr
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { minesMultiplier, minesNextSafeChance, round2, MINES_CELLS } from '../../shared/math.js';
 import { sleep, sound, shake, flashRed, flashGreen, winBurst, pulse } from '../fx.js';
+import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
   const L = layout(root);
-  let mines = 3, round = null, busy = false, dead = false;
+  let mines = 3, round = null, busy = false, dead = false, autoPicks = [], autoCtl = null;
   const amount = betAmount(10, () => reality.update());
   const minesField = numberInput({ label: 'Mines', value: mines, min: 1, max: 24, step: 1, unit: `of ${MINES_CELLS}`, onChange: (v) => { mines = Math.max(1, Math.min(24, Math.round(v))); reality.update(); } });
   const play = button('Start round', { kind: 'primary', size: 'lg block', onClick: () => start() });
@@ -32,7 +33,8 @@ export function mount(root, meta) {
     c.disabled = true;
   };
   function resetGrid(enabled) {
-    cells.forEach((c) => { c.className = 'cell'; c.replaceChildren(); c.disabled = !enabled; });
+    const picking = autoCtl?.mode === 'auto' && !round && !autoCtl.running;
+    cells.forEach((c, i) => { c.className = `cell${picking && autoPicks.includes(i) ? ' autopick' : ''}`; c.replaceChildren(); c.disabled = !(enabled || picking); });
   }
   function paintControls() {
     const v = round?.view;
@@ -64,6 +66,10 @@ export function mount(root, meta) {
     round = out.round; banner.hide(); resetGrid(true); sound.play('click'); paintControls();
   }
   async function reveal(i) {
+    if (!round && autoCtl?.mode === 'auto' && !autoCtl.running) {
+      autoPicks = autoPicks.includes(i) ? autoPicks.filter((x) => x !== i) : [...autoPicks, i];
+      sound.play('tick'); resetGrid(false); return;
+    }
     if (busy || !round) return;
     busy = true; cells[i].disabled = true; paintControls();
     const out = await tryAct('reveal', { index: i }, { defer: true });
@@ -95,6 +101,38 @@ export function mount(root, meta) {
     await revealAll(r.outcome, hitIndex);
     busy = false; play.disabled = false; amount.setDisabled(false); minesField.input.disabled = false; reality.update();
   }
+  /** One automatic round: start, reveal the chosen tiles in order, cash out if still alive. */
+  async function playAuto(amt) {
+    if (busy || round) return null;
+    busy = true; play.disabled = true;
+    const out = await tryBet('mines', amt, { mines });
+    busy = false;
+    if (!out) { play.disabled = false; return null; }
+    round = out.round; banner.hide(); resetGrid(true); paintControls();
+    let settled = null;
+    for (const i of autoPicks) {
+      if (dead) return null;
+      busy = true; cells[i].disabled = true;
+      const r = await tryAct('reveal', { index: i }, { defer: true });
+      if (!r) { busy = false; return null; }
+      if (r.round.status === 'settled') {
+        if (r.round.outcome.hit === i) { setCell(cells[i], 'mine', { hit: true }); sound.play('bomb'); shake(grid); flashRed(L.board); await sleep(400); }
+        else setCell(cells[i], 'gem');
+        r.commit(); await finish(r.round, r.round.outcome.hit ?? -1); settled = r.round; break;
+      }
+      setCell(cells[i], 'gem'); sound.play('reveal');
+      round = r.round; r.commit(); busy = false; paintControls();
+      await sleep(140);
+    }
+    if (!settled) {
+      busy = true;
+      const r = await tryAct('cashout', {}, { defer: true });
+      if (!r) { busy = false; return null; }
+      r.commit(); await finish(r.round, -1); settled = r.round;
+    }
+    return settled;
+  }
+  autoCtl = attachAuto({ panel: L.controls, amount, manual: [play, cash], playRound: playAuto, canStart: () => (autoPicks.length ? null : 'Tap the tiles to reveal each round, then start.'), rtp: () => 0.99, onModeChange: () => resetGrid(Boolean(round)), onStop: () => { if (!round) resetGrid(false); } });
   const existing = openRoundFor('mines');
   if (existing) { round = existing; mines = existing.params.mines; minesField.set(mines); amount.set(existing.amount); resetGrid(true); existing.view.revealed.forEach((i) => setCell(cells[i], 'gem')); }
   else resetGrid(false);

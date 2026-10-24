@@ -2,6 +2,7 @@ import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, f
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
 import { limboWinChance, LIMBO_MAX } from '../../shared/math.js';
 import { sound, ticker, flashGreen, flashRed, winBurst, pulse } from '../fx.js';
+import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -21,11 +22,11 @@ export function mount(root, meta) {
   const reality = realityPanel(meta, () => amount.get(), () => ({ winChance: limboWinChance(target), multiplier: target, note: `Expected value of this bet = ${fmtPct(limboWinChance(target), 2)} × ${fmtMult(target)} = 0.99. It never changes, whatever you target.` }));
   L.reality.append(reality);
 
-  async function go() {
-    if (busy) return;
+  async function go(amt = amount.get()) {
+    if (busy) return null;
     busy = true; play.disabled = true; amount.setDisabled(true); sound.play('click');
-    const out = await tryBet('limbo', amount.get(), { target }, { defer: true });
-    if (!out) { busy = false; play.disabled = false; amount.setDisabled(false); return; }
+    const out = await tryBet('limbo', amt, { target }, { defer: true });
+    if (!out) { busy = false; play.disabled = false; amount.setDisabled(false); return null; }
     const { round } = out;
     const point = round.outcome.point;
     big.className = 'bignum num';
@@ -41,6 +42,8 @@ export function mount(root, meta) {
     strip.push(fmtMult(point), win);
     out.commit();
     busy = false; play.disabled = false; amount.setDisabled(false);
+    return round;
   }
+  attachAuto({ panel: L.controls, amount, manual: [play], playRound: (a) => go(a), rtp: () => 0.99 });
   return { unmount() {} };
 }

@@ -3,6 +3,7 @@ import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js
 import { KENO_NUMBERS, KENO_RISKS, kenoTable, kenoRtp, hypergeometric } from '../../shared/math.js';
 import { mulberry32 } from '../verify-rng.js';
 import { sleep, sound, flashGreen, winBurst, pulse } from '../fx.js';
+import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -48,11 +49,11 @@ export function mount(root, meta) {
     payEl.replaceChildren(h('table', { class: 'paytable' }, h('thead', {}, h('tr', {}, h('th', {}, 'Hits'), h('th', {}, 'Pays'), h('th', {}, 'Chance'))),
       h('tbody', {}, ...t.map((m, hh) => h('tr', { class: hh === hits ? 'hit' : '' }, h('td', {}, hh), h('td', {}, fmtMult(m)), h('td', {}, fmtPct(hypergeometric(picks.length, hh), 3)))))));
   }
-  async function go() {
-    if (busy || !picks.length) return;
+  async function go(amt = amount.get()) {
+    if (busy || !picks.length) return null;
     busy = true; paint(); amount.setDisabled(true); riskSeg.setDisabled(true); sound.play('click');
-    const out = await tryBet('keno', amount.get(), { picks: [...picks], risk }, { defer: true });
-    if (!out) { busy = false; paint(); amount.setDisabled(false); riskSeg.setDisabled(false); return; }
+    const out = await tryBet('keno', amt, { picks: [...picks], risk }, { defer: true });
+    if (!out) { busy = false; paint(); amount.setDisabled(false); riskSeg.setDisabled(false); return null; }
     const { round } = out;
     let hits = 0;
     for (const n of round.outcome.draw) {
@@ -71,7 +72,9 @@ export function mount(root, meta) {
     strip.push(`${round.outcome.hits}/${picks.length}`, win);
     out.commit();
     busy = false; play.disabled = false; amount.setDisabled(false); riskSeg.setDisabled(false);
+    return round;
   }
   paint(); table();
+  attachAuto({ panel: L.controls, amount, manual: [play], playRound: (a) => go(a), canStart: () => (picks.length ? null : 'Pick some numbers first.'), rtp: () => kenoRtp(risk, picks.length || 1) });
   return { unmount() { dead = true; } };
 }

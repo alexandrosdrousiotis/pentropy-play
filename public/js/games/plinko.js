@@ -2,6 +2,7 @@ import { h, button, segmented, fmtMult, fmtPct, outcomeBanner, resultsStrip } fr
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
 import { PLINKO_ROWS, PLINKO_RISKS, plinkoTable, plinkoRtp, binomialProbs } from '../../shared/math.js';
 import { sound, tween, ease, flashGreen, winBurst } from '../fx.js';
+import { attach as attachAuto } from './autobet.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const el = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
@@ -81,12 +82,12 @@ export function mount(root, meta) {
     ball.remove();
     onDone();
   }
-  async function go() {
-    if (inFlight >= 3) return;
+  async function go(amt = amount.get()) {
+    if (inFlight >= 3) return null;
     inFlight++; play.disabled = inFlight >= 3; sound.play('click');
     const t = plinkoTable(risk, rows);
-    const out = await tryBet('plinko', amount.get(), { rows, risk }, { defer: true });
-    if (!out) { inFlight--; play.disabled = false; return; }
+    const out = await tryBet('plinko', amt, { rows, risk }, { defer: true });
+    if (!out) { inFlight--; play.disabled = false; return null; }
     const { round } = out;
     await drop(round.outcome.dirs, round.outcome.bin, () => {
       const bin = round.outcome.bin;
@@ -100,6 +101,8 @@ export function mount(root, meta) {
       out.commit();
     });
     inFlight--; play.disabled = false;
+    return round;
   }
+  attachAuto({ panel: L.controls, amount, manual: [play], playRound: (a) => go(a), rtp: () => plinkoRtp(risk, rows) });
   return { unmount() { dead = true; } };
 }
