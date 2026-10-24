@@ -54,13 +54,13 @@ export function controlsPanel(...children) {
   return h('div', { class: 'panel' }, ...children);
 }
 
-import { GAME_ICON } from './index.js';
+import { GAME_ICON, ART } from './index.js';
 export const gameIcon = (id) => GAME_ICON[id] || 'ph-sparkle';
 export function gameHeader(game) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
   use.setAttribute('href', `#${gameIcon(game.id)}`); svg.append(use);
-  return h('div', { class: 'game-head' },
+  return h('div', { class: `game-head${ART.has(game.id) ? ' has-art' : ''}`, style: ART.has(game.id) ? { backgroundImage: `url(art/${game.id}.webp)` } : {} },
     h('div', { class: 'title' },
       h('span', { class: `icon art ${game.id}` }, svg),
       h('div', {}, h('h2', {}, game.name), h('div', { class: 'sub' }, game.blurb))),

@@ -1,7 +1,7 @@
 // Shell, router and pages. Games are lazy-loaded modules in ./games/.
 import { api, state, me, user, subscribe, sessionNet, sessionMinutes } from './api.js';
 import { h, svgUse, button, fmt, fmtAgt, fmtSigned, fmtPct, fmtMult, fmtMoney, fmtDuration, modal, toast, numberInput, segmented } from './ui.js';
-import { CATALOG, CATEGORIES, GAME_COLOR, ART, gameById } from './games/index.js';
+import { CATALOG, CATEGORIES, GAME_COLOR, ART, BANNERS, gameById } from './games/index.js';
 import * as edu from './edu.js';
 import { replayFloats, sha256Hex } from './verify-rng.js';
 import { replayRound, canonicalOutcome } from '../shared/replay.js';
@@ -125,8 +125,8 @@ function gameTile(g, linked) {
     img.addEventListener('error', () => img.remove());
     art.append(img);
   }
-  return h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null },
-    art, h('div', { class: 'body' }, h('h4', {}, g.name), h('span', { class: 'rtp' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2))));
+  art.append(h('span', { class: 'rtp-chip' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)), h('div', { class: 'name' }, g.name));
+  return h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null }, art);
 }
 /** A horizontally scrolling row with arrow buttons. */
 function gameRow(title, games, linked, sub) {
@@ -138,15 +138,16 @@ function gameRow(title, games, linked, sub) {
     cards);
 }
 const FEATURED = [
+  { id: 'roulette', title: 'Roulette', text: 'European single zero. Every bet pays 36 to 37.' },
   { id: 'chicken', title: 'Chicken', text: 'New. Cross 25 lanes of traffic. Cash out any time.' },
   { id: 'crash', title: 'Crash', text: 'Up to 1,000,000x if you hold your nerve.' },
-  { id: 'mines', title: 'Mines', text: 'Twenty-five tiles. You set the odds.' },
 ];
 function featured(linked) {
-  return h('div', { class: 'islands' }, ...FEATURED.map((f) => {
+  return h('div', { class: 'islands' }, ...FEATURED.map((f, i) => {
     const g = gameById(f.id);
-    return h(linked ? 'a' : 'div', { class: 'island', href: linked ? `#/play/${f.id}` : '#/signup', style: { background: GAME_COLOR[f.id] } },
-      h('div', { class: 'island-art' }, svgUse(gameIcon(f.id))),
+    const hasBanner = BANNERS.has(f.id);
+    return h(linked ? 'a' : 'div', { class: `island${hasBanner ? ' has-img' : ''}${i === 0 ? ' lead' : ''}`, href: linked ? `#/play/${f.id}` : '#/signup', style: { background: GAME_COLOR[f.id] } },
+      hasBanner ? h('img', { class: 'island-img', src: `art/${f.id}-banner.webp`, alt: '', decoding: 'async' }) : h('div', { class: 'island-art' }, svgUse(gameIcon(f.id))),
       h('div', { class: 'island-body' }, h('div', { class: 'island-kicker' }, `${fmtPct(g.rtp, 2)} RTP · max ${g.ceiling}`), h('h3', {}, f.title), h('p', {}, f.text), h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
   }));
 }

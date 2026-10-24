@@ -1,5 +1,5 @@
 // Builds dist-demo/: the client plus the browser-only demo runtime, as a content-only page for publishing.
-import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 const root = resolve(new URL('..', import.meta.url).pathname);
 const out = resolve(root, 'dist-demo');
@@ -9,6 +9,7 @@ cpSync(resolve(root, 'public/css'), resolve(out, 'css'), { recursive: true });
 cpSync(resolve(root, 'public/js'), resolve(out, 'js'), { recursive: true });
 cpSync(resolve(root, 'shared'), resolve(out, 'shared'), { recursive: true });
 cpSync(resolve(root, 'public/favicon.svg'), resolve(out, 'favicon.svg'));
+if (existsSync(resolve(root, 'public/art'))) cpSync(resolve(root, 'public/art'), resolve(out, 'art'), { recursive: true });
 const html = readFileSync(resolve(root, 'public/index.html'), 'utf8');
 // Content-only page: the publishing host wraps it in its own document skeleton.
 const body = html.slice(html.indexOf('<body>') + 6, html.lastIndexOf('</body>'));
