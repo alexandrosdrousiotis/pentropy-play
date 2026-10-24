@@ -1,15 +1,16 @@
-// Extracts the Lucide icons the app uses from the upstream sprite into an inline <svg> block in public/index.html.
-import { readFileSync, writeFileSync } from 'node:fs';
-const sprite = readFileSync(process.argv[2], 'utf8');
-const NAMES = ['house', 'book-open', 'chart-column', 'shield-check', 'user', 'chevron-left', 'zap', 'lock', 'eye', 'coins', 'volume-2', 'volume-x', 'info', 'check', 'x', 'gem', 'bomb', 'dice-5', 'flame', 'egg', 'layers', 'spade', 'club', 'rocket', 'trending-up', 'wallet', 'shuffle', 'history', 'log-out', 'trash-2', 'rotate-cw', 'sparkles', 'scale', 'triangle-alert', 'life-buoy', 'circle-dollar-sign', 'layout-grid', 'hand-coins', 'badge-percent', 'activity', 'pyramid', 'target', 'skull', 'search', 'bell', 'arrow-up-right', 'arrow-down-right', 'chevron-right', 'circle-help', 'hexagon', 'triangle'];
+// Builds the inline icon sprite in public/index.html from Phosphor Icons SVG files (MIT, https://phosphoricons.com).
+// Usage: node scripts/icons.mjs <dir with phosphor svgs>
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+const dir = process.argv[2];
 const out = [];
-for (const n of NAMES) {
-  const m = sprite.match(new RegExp(`<symbol id="${n}">([\\s\\S]*?)</symbol>`));
-  if (!m) { console.error('missing', n); continue; }
-  out.push(`    <symbol id="lu-${n}" viewBox="0 0 24 24">${m[1].replace(/\s+/g, ' ').trim()}</symbol>`);
+for (const f of readdirSync(dir).filter((x) => x.endsWith('.svg')).sort()) {
+  const svg = readFileSync(join(dir, f), 'utf8');
+  const inner = svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<rect[^>]*fill="none"[^>]*\/>/g, '').replace(/\s+/g, ' ').trim();
+  const id = f.replace(/\.svg$/, '').replace(/-(fill|bold|regular)$/, '');
+  out.push(`    <symbol id="ph-${id}" viewBox="0 0 256 256">${inner}</symbol>`);
 }
-const block = `<svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">\n  <!-- Lucide icons v0.468.0, ISC license, https://lucide.dev -->\n  <defs>\n${out.join('\n')}\n  </defs>\n</svg>`;
+const block = `<svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">\n  <!-- Phosphor Icons v2.1.1 (fill/bold weights), MIT license, https://phosphoricons.com -->\n  <defs>\n${out.join('\n')}\n  </defs>\n</svg>`;
 const html = readFileSync('public/index.html', 'utf8');
-const next = html.replace(/<svg class="defs"[\s\S]*?<\/svg>\n/, block + '\n');
-writeFileSync('public/index.html', next);
+writeFileSync('public/index.html', html.replace(/<svg class="defs"[\s\S]*?<\/svg>\n/, block + '\n'));
 console.log('icons', out.length);

@@ -10,7 +10,7 @@ export function mount(root, meta) {
   const targetField = numberInput({ label: 'Target multiplier', value: target, min: 1.01, max: LIMBO_MAX, step: 0.01, unit: 'x', onChange: (v) => { target = Math.min(LIMBO_MAX, Math.max(1.01, Math.round(v * 100) / 100)); chanceField.set((limboWinChance(target) * 100).toFixed(2)); reality.update(); } });
   const chanceField = numberInput({ label: 'Win chance', value: (limboWinChance(target) * 100).toFixed(2), min: 0.0001, max: 98.02, step: 0.01, unit: '%', onChange: (v) => { const t = Math.max(1.01, Math.min(LIMBO_MAX, Math.floor((99 / Math.max(0.0001, v)) * 100) / 100)); target = t; targetField.set(t); reality.update(); } });
   const play = button('Bet', { kind: 'primary', size: 'lg block', onClick: () => go() });
-  L.controls.append(amount, targetField, chanceField, play, h('p', { class: 'help' }, 'The round draws a number. You win your target if the number is at least as high. 1% of rounds come up 1.00x and lose every target.'));
+  L.controls.append(amount, targetField, chanceField, play);
 
   const big = h('div', { class: 'bignum num' }, '1.00x');
   const sub = h('div', { class: 'bubble' }, 'place a bet to roll');

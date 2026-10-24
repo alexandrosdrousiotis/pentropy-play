@@ -10,7 +10,7 @@ export function mount(root, meta) {
   const deal = button('Deal', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const draw = button('Draw', { kind: 'accent', size: 'lg block', disabled: true, onClick: () => doDraw() });
   const payEl = h('table', { class: 'paytable' });
-  L.controls.append(amount, deal, draw, payEl, h('p', { class: 'help' }, '9/6 Jacks or Better, the full-pay table. 99.54% with perfect strategy, which almost nobody plays. Tap cards to hold them.'));
+  L.controls.append(amount, deal, draw, payEl);
 
   const shoe = h('div', { class: 'shoe', 'aria-hidden': 'true' });
   const hand = h('div', { class: 'hand', style: { gap: '12px', minHeight: '110px' } });

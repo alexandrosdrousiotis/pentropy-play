@@ -14,8 +14,7 @@ export function mount(root, meta) {
   const dir = segmented([{ value: true, label: 'Roll over' }, { value: false, label: 'Roll under' }], over, (v) => { over = v; draw(); reality.update(); sound.play('tick'); }, { block: true });
   const play = button('Roll', { kind: 'primary', size: 'lg block', onClick: () => go() });
   const martingale = button('Double after loss', { kind: 'ghost', size: 'sm', onClick: () => { if (lastLost) amount.set(Math.min(Math.floor((user()?.balance ?? 0) * 100) / 100, Math.round(amount.get() * 200) / 100)); reality.update(); } });
-  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Win chance'), slider), h('div', { class: 'two' }, chanceField, multField), dir, play,
-    h('p', { class: 'help' }, 'Multiplier = 99 ÷ win chance. The missing 1 of 100 is the house edge. The “double after loss” button is the Martingale system; try it and watch your balance curve.'), martingale);
+  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Win chance'), slider), h('div', { class: 'two' }, chanceField, multField), dir, play, martingale);
   slider.addEventListener('input', () => setChance(Number(slider.value), 'slider'));
   function setChance(v, src) {
     chance = Math.max(DICE_MIN_CHANCE, Math.min(DICE_MAX_CHANCE, Math.round(v * 100) / 100));

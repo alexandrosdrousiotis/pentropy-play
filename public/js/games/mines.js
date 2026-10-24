@@ -11,7 +11,7 @@ export function mount(root, meta) {
   const play = button('Start round', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const cash = button('Cash out', { kind: 'orange', size: 'lg block', disabled: true, onClick: () => cashout() });
   const status = h('div', { class: 'stack', style: { gap: '4px' } });
-  L.controls.append(amount, minesField, play, cash, status, h('p', { class: 'help' }, 'Each gem multiplies by 0.99 ÷ P(safe). The next-tile chance is shown live. The moment you stop is the only decision that matters.'));
+  L.controls.append(amount, minesField, play, cash, status);
 
   const grid = h('div', { class: 'grid5', role: 'grid' });
   const cells = Array.from({ length: MINES_CELLS }, (_, i) => h('button', { class: 'cell', type: 'button', disabled: true, 'aria-label': `Tile ${i + 1}`, onClick: () => reveal(i) }));

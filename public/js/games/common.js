@@ -35,16 +35,14 @@ export function realityPanel(game, getAmount, calc) {
     const amt = getAmount() || 0;
     const c = calc() || {};
     const rtp = c.rtp ?? game.rtp;
-    const edge = 1 - rtp;
     const el = expectedLoss(amt, rtp);
     const notional = user()?.notional ?? 1;
     root.replaceChildren(...[
-      tile(fmtPct(rtp, 2), 'Return to player', `House edge ${fmtPct(edge, 2)}`),
-      c.winChance != null && tile(fmtPct(c.winChance, c.winChance < 0.001 ? 5 : 2), 'Chance this bet wins', c.multiplier ? `pays ${fmtMult(c.multiplier)}` : null),
-      tile('−' + fmt(el, el < 0.01 ? 4 : 2), 'Expected loss, this bet', `−${fmt(el * 100)} AGT after 100 bets like it`),
-      tile('−€' + fmt(el * 100 * notional), 'Same 100 bets, if real', `at €${fmt(notional)} per token`, 'hero-ish'),
-      c.note && h('div', { class: 'tile', style: { gridColumn: '1/-1' } }, h('div', { class: 'd' }, c.note)),
-    ].flat().filter(Boolean));
+      tile(fmtPct(rtp, 2), 'RTP', `${fmtPct(1 - rtp, 2)} house edge`),
+      c.winChance != null && tile(fmtPct(c.winChance, c.winChance < 0.001 ? 5 : 2), 'Win chance', c.multiplier ? `pays ${fmtMult(c.multiplier)}` : null),
+      tile('−' + fmt(el, el < 0.01 ? 4 : 2), 'Expected loss', 'per bet'),
+      tile('−€' + fmt(el * 100 * notional), 'Per 100 bets', `at €${fmt(notional)} / AGT`),
+    ].filter(Boolean));
   };
   update();
   root.update = update;
@@ -56,18 +54,19 @@ export function controlsPanel(...children) {
   return h('div', { class: 'panel' }, ...children);
 }
 
+const GAME_ICON = { limbo: 'ph-rocket-launch', mines: 'ph-bomb', dice: 'ph-dice-five', crash: 'ph-trend-up', tower: 'ph-egg', hilo: 'ph-cards', plinko: 'ph-circles-four', keno: 'ph-dots-nine', videopoker: 'ph-club', blackjack: 'ph-spade' };
+export const gameIcon = (id) => GAME_ICON[id] || 'ph-sparkle';
 export function gameHeader(game) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-  use.setAttribute('href', `#${({ limbo: 'lu-rocket', mines: 'lu-bomb', dice: 'lu-dice-5', crash: 'lu-trending-up', tower: 'lu-egg', hilo: 'lu-layers', plinko: 'lu-pyramid', keno: 'lu-layout-grid', videopoker: 'lu-club', blackjack: 'lu-spade' })[game.id]}`); svg.append(use);
+  use.setAttribute('href', `#${gameIcon(game.id)}`); svg.append(use);
   return h('div', { class: 'game-head' },
     h('div', { class: 'title' },
       h('span', { class: `icon art ${game.id}` }, svg),
       h('div', {}, h('h2', {}, game.name), h('div', { class: 'sub' }, game.blurb))),
     h('div', { class: 'row' },
       h('span', { class: 'tag' }, `RTP ${fmtPct(game.rtp, 2)}`),
-      h('span', { class: 'tag hot' }, `max ${game.ceiling}`),
-      h('a', { class: 'btn ghost sm', href: '#/' }, h('span', {}, 'All games'))));
+      h('span', { class: 'tag hot' }, `Max ${game.ceiling}`)));
 }
 
 /** Open a round; shows a toast on refusal and returns null. */

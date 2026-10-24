@@ -10,8 +10,7 @@ export function mount(root, meta) {
   const levelSeg = segmented(Object.entries(TOWER_LEVELS).map(([k, v]) => ({ value: k, label: v.label })), level, (v) => { level = v; build(); reality.update(); }, { block: true });
   const play = button('Start climb', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const cash = button('Cash out', { kind: 'orange', size: 'lg block', disabled: true, onClick: () => cashout() });
-  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Difficulty'), levelSeg), play, cash,
-    h('p', { class: 'help' }, 'Each row multiplies by 0.98 ÷ P(safe). Harder modes climb faster and fall sooner. Master pays 256,901x for nine perfect picks: a 1 in 262,144 event.'));
+  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Difficulty'), levelSeg), play, cash);
 
   const tower = h('div', { class: 'tower' });
   L.stage.append(tower);

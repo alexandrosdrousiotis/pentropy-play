@@ -14,8 +14,7 @@ export function mount(root, meta) {
   const autoField = numberInput({ label: 'Auto cash out (0 = manual)', value: auto, min: 0, max: LIMBO_MAX, step: 0.01, unit: 'x', onChange: (v) => { auto = v > 0 ? Math.max(1.01, Math.round(v * 100) / 100) : 0; reality.update(); } });
   const play = button('Launch', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const cash = button('Cash out', { kind: 'orange', size: 'xl block', disabled: true, onClick: () => cashout() });
-  L.controls.append(amount, autoField, play, cash,
-    h('p', { class: 'help' }, 'The multiplier is e^(0.12·seconds) on the server clock. Cashing out is a request; the server decides what the multiplier was when it arrived. Auto cash out fires on the server even if your connection is slow.'));
+  L.controls.append(amount, autoField, play, cash);
 
   const area = h('div', { class: 'crash-area' });
   const svg = el('svg', { viewBox: '0 0 100 60', preserveAspectRatio: 'none' });

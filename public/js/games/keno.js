@@ -13,8 +13,7 @@ export function mount(root, meta) {
   const auto = button('Auto pick', { kind: 'tertiary', size: 'sm', onClick: () => { if (busy) return; const r = mulberry32(Date.now()); const n = picks.length || 5; picks = []; while (picks.length < n) { const x = Math.floor(r() * KENO_NUMBERS); if (!picks.includes(x)) picks.push(x); } sound.play('click'); paint(); table(); reality.update(); } });
   const clear = button('Clear', { kind: 'ghost', size: 'sm', onClick: () => { if (busy) return; picks = []; paint(); table(); reality.update(); } });
   const payEl = h('div');
-  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Risk'), riskSeg), h('div', { class: 'row' }, auto, clear), play, payEl,
-    h('p', { class: 'help' }, 'Pick 1 to 10 numbers, 10 of 40 are drawn. Every pay table here returns 99.0% over time; risk only changes how lumpy the ride is.'));
+  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Risk'), riskSeg), h('div', { class: 'row' }, auto, clear), play, payEl);
 
   const grid = h('div', { class: 'keno-grid' });
   const cells = Array.from({ length: KENO_NUMBERS }, (_, i) => h('button', { class: 'cell num', type: 'button', onClick: () => toggle(i) }, i + 1));

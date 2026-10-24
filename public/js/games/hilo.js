@@ -9,7 +9,7 @@ export function mount(root, meta) {
   const amount = betAmount(10, () => reality.update());
   const play = button('Deal', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const cash = button('Cash out', { kind: 'orange', size: 'lg block', disabled: true, onClick: () => cashout() });
-  L.controls.append(amount, play, cash, h('p', { class: 'help' }, 'Infinite deck: every card is drawn fresh from 52. “Higher” and “lower” are strict; “same” pays 12.87x. Skipping is free and changes nothing about the odds.'));
+  L.controls.append(amount, play, cash);
 
   const shoe = h('div', { class: 'shoe', 'aria-hidden': 'true' });
   const slot = h('div', { class: 'card-slot', style: { position: 'relative', width: '112px', height: '158px' } });

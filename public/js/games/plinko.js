@@ -14,8 +14,7 @@ export function mount(root, meta) {
   const riskSeg = segmented(PLINKO_RISKS.map((r) => ({ value: r, label: r })), risk, (v) => { if (inFlight) { riskSeg.set(risk); return; } risk = v; build(); reality.update(); }, { block: true });
   const rowsSeg = segmented(PLINKO_ROWS.map((r) => ({ value: r, label: String(r) })), rows, (v) => { if (inFlight) { rowsSeg.set(rows); return; } rows = v; build(); reality.update(); }, { block: true });
   const play = button('Drop ball', { kind: 'primary', size: 'lg block', onClick: () => go() });
-  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Risk'), riskSeg), h('div', { class: 'field' }, h('label', {}, 'Rows'), rowsSeg), play,
-    h('p', { class: 'help' }, 'Left or right at every peg, 50/50. The edge bins pay thousands because the ball almost never gets there; the middle bins pay less than your stake because it almost always does. Up to three balls at once.'));
+  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Risk'), riskSeg), h('div', { class: 'field' }, h('label', {}, 'Rows'), rowsSeg), play);
 
   const board = h('div', { class: 'plinko' });
   const bins = h('div', { class: 'bins' });

@@ -9,7 +9,7 @@ export function mount(root, meta) {
   const amount = betAmount(10, () => reality.update());
   const deal = button('Deal', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const actions = h('div', { class: 'stack' });
-  L.controls.append(amount, deal, actions, h('p', { class: 'help' }, 'Infinite shoe, dealer stands on all 17s, blackjack pays 3:2, double on any two cards, one split, insurance pays 2:1. 99.43% with perfect basic strategy.'));
+  L.controls.append(amount, deal, actions);
 
   const shoe = h('div', { class: 'shoe', 'aria-hidden': 'true' });
   const dealerEl = h('div', { class: 'hand' });

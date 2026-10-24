@@ -5,7 +5,7 @@ import { CATALOG, gameById } from './games/index.js';
 import * as edu from './edu.js';
 import { replayFloats, sha256Hex } from './verify-rng.js';
 import { replayRound, canonicalOutcome } from '../shared/replay.js';
-import { gameHeader } from './games/common.js';
+import { gameHeader, gameIcon } from './games/common.js';
 import { countTo, sound } from './fx.js';
 
 const app = document.getElementById('app');
@@ -17,9 +17,8 @@ let activeGame = null; // { module, unmount }
 
 /* ---------------- shell ---------------- */
 const NAV = [
-  ['#/', 'Home', 'lu-house'], ['#/learn', 'Learn', 'lu-book-open'], ['#/stats', 'Stats', 'lu-chart-column'], ['#/fair', 'Fairness', 'lu-shield-check'], ['#/account', 'Account', 'lu-user'],
+  ['#/', 'Home', 'ph-house'], ['#/learn', 'Learn', 'ph-book-open'], ['#/stats', 'Stats', 'ph-chart-bar'], ['#/fair', 'Fairness', 'ph-shield-check'], ['#/account', 'Account', 'ph-user'],
 ];
-const GAME_ICON = { limbo: 'lu-rocket', mines: 'lu-bomb', dice: 'lu-dice-5', crash: 'lu-trending-up', tower: 'lu-egg', hilo: 'lu-layers', plinko: 'lu-pyramid', keno: 'lu-layout-grid', videopoker: 'lu-club', blackjack: 'lu-spade' };
 const isCurrent = (href, route) => route === href || (href !== '#/' && route.startsWith(href));
 const GAME_DOT = { limbo: '#5f8bff', mines: '#8a97b3', dice: '#4f7bff', crash: '#ff6b7f', tower: '#1fd690', hilo: '#ff5c72', plinko: '#4cc3ff', keno: '#f6b73c', videopoker: '#8ef0d8', blackjack: '#f5ac37' };
 
@@ -28,11 +27,10 @@ function renderChrome() {
   const route = location.hash || '#/';
   const navItem = (href, label, icon) => h('a', { class: 'nav-item', href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label);
   side.replaceChildren(
-    h('a', { class: 'logo', href: '#/' }, h('span', { class: 'mark' }, svgUse('lu-triangle')), h('span', {}, h('b', {}, 'Pentropy Play'), h('small', {}, 'No-money casino lab'))),
+    h('a', { class: 'logo', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning')), h('span', {}, h('b', {}, 'Pentropy'), h('small', {}, 'Play money casino'))),
     h('div', { class: 'group' }, ...NAV.map(([href, label, icon]) => navItem(href, label, icon))),
-    h('div', { class: 'group-title' }, 'Games'),
-    h('div', { class: 'group' }, ...CATALOG.map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, h('span', { class: 'dot', style: { background: GAME_DOT[g.id] } }), g.name, h('span', { class: 'r' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2))))),
-    h('div', { class: 'foot' }, h('b', {}, 'AGT has no value'), 'Tokens cannot be bought, sold or withdrawn. Every game here pays less than it takes. That is the point.'),
+    h('div', { class: 'group' }, h('div', { class: 'group-title' }, 'Games'), ...CATALOG.map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, h('span', { class: 'dot', style: { background: GAME_DOT[g.id] } }), g.name, h('span', { class: 'r' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2))))),
+    h('div', { class: 'foot' }, svgUse('ph-info'), 'Tokens have no cash value'),
   );
   const crumb = (() => {
     const g = route.match(/^#\/play\/([a-z]+)$/);
@@ -44,30 +42,30 @@ function renderChrome() {
   })();
   const sessNet = u ? sessionNet() : 0;
   top.replaceChildren(
-    h('a', { class: 'logo brand-sm', href: '#/' }, h('span', { class: 'mark' }, svgUse('lu-triangle'))),
+    h('a', { class: 'logo brand-sm', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning'))),
     h('div', { class: 'crumb' }, ...crumb),
     h('div', { class: 'spacer' }),
     u ? h('div', { class: 'row', style: { gap: '10px' } },
-      h('div', { class: 'wallet', id: 'balance', title: 'Anti-gambling tokens. Imaginary. No value.' },
-        h('span', { class: 'amt num' }, fmt(u.balance)), h('span', { class: 'cur' }, 'AGT'),
-        h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta' }, `${fmtSigned(sessNet)} today`)),
+      h('div', { class: 'wallet', id: 'balance', title: 'Play money. No cash value.' },
+        svgUse('ph-coins', 'ic'), h('span', { class: 'amt num' }, fmt(u.balance)),
+        h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta' }, fmtSigned(sessNet)),
+        h('a', { class: 'go', href: '#/stats' }, 'Wallet')),
       soundToggle(),
       h('a', { class: 'avatar', href: '#/account', title: u.username }, u.username.slice(0, 2)))
-      : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Get 1,000 AGT'))),
+      : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Sign up'))),
   );
   tabbar.replaceChildren(...NAV.map(([href, label, icon]) => h('a', { href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label)));
 }
 function soundToggle() {
   const b = h('button', { type: 'button', class: 'sound-toggle', 'aria-pressed': String(sound.enabled), title: 'Sound', 'aria-label': 'Toggle sound' });
-  const paint = () => { b.setAttribute('aria-pressed', String(sound.enabled)); b.replaceChildren(svgUse(sound.enabled ? 'lu-volume-2' : 'lu-volume-x')); };
+  const paint = () => { b.setAttribute('aria-pressed', String(sound.enabled)); b.replaceChildren(svgUse(sound.enabled ? 'ph-speaker-high' : 'ph-speaker-slash')); };
   b.addEventListener('click', () => { sound.enabled = !sound.enabled; paint(); if (sound.enabled) sound.play('click'); });
   paint();
   return b;
 }
 function renderFooter() {
   footer.replaceChildren(
-    h('p', {}, 'Pentropy Play is an educational simulator. Anti-gambling tokens (AGT) are imaginary: they cannot be bought, sold, withdrawn or exchanged for anything. Nothing here is a gambling service.'),
-    h('p', {}, 'If gambling with real money is causing harm, free confidential help exists: see the “If this stopped being a game” lesson. Every outcome on this site is provably fair and still built to lose.'),
+    h('p', {}, 'Pentropy is a play-money simulator. Tokens have no cash value and cannot be bought, sold or withdrawn. If gambling is causing you harm, see ', h('a', { href: '#/learn' }, 'Get help'), '.'),
   );
 }
 
@@ -100,46 +98,29 @@ window.addEventListener('hashchange', render);
 
 /* ---------------- landing ---------------- */
 const tile = (v, l, d, cls = '') => h('div', { class: `tile ${cls}` }, h('div', { class: 'v' }, v), h('div', { class: 'l' }, l), d && h('div', { class: 'd' }, d));
-const feature = (icon, title, text) => h('div', { class: 'feature' }, h('span', { class: 'ic' }, svgUse(icon)), h('b', {}, title), h('p', {}, text));
 
 function landingPage() {
-  const demo = demoWalletCard();
-  return h('div', { class: 'stack', style: { gap: '36px' } },
-    h('section', { class: 'hero-grid' },
+  return h('div', { class: 'stack', style: { gap: '28px' } },
+    h('section', { class: 'hero-landing' },
       h('div', { class: 'hero' },
-        h('div', { class: 'eyebrow' }, 'Ten casino games · zero money · full transparency'),
-        h('h1', {}, 'The house edge, shown to you before every bet'),
-        h('p', { class: 'lead' }, 'Sign up and receive 1,000 anti-gambling tokens. Play the exact games real sites run, at the exact same odds, and watch the edge take them back. Every round is provably fair. Every figure is converted to money. Nothing has value.'),
-        h('div', { class: 'row', style: { marginTop: '6px' } }, h('a', { class: 'btn primary lg', href: '#/signup' }, h('span', {}, 'Get 1,000 AGT')), h('a', { class: 'btn secondary lg', href: '#/learn' }, h('span', {}, 'Read the lessons')))),
-      demo),
-    h('section', { class: 'features' },
-      feature('lu-activity', 'Live expected loss', 'Every bet shows what it costs on average, in tokens and in money, before you click.'),
-      feature('lu-shield-check', 'Provably fair', 'HMAC-SHA256 seeds you can rotate and replay in your browser. Fair dice, fixed edge.'),
-      feature('lu-lock', 'Server-side everything', 'Outcomes, balances and seeds never leave the server until a round is settled.'),
-      feature('lu-coins', 'Zero value, by design', 'No deposits, no cash-out, no leaderboard. Running out of tokens requires reading a lesson.')),
-    gamesGrid(false));
-}
-
-function demoWalletCard() {
-  return h('div', { class: 'wallet-card' },
-    h('div', { class: 't-label' }, 'Example · 100 bets of 10 AGT at 99% RTP'),
-    h('div', { class: 'big num' }, '1,000.00', h('small', {}, 'AGT')),
-    h('div', { class: 'chips' }, h('span', { class: 'delta-chip down' }, '−10.00 expected'), h('span', { class: 'delta-chip' }, '1,000 wagered'), h('span', { class: 'delta-chip' }, '1.00% edge')),
-    h('div', { class: 'mini-grid' },
-      h('div', {}, h('div', { class: 'l' }, 'If 1 AGT = €1'), h('div', { class: 'v bad' }, '−€10.00')),
-      h('div', {}, h('div', { class: 'l' }, 'Ceiling'), h('div', { class: 'v' }, '1,000,000x')),
-      h('div', {}, h('div', { class: 'l' }, 'Odds of ceiling'), h('div', { class: 'v' }, '0.000099%'))));
+        h('h1', {}, 'Casino games. Play money. Real odds.'),
+        h('p', { class: 'lead' }, '1,000 free tokens. The same games and the same odds as the real sites, with the cost of every bet shown before you place it.'),
+        h('div', { class: 'row', style: { marginTop: '6px' } }, h('a', { class: 'btn primary lg', href: '#/signup' }, h('span', {}, 'Play free')), h('a', { class: 'btn tertiary lg', href: '#/learn' }, h('span', {}, 'How it works')))),
+      h('div', { class: 'hero-art' }, ...CATALOG.slice(0, 6).map((g) => h('a', { class: `art ${g.id}`, href: '#/signup', 'aria-label': g.name }, svgUse(gameIcon(g.id)))))),
+    gamesGrid(false),
+    h('div', { class: 'reality' },
+      tile('99%', 'Return to player', 'same as the real thing'),
+      tile('−€1', 'Costs you, per 100 AGT', 'shown before every bet'),
+      tile('Provably fair', 'Every round', 'verify in your browser'),
+      tile('€0', 'Token value', 'ever')));
 }
 
 function gamesGrid(linked = true) {
-  return h('section', { class: 'stack', style: { gap: '14px' } },
-    h('div', { class: 'section-head' }, h('h2', {}, 'Games'), h('span', { class: 't-desc' }, 'Ordered by how good the odds look. They all lose.')),
-    h('div', { class: 'cards' }, ...CATALOG.map((g, i) => h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null },
-      h('div', { class: `art ${g.id}` }, h('span', { class: 'n' }, String(i + 1).padStart(2, '0')), svgUse(GAME_ICON[g.id])),
-      h('div', { class: 'body' },
-        h('h4', {}, g.name),
-        h('p', { class: 'sub' }, g.blurb),
-        h('div', { class: 'meta' }, h('span', { class: 'tag' }, `RTP ${fmtPct(g.rtp, 2)}`), h('span', { class: 'tag hot' }, `max ${g.ceiling}`)))))));
+  return h('section', { class: 'stack', style: { gap: '12px' } },
+    h('div', { class: 'section-head' }, h('h2', {}, 'Games'), h('span', { class: 't-desc' }, `${CATALOG.length} originals`)),
+    h('div', { class: 'cards' }, ...CATALOG.map((g) => h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null },
+      h('div', { class: `art ${g.id}` }, svgUse(gameIcon(g.id))),
+      h('div', { class: 'body' }, h('h4', {}, g.name), h('span', { class: 'rtp' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)))))));
 }
 
 /* ---------------- lobby ---------------- */
@@ -149,26 +130,19 @@ function lobbyPage() {
   const open = m.openRound;
   const net = s.net;
   const sessNet = sessionNet();
-  return h('div', { class: 'stack', style: { gap: '28px' } },
-    h('section', { class: 'hero-grid' },
-      h('div', { class: 'hero' },
-        h('div', { class: 'eyebrow' }, `Signed in as ${m.user.username}`),
-        h('h1', {}, s.bets ? `${fmt(s.wagered, 0)} AGT has passed through the house` : 'Pick a game. Watch the edge.'),
-        h('p', { class: 'lead' }, s.bets
-          ? `Across ${s.bets} bets the edge expected to take ${fmt(s.expectedLoss)} AGT. Your actual result is ${fmtSigned(net)} AGT. ${net > -s.expectedLoss ? 'Variance is being kind to you. It does not last.' : 'The maths is doing what it said it would.'}`
-          : 'Every game shows its return-to-player, the chance your bet wins, and what it costs on average before you click. Nothing here is hidden.'),
-        open && h('div', { class: 'banner' }, h('b', {}, 'Unfinished round'), h('span', {}, `An open ${gameById(open.game)?.name} round for ${fmtAgt(open.amount)} is waiting.`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume')))),
-      h('div', { class: 'wallet-card' },
-        h('div', { class: 't-label' }, 'Balance'),
-        h('div', { class: 'big num' }, fmt(m.user.balance), h('small', {}, 'AGT')),
-        h('div', { class: 'chips' },
-          h('span', { class: `delta-chip ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}` }, `${fmtSigned(sessNet)} this session`),
-          h('span', { class: `delta-chip ${net > 0 ? 'up' : net < 0 ? 'down' : ''}` }, `${fmtSigned(net)} all time`),
-          h('span', { class: 'delta-chip' }, `${fmtMoney(m.user.notional)} per token`)),
-        h('div', { class: 'mini-grid' },
-          h('div', {}, h('div', { class: 'l' }, 'Wagered'), h('div', { class: 'v' }, fmt(s.wagered, 0))),
-          h('div', {}, h('div', { class: 'l' }, 'Edge predicted'), h('div', { class: 'v bad' }, '−' + fmt(s.expectedLoss))),
-          h('div', {}, h('div', { class: 'l' }, 'In money'), h('div', { class: `v ${net >= 0 ? 'good' : 'bad'}` }, (net < 0 ? '−' : '') + fmtMoney(Math.abs(net) * m.user.notional)))))),
+  const stat = (l, v, cls = '') => h('div', { class: 'stat' }, h('span', { class: 'l' }, l), h('span', { class: `v ${cls}` }, v));
+  return h('div', { class: 'stack', style: { gap: '20px' } },
+    h('div', { class: 'balance-row' },
+      h('div', { class: 'big num' }, fmt(m.user.balance), h('small', {}, 'AGT')),
+      h('div', { class: 'sep' }),
+      stat('Session', fmtSigned(sessNet), sessNet > 0 ? 'good' : sessNet < 0 ? 'bad' : ''),
+      stat('All time', fmtSigned(net), net > 0 ? 'good' : net < 0 ? 'bad' : ''),
+      stat('Wagered', fmt(s.wagered, 0)),
+      stat('Edge taken', '−' + fmt(s.expectedLoss), 'bad'),
+      stat('In money', (net < 0 ? '−' : '') + fmtMoney(Math.abs(net) * m.user.notional), net >= 0 ? 'good' : 'bad'),
+      h('div', { class: 'spacer' }),
+      h('a', { class: 'btn tertiary sm', href: '#/stats' }, h('span', {}, 'Stats'))),
+    open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
     gamesGrid(true));
 }
 
@@ -178,8 +152,8 @@ function authPage(mode, note) {
   const userIn = h('input', { type: 'text', autocomplete: 'username', placeholder: 'username', maxlength: '20', pattern: '[A-Za-z0-9_]{3,20}', required: true, autocapitalize: 'off', spellcheck: 'false' });
   const passIn = h('input', { type: 'password', autocomplete: isSignup ? 'new-password' : 'current-password', placeholder: isSignup ? 'at least 10 characters' : 'password', minlength: isSignup ? '10' : '1', required: true });
   const err = h('p', { class: 'help bad', role: 'alert' });
-  const agree = isSignup && h('label', { class: 'check-row' }, h('input', { type: 'checkbox', required: true }), h('span', {}, 'I understand the tokens are imaginary, have no value, and exist to show me how these games lose.'));
-  const submit = button(isSignup ? 'Create account & get 1,000 AGT' : 'Log in', { kind: 'primary', size: 'lg block', attrs: { type: 'submit' } });
+  const agree = isSignup && h('label', { class: 'check-row' }, h('input', { type: 'checkbox', required: true }), h('span', {}, 'I understand the tokens are play money with no cash value.'));
+  const submit = button(isSignup ? 'Sign up' : 'Log in', { kind: 'primary', size: 'lg block', attrs: { type: 'submit' } });
   const form = h('form', { class: 'panel auth', novalidate: false, onSubmit: async (e) => {
     e.preventDefault();
     if (!form.reportValidity()) return;
@@ -190,15 +164,14 @@ function authPage(mode, note) {
       location.hash = '#/';
     } catch (ex) { err.textContent = ex.message; submit.disabled = false; }
   } },
-    h('h2', {}, isSignup ? 'Create your account' : 'Log in'),
     note && h('p', { class: 'help warn' }, note),
     h('div', { class: 'field' }, h('label', {}, 'Username'), h('div', { class: 'input' }, userIn)),
     h('div', { class: 'field' }, h('label', {}, 'Password'), h('div', { class: 'input' }, passIn)),
     agree, err, submit,
     h('p', { class: 'help' }, isSignup ? ['Already have an account? ', h('a', { href: '#/login' }, 'Log in')] : ['New here? ', h('a', { href: '#/signup' }, 'Create an account')]),
-    isSignup && h('p', { class: 'help muted' }, 'We store a username and a scrypt password hash. No email, no payment details, no tracking.'));
+    isSignup && h('p', { class: 'help muted' }, 'No email needed.'));
   return h('div', { class: 'stack', style: { gap: '24px' } },
-    h('div', { class: 'hero', style: { textAlign: 'center', justifyItems: 'center', padding: '8px 0' } }, h('div', { class: 'eyebrow' }, 'Pentropy Play'), h('h1', {}, isSignup ? '1,000 tokens. Zero value.' : 'Welcome back')),
+    h('div', { class: 'hero', style: { textAlign: 'center', justifyItems: 'center', padding: '8px 0' } }, h('h1', {}, isSignup ? 'Create account' : 'Log in')),
     form);
 }
 
@@ -210,7 +183,7 @@ async function gamePage(id) {
   const foreign = m.openRound && m.openRound.game !== id ? m.openRound : null;
   const root = h('div', { class: 'stack', style: { gap: '20px' } },
     gameHeader(meta),
-    foreign && h('div', { class: 'banner' }, h('b', {}, 'Unfinished round'), h('span', {}, `Finish your ${gameById(foreign.game)?.name} round before starting another game.`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${foreign.game}` }, h('span', {}, 'Go there'))));
+    foreign && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(foreign.game)?.name} · ${fmtAgt(foreign.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${foreign.game}` }, h('span', {}, 'Resume'))));
   const mountPoint = h('div');
   root.append(mountPoint);
   const mod = await meta.load();
@@ -224,7 +197,7 @@ async function statsPage() {
   const m = me();
   const s = data.stats;
   const notional = m.user.notional;
-  const notionalField = numberInput({ label: 'If one token were worth', value: notional, min: 0, max: 1000, step: 0.5, unit: '€', onChange: async (v) => { try { await api.updateProfile({ notional: Math.round(v * 100) / 100 }); location.hash = '#/stats'; render(); } catch (e) { toast(e.message, 'bad'); } } });
+  const notionalField = numberInput({ label: 'Value per token', value: notional, min: 0, max: 1000, step: 0.5, unit: '€', onChange: async (v) => { try { await api.updateProfile({ notional: Math.round(v * 100) / 100 }); location.hash = '#/stats'; render(); } catch (e) { toast(e.message, 'bad'); } } });
   const curve = data.curve;
   const expectedCurve = (() => {
     // expected balance: start minus cumulative expected loss, aligned to each settled round
@@ -233,33 +206,33 @@ async function statsPage() {
     return out;
   })();
   return h('div', { class: 'stack', style: { gap: '24px' } },
-    h('div', { class: 'row between' }, h('h2', { class: 'gt' }, 'Your stats'), h('span', { class: 't-desc' }, `Playing since ${new Date(m.user.createdAt).toLocaleDateString()}`)),
+    h('div', { class: 'row between' }, h('h2', {}, 'Wallet'), h('span', { class: 't-desc' }, `Since ${new Date(m.user.createdAt).toLocaleDateString()}`)),
     h('div', { class: 'stat-grid' },
       tile(fmt(m.user.balance), 'Balance', 'AGT'),
-      tile(fmt(s.wagered), 'Total wagered', `${s.bets} bets`),
-      tile(fmtSigned(s.net), 'Net result', 'returned − wagered', s.net >= 0 ? 'good' : 'bad'),
-      tile('−' + fmt(s.expectedLoss), 'Expected by the edge', 'Σ stake × (1 − RTP)'),
-      tile(s.wagered ? fmtPct(s.returned / s.wagered, 2) : '—', 'Your realised RTP', 'returned ÷ wagered'),
-      tile(fmtSigned(s.biggestWin), 'Biggest single win', 'net of stake', 'good'),
-      tile('−' + fmt(s.biggestLoss), 'Biggest single loss', 'one bet', 'bad'),
-      tile(fmtDuration(s.playMs), 'Time signed in', 'all sessions'),
-      tile(String(m.user.refills), 'Times bankrupt', 'refilled after a lesson')),
+      tile(fmt(s.wagered), 'Wagered', `${s.bets} bets`),
+      tile(fmtSigned(s.net), 'Net', null, s.net >= 0 ? 'good' : 'bad'),
+      tile('−' + fmt(s.expectedLoss), 'House edge taken', 'expected'),
+      tile(s.wagered ? fmtPct(s.returned / s.wagered, 2) : '—', 'Your RTP', 'so far'),
+      tile(fmtSigned(s.biggestWin), 'Best win', null, 'good'),
+      tile('−' + fmt(s.biggestLoss), 'Worst loss', null, 'bad'),
+      tile(fmtDuration(s.playMs), 'Time played'),
+      tile(String(m.user.refills), 'Refills')),
     h('section', { class: 'plate' },
-      h('div', { class: 'row between' }, h('h3', {}, 'Balance over time, against what the edge predicted'), h('span', { class: 't-desc' }, data.history.length >= 100 ? 'expected line uses the last 100 rounds' : '')),
+      h('div', { class: 'row between' }, h('h3', {}, 'Balance vs. expected'), h('span', { class: 't-desc' }, data.history.length >= 100 ? 'last 100 rounds' : '')),
       balanceChart(curve, expectedCurve)),
     h('section', { class: 'plate' },
       h('h3', {}, 'In money'),
       h('div', { class: 'two' },
         notionalField,
         h('div', { class: 'reality' },
-          tile(fmtMoney(s.wagered * notional), 'Turned over', 'total wagered'),
-          tile((s.net < 0 ? '−' : '') + fmtMoney(Math.abs(s.net) * notional), s.net < 0 ? 'Lost' : 'Won', 'net result', s.net >= 0 ? 'good' : 'bad'),
-          tile('−' + fmtMoney(s.expectedLoss * notional), 'Edge predicted', 'the price of playing'))),
-      h('p', { class: 'help' }, 'Real sites show tokens, chips, multipliers, anything except money. This converts every number back, so the abstraction stops working.')),
+          tile(fmtMoney(s.wagered * notional), 'Wagered'),
+          tile((s.net < 0 ? '−' : '') + fmtMoney(Math.abs(s.net) * notional), s.net < 0 ? 'Lost' : 'Won', null, s.net >= 0 ? 'good' : 'bad'),
+          tile('−' + fmtMoney(s.expectedLoss * notional), 'House edge'))),
+      h('p', { class: 'help' }, 'Everything above, converted at the rate you choose.')),
     h('section', { class: 'plate' },
       h('h3', {}, 'By game'),
       data.byGame.length ? h('table', { class: 'data' },
-        h('thead', {}, h('tr', {}, h('th', {}, 'Game'), h('th', {}, 'Bets'), h('th', {}, 'Wagered'), h('th', {}, 'Returned'), h('th', {}, 'Net'), h('th', {}, 'Realised RTP'), h('th', {}, 'Best hit'))),
+        h('thead', {}, h('tr', {}, h('th', {}, 'Game'), h('th', {}, 'Bets'), h('th', {}, 'Wagered'), h('th', {}, 'Returned'), h('th', {}, 'Net'), h('th', {}, 'RTP'), h('th', {}, 'Best'))),
         h('tbody', {}, ...data.byGame.sort((a, b) => b.wagered - a.wagered).map((g) => h('tr', {},
           h('td', {}, gameById(g.game)?.name ?? g.game), h('td', {}, g.bets), h('td', {}, fmt(g.wagered)), h('td', {}, fmt(g.returned)),
           h('td', { class: g.returned - g.wagered >= 0 ? 'good' : 'bad' }, fmtSigned(g.returned - g.wagered)), h('td', {}, fmtPct(g.returned / g.wagered, 2)), h('td', {}, fmtMult(g.best || 0))))))
@@ -270,7 +243,7 @@ async function statsPage() {
         h('thead', {}, h('tr', {}, h('th', {}, 'Game'), h('th', {}, 'Stake'), h('th', {}, 'Result'), h('th', {}, 'Net'), h('th', {}, 'Nonce'))),
         h('tbody', {}, ...data.history.slice(0, 40).map((r) => h('tr', {}, h('td', {}, gameById(r.game)?.name), h('td', {}, fmt(r.amount)), h('td', {}, fmtMult(r.multiplier)), h('td', { class: r.net >= 0 ? 'good' : 'bad' }, fmtSigned(r.net)), h('td', { class: 'mono' }, r.nonce)))))
         : h('p', { class: 'help' }, 'Nothing yet.'),
-      h('p', { class: 'help' }, 'Verify any of these on the ', h('a', { href: '#/fair' }, 'fairness page'), '.')));
+      h('p', { class: 'help' }, h('a', { href: '#/fair' }, 'Verify a round'))));
 }
 
 function balanceChart(actual, expected) {
@@ -325,7 +298,7 @@ function learnPage() {
   return h('div', { class: 'stack', style: { gap: '24px' } },
     h('div', { class: 'row between' }, h('h2', { class: 'gt' }, 'Lessons'), h('span', { class: 't-desc' }, m ? `${done} of ${edu.LESSONS.length} read` : 'Sign in to track progress')),
     m && h('div', { class: 'progress' }, h('i', { style: { width: `${(done / edu.LESSONS.length) * 100}%` } })),
-    h('p', { class: 'lead' }, 'Short, specific, and about the games you just played. Lessons unlock as you place bets, because the point lands harder once you have felt it.'),
+
     h('div', { class: 'cards' }, ...edu.LESSONS.map((l) => {
       const unlocked = !m || edu.lessonUnlocked(l, m);
       const isRead = read.includes(l.id);
@@ -356,7 +329,7 @@ async function fairPage() {
   }
   return h('div', { class: 'stack', style: { gap: '24px' } },
     h('h2', { class: 'gt' }, 'Provably fair'),
-    h('p', { class: 'lead' }, 'Each round is derived from HMAC-SHA256(server seed, "client seed : nonce : cursor"). You see the hash of the server seed before you play and the seed itself after you rotate. Fair randomness, fixed edge: this page proves the first and the stats page shows the second.'),
+    h('p', { class: 'lead' }, 'Every result comes from HMAC-SHA256 of a server seed, your client seed and a nonce. Rotate to reveal the server seed and verify any round below.'),
     h('div', { class: 'two' },
       h('div', { class: 'panel' },
         h('h3', {}, 'Active seed pair'),

@@ -25,8 +25,8 @@ export const svgUse = (id, cls = '') => {
   s.append(u);
   return s;
 };
-const TOY_ICON = { gem: 'lu-gem', bomb: 'lu-bomb', dragon: 'lu-egg', gold: 'lu-coins', coin: 'lu-circle-dollar-sign' };
-export const toy = (kind, size = 56, extra = '') => h('div', { class: `toy ${kind} ${extra}`, style: { width: `${size}px`, height: `${size}px` } }, svgUse(TOY_ICON[kind] || 'lu-hexagon'));
+const TOY_ICON = { gem: 'ph-diamond', bomb: 'ph-bomb', dragon: 'ph-egg', gold: 'ph-coins', coin: 'ph-currency-circle-dollar' };
+export const toy = (kind, size = 56, extra = '') => h('div', { class: `toy ${kind} ${extra}`, style: { width: `${size}px`, height: `${size}px` } }, svgUse(TOY_ICON[kind] || 'ph-sparkle'));
 
 export const fmt = (n, d = 2) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
 export const fmtAgt = (n) => `${fmt(n)} AGT`;
