@@ -59,7 +59,7 @@ export function controlsPanel(...children) {
 export function gameHeader(game) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-  use.setAttribute('href', `#g-${game.id}`); svg.append(use);
+  use.setAttribute('href', `#${({ limbo: 'lu-rocket', mines: 'lu-bomb', dice: 'lu-dice-5', crash: 'lu-trending-up', tower: 'lu-egg', hilo: 'lu-layers', plinko: 'lu-pyramid', keno: 'lu-layout-grid', videopoker: 'lu-club', blackjack: 'lu-spade' })[game.id]}`); svg.append(use);
   return h('div', { class: 'game-head' },
     h('div', { class: 'title' },
       h('span', { class: `icon art ${game.id}` }, svg),

@@ -106,10 +106,16 @@ A `Dockerfile` is included (`docker build -t pentropy . && docker run -e SECRET_
 
 ## Design
 
-Tokens, type, buttons, segmented controls, cards and the 3D "toy" icons follow the GeoGuessr
-style catalog supplied with the brief: Nunito bold italic, gradient text, bevelled gradient
-buttons that lift on hover, purple-90 cards, a recessed black track for segmented controls, and
-the `#volume` SVG filter for sticker-outlined button text.
+The interface copies the surface system of the large exchanges' dark modes rather than inventing
+one: Coinbase's near-black page and card colours, hairline borders, pill buttons with a single blue
+accent and its dark-mode green/red delta colours; Kraken Pro's 12px panel radius and density;
+Binance's muted 12px labels above 16–20px tabular values. There are no gradients, glows or drop
+shadows on surfaces; only modals and toasts cast a shadow. Icons are Lucide (ISC), inlined as an
+SVG sprite by `scripts/icons.mjs`. Type is Inter with tabular numerals.
+
+Motion lives in `public/js/fx.js`: one set of easing curves, FLIP-based deals from a shoe, 3D card
+flips, tile flips, gravity arcs for Plinko, a live Crash curve, digit tickers and a balance
+counter, plus synthesized sound cues with a mute toggle. Reduced-motion users get instant states.
 
 ## Not a gambling service
 
