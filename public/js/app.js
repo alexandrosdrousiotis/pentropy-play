@@ -1,7 +1,7 @@
 // Shell, router and pages. Games are lazy-loaded modules in ./games/.
 import { api, state, me, user, subscribe, sessionNet, sessionMinutes } from './api.js';
 import { h, svgUse, button, fmt, fmtAgt, fmtSigned, fmtPct, fmtMult, fmtMoney, fmtDuration, modal, toast, numberInput, segmented } from './ui.js';
-import { CATALOG, gameById } from './games/index.js';
+import { CATALOG, CATEGORIES, GAME_COLOR, ART, gameById } from './games/index.js';
 import * as edu from './edu.js';
 import { replayFloats, sha256Hex } from './verify-rng.js';
 import { replayRound, canonicalOutcome } from '../shared/replay.js';
@@ -20,7 +20,7 @@ const NAV = [
   ['#/', 'Home', 'ph-house'], ['#/learn', 'Learn', 'ph-book-open'], ['#/stats', 'Stats', 'ph-chart-bar'], ['#/fair', 'Fairness', 'ph-shield-check'], ['#/account', 'Account', 'ph-user'],
 ];
 const isCurrent = (href, route) => route === href || (href !== '#/' && route.startsWith(href));
-const GAME_DOT = { limbo: '#5f8bff', mines: '#8a97b3', dice: '#4f7bff', crash: '#ff6b7f', tower: '#1fd690', hilo: '#ff5c72', plinko: '#4cc3ff', keno: '#f6b73c', videopoker: '#8ef0d8', blackjack: '#f5ac37' };
+const GAME_DOT = GAME_COLOR;
 
 function renderChrome() {
   const u = user();
@@ -29,7 +29,7 @@ function renderChrome() {
   side.replaceChildren(
     h('a', { class: 'logo', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning')), h('span', {}, h('b', {}, 'Pentropy'), h('small', {}, 'Play money casino'))),
     h('div', { class: 'group' }, ...NAV.map(([href, label, icon]) => navItem(href, label, icon))),
-    h('div', { class: 'group' }, h('div', { class: 'group-title' }, 'Games'), ...CATALOG.map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, h('span', { class: 'dot', style: { background: GAME_DOT[g.id] } }), g.name, h('span', { class: 'r' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2))))),
+    ...CATEGORIES.map((cat) => h('div', { class: 'group' }, h('div', { class: 'group-title' }, cat.label), ...CATALOG.filter((g) => g.cat === cat.id).map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, h('span', { class: 'dot', style: { background: GAME_DOT[g.id] } }), g.name, h('span', { class: 'r' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)))))),
     h('div', { class: 'foot' }, svgUse('ph-info'), 'Tokens have no cash value'),
   );
   const crumb = (() => {
@@ -115,12 +115,39 @@ function landingPage() {
       tile('€0', 'Token value', 'ever')));
 }
 
+/** Game tile: artwork image when public/art/<id>.webp exists, otherwise the flat colour field with the icon. */
+function gameTile(g, linked) {
+  const art = h('div', { class: `art ${g.id}`, style: { background: GAME_COLOR[g.id] } }, svgUse(gameIcon(g.id)));
+  if (ART.has(g.id)) {
+    const img = h('img', { src: `art/${g.id}.webp`, alt: '', loading: 'lazy', decoding: 'async' });
+    img.addEventListener('load', () => art.classList.add('has-img'));
+    img.addEventListener('error', () => img.remove());
+    art.append(img);
+  }
+  return h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null },
+    art, h('div', { class: 'body' }, h('h4', {}, g.name), h('span', { class: 'rtp' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2))));
+}
+function gameRow(cat, linked) {
+  const games = CATALOG.filter((g) => g.cat === cat.id);
+  return h('section', { class: 'stack', style: { gap: '10px' } },
+    h('div', { class: 'section-head' }, h('h2', {}, cat.label), h('span', { class: 't-desc' }, `${games.length} games`)),
+    h('div', { class: 'cards' }, ...games.map((g) => gameTile(g, linked))));
+}
+const FEATURED = [
+  { id: 'crash', title: 'Crash', text: 'Up to 1,000,000x if you hold your nerve.' },
+  { id: 'mines', title: 'Mines', text: 'Twenty-five tiles. You set the odds.' },
+  { id: 'chicken', title: 'Chicken', text: 'New. Cross 25 lanes, cash out any time.' },
+];
+function featured(linked) {
+  return h('div', { class: 'islands' }, ...FEATURED.map((f) => {
+    const g = gameById(f.id);
+    return h(linked ? 'a' : 'div', { class: 'island', href: linked ? `#/play/${f.id}` : '#/signup', style: { background: GAME_COLOR[f.id] } },
+      h('div', { class: 'island-art' }, svgUse(gameIcon(f.id))),
+      h('div', { class: 'island-body' }, h('div', { class: 'island-kicker' }, `${fmtPct(g.rtp, 2)} RTP · max ${g.ceiling}`), h('h3', {}, f.title), h('p', {}, f.text), h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
+  }));
+}
 function gamesGrid(linked = true) {
-  return h('section', { class: 'stack', style: { gap: '12px' } },
-    h('div', { class: 'section-head' }, h('h2', {}, 'Games'), h('span', { class: 't-desc' }, `${CATALOG.length} originals`)),
-    h('div', { class: 'cards' }, ...CATALOG.map((g) => h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null },
-      h('div', { class: `art ${g.id}` }, svgUse(gameIcon(g.id))),
-      h('div', { class: 'body' }, h('h4', {}, g.name), h('span', { class: 'rtp' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)))))));
+  return h('div', { class: 'stack', style: { gap: '24px' } }, featured(linked), ...CATEGORIES.map((cat) => gameRow(cat, linked)));
 }
 
 /* ---------------- lobby ---------------- */
@@ -313,7 +340,7 @@ function learnPage() {
 /* ---------------- fairness ---------------- */
 async function fairPage() {
   const [seeds, rounds] = await Promise.all([api.seeds(), api.rounds(100)]);
-  const clientIn = h('input', { type: 'text', value: seeds.current.clientSeed, maxlength: '64', pattern: '[A-Za-z0-9_-]+', spellcheck: 'false' });
+  const clientIn = h('input', { type: 'text', value: seeds.current.clientSeed, maxlength: '64', pattern: '[A-Za-z0-9_\\-]+', spellcheck: 'false' });
   const result = h('div', { class: 'stack' });
   const revealedMap = new Map(seeds.revealed.map((r) => [r.serverSeedHash, r]));
   const verifiable = rounds.rounds.filter((r) => revealedMap.has(r.serverSeedHash));

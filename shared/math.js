@@ -274,3 +274,127 @@ export const fmtMult = (m) => (m >= 1000 ? Math.round(m).toLocaleString() : m >=
 export const CRASH_K = 0.12; // multiplier = e^(k·seconds): 2x ≈ 5.8s, 10x ≈ 19s, 100x ≈ 38s
 export const crashMultiplierAt = (ms) => Math.max(1, Math.floor(Math.exp(CRASH_K * (ms / 1000)) * 100) / 100);
 export const crashTimeFor = (mult) => (Math.log(mult) / CRASH_K) * 1000;
+
+/* ---------------- Sequential hazard games: Chicken, Pump (same maths as Mines on an ordered track) ---------------- */
+export const TRACK_LEN = 25;
+export const CHICKEN_LEVELS = { easy: { label: 'Easy', hazards: 1 }, medium: { label: 'Medium', hazards: 3 }, hard: { label: 'Hard', hazards: 5 }, daredevil: { label: 'Daredevil', hazards: 10 } };
+export const PUMP_LEVELS = { easy: { label: 'Easy', hazards: 1 }, medium: { label: 'Medium', hazards: 3 }, hard: { label: 'Hard', hazards: 5 }, expert: { label: 'Expert', hazards: 10 } };
+export const TRACK_RTP = 0.99;
+export const trackMultiplier = (hazards, k) => (k === 0 ? 1 : TRACK_RTP * (choose(TRACK_LEN, k) / choose(TRACK_LEN - hazards, k)));
+export const trackNextSafeChance = (hazards, k) => (TRACK_LEN - hazards - k) / (TRACK_LEN - k);
+export const trackLayout = (floats, hazards) => drawDistinct(floats, TRACK_LEN, hazards);
+
+/* ---------------- Flip, Rock Paper Scissors: chains of 50/50 steps ---------------- */
+export const CHAIN_STEP = 1.98; // 0.99 / 0.5
+export const CHAIN_CAP = 100_000;
+export const flipOutcome = (u) => (u < 0.5 ? 'heads' : 'tails');
+export const RPS = ['rock', 'paper', 'scissors'];
+export const rpsOutcome = (u) => RPS[Math.min(2, Math.floor(u * 3))];
+export function rpsResult(pick, house) {
+  if (pick === house) return 'tie';
+  const beats = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+  return beats[pick] === house ? 'win' : 'lose';
+}
+
+/* ---------------- Wheel ---------------- */
+export const WHEEL_SEGMENTS = [10, 20, 30, 40, 50];
+export const WHEEL_RISKS = ['low', 'medium', 'high'];
+export const WHEEL_RTP = 0.99;
+const wheelCache = new Map();
+/** Segment multipliers, 2dp, scaled so the wheel pays exactly 99%. */
+export function wheelTable(risk, segments) {
+  const key = `${risk}:${segments}`;
+  if (wheelCache.has(key)) return wheelCache.get(key);
+  let shape;
+  if (risk === 'high') shape = Array.from({ length: segments }, (_, i) => (i === 0 ? 1 : 0));
+  else if (risk === 'medium') { const pat = [0, 1.5, 0, 2, 0, 1.5, 0, 3, 0, 1.5, 0, 2, 0, 1.5, 0, 4, 0, 1.5, 0, 2]; shape = Array.from({ length: segments }, (_, i) => pat[i % pat.length]); if (segments >= 30) shape[segments - 1] = 10; if (segments >= 50) shape[Math.floor(segments / 2)] = 20; }
+  else { const pat = [1.5, 1.2, 1.2, 0, 1.2, 1.2, 1.5, 1.2, 1.2, 0]; shape = Array.from({ length: segments }, (_, i) => pat[i % pat.length]); }
+  const probs = shape.map(() => 1 / segments);
+  const mass = shape.reduce((a, m, i) => a + m * probs[i], 0);
+  const s = WHEEL_RTP / mass;
+  const table = shape.map((m) => round2(m * s));
+  const nonZero = table.map((m, i) => i).filter((i) => table[i] > 0);
+  nudgeToTarget(table, probs, nonZero, WHEEL_RTP);
+  wheelCache.set(key, table);
+  return table;
+}
+export const wheelRtp = (risk, segments) => wheelTable(risk, segments).reduce((a, m) => a + m, 0) / segments;
+export const wheelIndex = (u, segments) => Math.min(segments - 1, Math.floor(u * segments));
+
+/* ---------------- Baccarat (infinite shoe, standard drawing rules) ---------------- */
+export const baccaratValue = (rank) => (rank >= 10 ? 0 : rank);
+export const baccaratTotal = (cards) => cards.reduce((a, c) => a + baccaratValue(c.rank), 0) % 10;
+/** Play a coup from a card stream (cards drawn lazily via `draw()`); returns the hands and winner. */
+export function baccaratCoup(draw) {
+  const p1 = draw(), b1 = draw(), p2 = draw(), b2 = draw();
+  const player = [p1, p2], banker = [b1, b2];
+  let p = baccaratTotal(player), b = baccaratTotal(banker);
+  if (p < 8 && b < 8) {
+    let third = null;
+    if (p <= 5) { third = draw(); player.push(third); p = baccaratTotal(player); }
+    const t = third ? baccaratValue(third.rank) : null;
+    const bankerDraws = third == null ? b <= 5
+      : b <= 2 ? true : b === 3 ? t !== 8 : b === 4 ? t >= 2 && t <= 7 : b === 5 ? t >= 4 && t <= 7 : b === 6 ? t === 6 || t === 7 : false;
+    if (bankerDraws) { banker.push(draw()); b = baccaratTotal(banker); }
+  }
+  const winner = p > b ? 'player' : b > p ? 'banker' : 'tie';
+  return { player, banker, playerTotal: p, bankerTotal: b, winner };
+}
+export const BACCARAT_PAYOUT = { player: 2, banker: 1.95, tie: 9 };
+export const BACCARAT_RTP = { player: 0.9876, banker: 0.9894, tie: 0.8564 };
+
+/* ---------------- Roulette (European, single zero) ---------------- */
+export const ROULETTE_RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+export const ROULETTE_RTP = 36 / 37;
+export const rouletteNumber = (u) => Math.min(36, Math.floor(u * 37));
+export const ROULETTE_BETS = ['straight', 'red', 'black', 'odd', 'even', 'low', 'high', 'dozen', 'column'];
+/** Payout multiple (stake included) for a bet on `n`. */
+export function roulettePayout(bet, value, n) {
+  if (n === 0) return bet === 'straight' && value === 0 ? 36 : 0;
+  switch (bet) {
+    case 'straight': return value === n ? 36 : 0;
+    case 'red': return ROULETTE_RED.has(n) ? 2 : 0;
+    case 'black': return ROULETTE_RED.has(n) ? 0 : 2;
+    case 'odd': return n % 2 === 1 ? 2 : 0;
+    case 'even': return n % 2 === 0 ? 2 : 0;
+    case 'low': return n <= 18 ? 2 : 0;
+    case 'high': return n >= 19 ? 2 : 0;
+    case 'dozen': return Math.ceil(n / 12) === value ? 3 : 0;
+    case 'column': return ((n - 1) % 3) + 1 === value ? 3 : 0;
+    default: return 0;
+  }
+}
+
+/* ---------------- Diamonds: five gems in seven colours ---------------- */
+export const DIAMOND_COLOURS = 7;
+export const DIAMONDS_RTP = 0.99;
+export const diamondColour = (u) => Math.min(DIAMOND_COLOURS - 1, Math.floor(u * DIAMOND_COLOURS));
+export const DIAMOND_HANDS = ['Five of a kind', 'Four of a kind', 'Full house', 'Three of a kind', 'Two pair', 'Pair', 'Nothing'];
+export function diamondHand(colours) {
+  const counts = {};
+  for (const c of colours) counts[c] = (counts[c] || 0) + 1;
+  const g = Object.values(counts).sort((a, b) => b - a);
+  if (g[0] === 5) return 'Five of a kind';
+  if (g[0] === 4) return 'Four of a kind';
+  if (g[0] === 3 && g[1] === 2) return 'Full house';
+  if (g[0] === 3) return 'Three of a kind';
+  if (g[0] === 2 && g[1] === 2) return 'Two pair';
+  if (g[0] === 2) return 'Pair';
+  return 'Nothing';
+}
+/** Exact probabilities of each hand with 5 gems in 7 colours. */
+export const DIAMOND_PROBS = (() => {
+  const t = 7 ** 5;
+  return { 'Five of a kind': 7 / t, 'Four of a kind': (7 * 5 * 6) / t, 'Full house': (7 * 10 * 6) / t, 'Three of a kind': (7 * 10 * 6 * 5) / t, 'Two pair': (21 * 10 * 3 * 5) / t, 'Pair': (7 * 10 * 6 * 5 * 4) / t, 'Nothing': (7 * 6 * 5 * 4 * 3) / t };
+})();
+export const DIAMOND_PAYTABLE = (() => {
+  const base = { 'Five of a kind': 50, 'Four of a kind': 5, 'Full house': 4, 'Three of a kind': 3, 'Two pair': 2, 'Pair': 0.1, 'Nothing': 0 };
+  const names = DIAMOND_HANDS;
+  const probs = names.map((n) => DIAMOND_PROBS[n]);
+  const table = names.map((n) => base[n]);
+  const scale = DIAMONDS_RTP / table.reduce((a, m, i) => a + m * probs[i], 0);
+  const scaled = table.map((m, i) => (i === 0 ? m : round2(m * scale)));
+  nudgeToTarget(scaled, probs, [1, 2, 3, 4, 5], DIAMONDS_RTP);
+  return Object.fromEntries(names.map((n, i) => [n, scaled[i]]));
+})();
+export const diamondsRtp = () => DIAMOND_HANDS.reduce((a, n) => a + DIAMOND_PAYTABLE[n] * DIAMOND_PROBS[n], 0);

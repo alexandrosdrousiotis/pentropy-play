@@ -5,18 +5,27 @@ A no-money gaming platform that teaches how casino-style games lose. People sign
 use. Every bet shows its return-to-player, its win chance, and its expected loss in money before
 it is placed. Every outcome is provably fair and still built to lose. That is the lesson.
 
-| # | Game | RTP | Ceiling | Notes |
-|---|------|-----|---------|-------|
-| 1 | Limbo | 99% | 1,000,000x | P(result ≥ t) = 0.99 / t |
-| 2 | Mines | 99% | 5,148,297x | 25 tiles, 1–24 mines, multiplier = 0.99 · C(25,k)/C(25−m,k) |
-| 3 | Dice | 99% | 9,900x | 10,000 outcomes, win chance 0.01–98%, pays 99 / chance |
-| 4 | Crash | 99% | 1,000,000x | same point formula as Limbo; multiplier = e^(0.12·s) on the server clock |
-| 5 | Dragon Tower | 98% | 256,901x | 9 rows, five difficulties, multiplier = 0.98 · (tiles/safe)^rows |
-| 6 | HiLo | 99% | 100,000x | infinite deck, each call compounds by 0.99 / P(correct) |
-| 7 | Plinko | 99% | 10,000x | 8–16 rows, three risk levels, tables solved to 99.0% at 2 decimals |
-| 8 | Keno | 99% | 1,000x | 40 numbers, 10 drawn, four risk levels, tables solved to 99.0% |
-| 9 | Video Poker | 99.54% | 800x | 9/6 Jacks or Better, full-pay |
-| 10 | Blackjack | 99.43% | 2.5x | infinite shoe, S17, 3:2, double any two, one split, insurance 2:1 |
+| Game | RTP | Ceiling | Notes |
+|------|-----|---------|-------|
+| Limbo, Slide | 99% | 1,000,000x | P(result ≥ t) = 0.99 / t |
+| Mines | 99% | 5,148,297x | 25 tiles, 1–24 mines, multiplier = 0.99 · C(25,k)/C(25−m,k) |
+| Chicken, Pump | 99% | 3,236,072x | same maths on an ordered 25-step track with 1, 3, 5 or 10 hazards |
+| Dice | 99% | 9,900x | 10,000 outcomes, win chance 0.01–98%, pays 99 / chance |
+| Crash | 99% | 1,000,000x | same point formula as Limbo; multiplier = e^(0.12·s) on the server clock |
+| Dragon Tower | 98% | 256,901x | 9 rows, five difficulties, multiplier = 0.98 · (tiles/safe)^rows |
+| HiLo | 99% | 100,000x | infinite deck, each call compounds by 0.99 / P(correct) |
+| Flip, Rock Paper Scissors | 99% | 100,000x | 1.98x per correct 50/50 call; RPS ties are free |
+| Plinko | 99% | 10,000x | 8–16 rows, three risk levels, tables solved to 99.0% at 2 decimals |
+| Keno | 99% | 1,000x | 40 numbers, 10 drawn, four risk levels, tables solved to 99.0% |
+| Wheel | 99% | 49.5x | 10–50 segments, three risk levels, tables solved to 99.0% |
+| Diamonds | 99% | 50x | five gems in seven colours, exact hand probabilities |
+| Video Poker | 99.54% | 800x | 9/6 Jacks or Better, full-pay |
+| Blackjack | 99.43% | 2.5x | infinite shoe, S17, 3:2, double any two, one split, insurance 2:1 |
+| Baccarat | 98.94% banker / 98.76% player / 85.64% tie | 9x | standard drawing rules, 5% commission on banker |
+| Roulette | 97.30% | 36x | European single zero, all standard bets |
+
+Auto bet (number of bets, on-win/on-loss adjustment, stop on profit/loss) is available on every
+game that settles in one round, plus Crash with auto cash-out and Mines with pre-selected tiles.
 
 The displayed RTP for Plinko and Keno is the true RTP of the exact 2-decimal table that settles
 the bet (within ±0.03% of 99%), not an asserted figure. `npm test` proves every number above.

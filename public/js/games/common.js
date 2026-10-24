@@ -54,7 +54,7 @@ export function controlsPanel(...children) {
   return h('div', { class: 'panel' }, ...children);
 }
 
-const GAME_ICON = { limbo: 'ph-rocket-launch', mines: 'ph-bomb', dice: 'ph-dice-five', crash: 'ph-trend-up', tower: 'ph-egg', hilo: 'ph-cards', plinko: 'ph-circles-four', keno: 'ph-dots-nine', videopoker: 'ph-club', blackjack: 'ph-spade' };
+import { GAME_ICON } from './index.js';
 export const gameIcon = (id) => GAME_ICON[id] || 'ph-sparkle';
 export function gameHeader(game) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

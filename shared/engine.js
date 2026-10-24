@@ -308,3 +308,130 @@ const blackjack = {
 export const GAMES = { limbo, dice, crash, mines, tower, hilo, plinko, keno, videopoker, blackjack };
 export const GAME_IDS = Object.keys(GAMES);
 export const isInteractive = (id) => typeof GAMES[id].action === 'function';
+
+/* ======================= second wave ======================= */
+/* ---------------- Chicken / Pump: ordered hazard track ---------------- */
+function trackGame(levels, { stepAction, unit, bustKey }) {
+  return {
+    rtp: () => M.TRACK_RTP,
+    params: (raw) => v.object(raw, { level: v.oneOf(Object.keys(levels)) }),
+    start(p, rng) {
+      const hazards = levels[p.level].hazards;
+      const layout = M.trackLayout(rng.take(hazards), hazards);
+      return open({ layout, k: 0 });
+    },
+    view(s, p) {
+      const hazards = levels[p.level].hazards;
+      return { [unit]: s.k, hazards, total: M.TRACK_LEN, safe: M.TRACK_LEN - hazards, multiplier: s.k ? r2(M.trackMultiplier(hazards, s.k)) : 1, next: r2(M.trackMultiplier(hazards, s.k + 1)), nextSafeChance: M.trackNextSafeChance(hazards, s.k), ladder: Array.from({ length: M.TRACK_LEN - hazards }, (_, i) => r2(M.trackMultiplier(hazards, i + 1))) };
+    },
+    action(s, p, name) {
+      const hazards = levels[p.level].hazards;
+      if (name === stepAction) {
+        const lane = s.k; // the next position on the track is index k
+        if (s.layout.includes(lane)) return settled(0, { layout: s.layout, [unit]: s.k, [bustKey]: lane });
+        s.k++;
+        if (s.k === M.TRACK_LEN - hazards) return settled(r2(M.trackMultiplier(hazards, s.k)), { layout: s.layout, [unit]: s.k, cleared: true });
+        return open(s);
+      }
+      if (name === 'cashout') {
+        if (!s.k) throw bad('Take at least one step first');
+        return settled(r2(M.trackMultiplier(hazards, s.k)), { layout: s.layout, [unit]: s.k });
+      }
+      throw bad('Unknown action');
+    },
+  };
+}
+const chicken = trackGame(M.CHICKEN_LEVELS, { stepAction: 'step', unit: 'lane', bustKey: 'hit' });
+const pump = trackGame(M.PUMP_LEVELS, { stepAction: 'pump', unit: 'pumps', bustKey: 'popped' });
+
+/* ---------------- Flip: call heads or tails, 1.98x per correct call ---------------- */
+const flip = {
+  rtp: () => 0.99,
+  params: (raw) => v.object(raw, {}),
+  start() { return open({ flips: [], multiplier: 1 }); },
+  view(s) { return { flips: s.flips, multiplier: s.multiplier, correct: s.flips.length, next: r2(s.multiplier * M.CHAIN_STEP), cap: M.CHAIN_CAP }; },
+  action(s, p, name, payload, rng) {
+    if (name === 'flip') {
+      const { choice } = v.object(payload, { choice: v.oneOf(['heads', 'tails']) });
+      const result = M.flipOutcome(rng.one());
+      const ok = result === choice;
+      s.flips.push({ choice, result, ok });
+      if (!ok) return settled(0, { flips: s.flips });
+      s.multiplier = r2(s.multiplier * M.CHAIN_STEP);
+      if (s.multiplier >= M.CHAIN_CAP) return settled(M.CHAIN_CAP, { flips: s.flips, capped: true });
+      return open(s);
+    }
+    if (name === 'cashout') { if (!s.flips.length) throw bad('Flip at least once first'); return settled(s.multiplier, { flips: s.flips }); }
+    throw bad('Unknown action');
+  },
+};
+
+/* ---------------- Rock Paper Scissors: win 1.98x per round, ties are free ---------------- */
+const rps = {
+  rtp: () => 0.99,
+  params: (raw) => v.object(raw, {}),
+  start() { return open({ rounds: [], multiplier: 1, wins: 0 }); },
+  view(s) { return { rounds: s.rounds, multiplier: s.multiplier, wins: s.wins, next: r2(s.multiplier * M.CHAIN_STEP), cap: M.CHAIN_CAP }; },
+  action(s, p, name, payload, rng) {
+    if (name === 'throw') {
+      const { choice } = v.object(payload, { choice: v.oneOf(M.RPS) });
+      const house = M.rpsOutcome(rng.one());
+      const result = M.rpsResult(choice, house);
+      s.rounds.push({ pick: choice, house, result });
+      if (result === 'lose') return settled(0, { rounds: s.rounds });
+      if (result === 'win') { s.wins++; s.multiplier = r2(s.multiplier * M.CHAIN_STEP); if (s.multiplier >= M.CHAIN_CAP) return settled(M.CHAIN_CAP, { rounds: s.rounds, capped: true }); }
+      return open(s);
+    }
+    if (name === 'cashout') { if (!s.wins) throw bad('Win at least one throw first'); return settled(s.multiplier, { rounds: s.rounds }); }
+    throw bad('Unknown action');
+  },
+};
+
+/* ---------------- Slide: Limbo on a strip ---------------- */
+const slide = {
+  rtp: () => M.LIMBO_RTP,
+  params: (raw) => v.object(raw, { target: v.number({ min: 1.01, max: M.LIMBO_MAX, decimals: 2 }) }),
+  start(p, rng) { const { point } = replay.slide(rng.take(1)); return settled(point >= p.target ? p.target : 0, { point }); },
+};
+
+/* ---------------- Wheel ---------------- */
+const wheel = {
+  rtp: (p) => M.wheelRtp(p.risk, p.segments),
+  params: (raw) => v.object(raw, { segments: v.oneOf(M.WHEEL_SEGMENTS), risk: v.oneOf(M.WHEEL_RISKS) }),
+  start(p, rng) { const { index } = replay.wheel(rng.take(1), p); const table = M.wheelTable(p.risk, p.segments); return settled(table[index], { index, multiplier: table[index] }); },
+};
+
+/* ---------------- Baccarat ---------------- */
+const baccarat = {
+  rtp: (p) => M.BACCARAT_RTP[p.bet],
+  params: (raw) => v.object(raw, { bet: v.oneOf(['player', 'banker', 'tie']) }),
+  start(p, rng) {
+    const dealt = [];
+    const coup = M.baccaratCoup(() => { const c = M.cardFromFloat(rng.one()); dealt.push(c); return c; });
+    let mult = 0;
+    if (coup.winner === p.bet) mult = M.BACCARAT_PAYOUT[p.bet];
+    else if (coup.winner === 'tie') mult = 1; // player/banker bets push on a tie
+    return settled(mult, { ...coup, dealt });
+  },
+};
+
+/* ---------------- Roulette (one bet per spin) ---------------- */
+const roulette = {
+  rtp: () => M.ROULETTE_RTP,
+  params: (raw) => {
+    const p = v.object(raw, { bet: v.oneOf(M.ROULETTE_BETS), value: v.number({ min: 0, max: 36, integer: true, optional: true, default: 0 }) });
+    if ((p.bet === 'dozen' || p.bet === 'column') && (p.value < 1 || p.value > 3)) throw bad('value must be 1, 2 or 3');
+    return p;
+  },
+  start(p, rng) { const { number } = replay.roulette(rng.take(1)); return settled(M.roulettePayout(p.bet, p.value, number), { number, red: M.ROULETTE_RED.has(number) }); },
+};
+
+/* ---------------- Diamonds ---------------- */
+const diamonds = {
+  rtp: () => M.diamondsRtp(),
+  params: (raw) => v.object(raw, {}),
+  start(p, rng) { const { colours } = replay.diamonds(rng.take(5)); const hand = M.diamondHand(colours); return settled(M.DIAMOND_PAYTABLE[hand], { colours, hand }); },
+};
+
+Object.assign(GAMES, { chicken, pump, flip, rps, slide, wheel, baccarat, roulette, diamonds });
+GAME_IDS.push('chicken', 'pump', 'flip', 'rps', 'slide', 'wheel', 'baccarat', 'roulette', 'diamonds');

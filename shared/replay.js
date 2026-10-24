@@ -40,6 +40,7 @@ export function replayRound(game, floats, params, outcome) {
 
 /** Extract the comparable part of a stored outcome. */
 export function canonicalOutcome(game, outcome) {
+  if (canon2[game]) return canon2[game](outcome);
   switch (game) {
     case 'limbo': case 'crash': return { point: outcome.point };
     case 'dice': return { roll: outcome.roll };
@@ -53,3 +54,27 @@ export function canonicalOutcome(game, outcome) {
     default: return outcome;
   }
 }
+
+/* ---------------- second wave ---------------- */
+import { trackLayout, flipOutcome, rpsOutcome, wheelIndex, rouletteNumber, diamondColour } from './math.js';
+Object.assign(replay, {
+  chicken: (f, p) => ({ layout: trackLayout(f, { easy: 1, medium: 3, hard: 5, daredevil: 10 }[p.level]).sort((a, b) => a - b) }),
+  pump: (f, p) => ({ layout: trackLayout(f, { easy: 1, medium: 3, hard: 5, expert: 10 }[p.level]).sort((a, b) => a - b) }),
+  flip: (f) => ({ results: f.map(flipOutcome) }),
+  rps: (f) => ({ house: f.map(rpsOutcome) }),
+  slide: (f) => ({ point: crashPoint(f[0]) }),
+  wheel: (f, p) => ({ index: wheelIndex(f[0], p.segments) }),
+  baccarat: (f) => ({ cards: f.map(cardFromFloat).map(({ rank, suit }) => ({ rank, suit })) }),
+  roulette: (f) => ({ number: rouletteNumber(f[0]) }),
+  diamonds: (f) => ({ colours: f.slice(0, 5).map(diamondColour) }),
+});
+Object.assign(floatsAtStart, {
+  chicken: (p) => ({ easy: 1, medium: 3, hard: 5, daredevil: 10 }[p.level]), pump: (p) => ({ easy: 1, medium: 3, hard: 5, expert: 10 }[p.level]),
+  flip: () => 0, rps: () => 0, slide: () => 1, wheel: () => 1, baccarat: () => 4, roulette: () => 1, diamonds: () => 5,
+});
+const canon2 = {
+  chicken: (o) => ({ layout: [...o.layout].sort((a, b) => a - b) }), pump: (o) => ({ layout: [...o.layout].sort((a, b) => a - b) }),
+  flip: (o) => ({ results: o.flips.map((x) => x.result) }), rps: (o) => ({ house: o.rounds.map((x) => x.house) }),
+  slide: (o) => ({ point: o.point }), wheel: (o) => ({ index: o.index }),
+  baccarat: (o) => ({ cards: [...o.dealt].map(({ rank, suit }) => ({ rank, suit })) }), roulette: (o) => ({ number: o.number }), diamonds: (o) => ({ colours: o.colours }),
+};
