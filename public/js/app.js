@@ -8,6 +8,7 @@ import { replayRound, canonicalOutcome } from '../shared/replay.js';
 import { gameHeader, gameIcon } from './games/common.js';
 import { countTo, sound } from './fx.js';
 import { openWallet } from './wallet.js';
+import { TIERS, tierById } from '../shared/tiers.js';
 
 const app = document.getElementById('app');
 const side = document.getElementById('side');
@@ -18,7 +19,7 @@ let activeGame = null; // { module, unmount }
 
 /* ---------------- shell ---------------- */
 const NAV = [
-  ['#/', 'Home', 'ph-house'], ['#/learn', 'Learn', 'ph-book-open'], ['#/stats', 'Stats', 'ph-chart-bar'], ['#/fair', 'Fairness', 'ph-shield-check'], ['#/account', 'Account', 'ph-user'],
+  ['#/', 'Home', 'ph-house'], ['#/rewards', 'Rewards', 'ph-trophy'], ['#/stats', 'Stats', 'ph-chart-bar'], ['#/learn', 'Learn', 'ph-book-open'], ['#/fair', 'Fairness', 'ph-shield-check'],
 ];
 const isCurrent = (href, route) => route === href || (href !== '#/' && route.startsWith(href));
 const GAME_DOT = GAME_COLOR;
@@ -31,7 +32,7 @@ function renderChrome() {
     h('a', { class: 'logo', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning')), h('span', {}, h('b', {}, 'Pentropy'), h('small', {}, 'Play money casino'))),
     h('div', { class: 'group' }, ...NAV.map(([href, label, icon]) => navItem(href, label, icon))),
     ...CATEGORIES.map((cat) => h('div', { class: 'group' }, h('div', { class: 'group-title' }, cat.label), ...CATALOG.filter((g) => g.cat === cat.id).map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, h('span', { class: 'dot', style: { background: GAME_DOT[g.id] } }), g.name, h('span', { class: 'r' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)))))),
-    h('div', { class: 'foot' }, svgUse('ph-info'), 'Tokens have no cash value'),
+    u && me()?.rewards ? tierFoot(me().rewards) : h('div', { class: 'foot' }, svgUse('ph-info'), 'Tokens have no cash value'),
   );
   const crumb = (() => {
     const g = route.match(/^#\/play\/([a-z]+)$/);
@@ -58,6 +59,13 @@ function renderChrome() {
   tabbar.hidden = !u;
   tabbar.replaceChildren(...NAV.map(([href, label, icon]) => h('a', { href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label)));
 }
+function tierFoot(rw) {
+  const t = tierById(rw.tier);
+  return h('a', { class: 'foot tierfoot', href: '#/rewards' },
+    h('span', { class: 'tier-badge', style: { color: t.colour } }, svgUse('ph-medal'), t.name),
+    rw.next ? h('div', { class: 'tier-prog' }, h('div', { class: 'progress' }, h('i', { style: { width: `${rw.next.progress * 100}%` } })), h('span', {}, `${fmt(rw.next.remaining, 0)} to ${rw.next.name}`)) : h('span', {}, 'Top tier'),
+    rw.rebatePending >= 1 ? h('span', { class: 'tag green' }, `${fmt(rw.rebatePending)} to claim`) : null);
+}
 function soundToggle() {
   const b = h('button', { type: 'button', class: 'sound-toggle', 'aria-pressed': String(sound.enabled), title: 'Sound', 'aria-label': 'Toggle sound' });
   const paint = () => { b.setAttribute('aria-pressed', String(sound.enabled)); b.replaceChildren(svgUse(sound.enabled ? 'ph-speaker-high' : 'ph-speaker-slash')); };
@@ -81,6 +89,7 @@ const routes = [
   [/^#\/learn$/, learnPage],
   [/^#\/fair$/, fairPage],
   [/^#\/account$/, accountPage],
+  [/^#\/rewards$/, rewardsPage],
 ];
 async function render() {
   if (activeGame) { try { await activeGame.unmount?.(); } catch { /* ignore */ } activeGame = null; }
@@ -88,7 +97,7 @@ async function render() {
   const found = routes.find(([re]) => re.test(hash));
   renderChrome();
   if (!found) { location.hash = '#/'; return; }
-  const needsAuth = /^#\/(play|stats|fair|account)/.test(hash);
+  const needsAuth = /^#\/(play|stats|fair|account|rewards)/.test(hash);
   if (needsAuth && !user()) { app.replaceChildren(...[authPage('login', 'Sign in to continue.')].flat().filter(Boolean)); return; }
   const [re, page] = found;
   const out = await page(...hash.match(re).slice(1));
@@ -210,9 +219,10 @@ async function lobbyPage() {
       stat('Session', fmtSigned(sessNet), sessNet > 0 ? 'good' : sessNet < 0 ? 'bad' : ''),
       stat('All time', fmtSigned(net), net > 0 ? 'good' : net < 0 ? 'bad' : ''),
       stat('Deposited', fmt(m.user.deposited ?? 0, 0)),
-      stat('Vault', fmt(m.user.vault ?? 0, 0)),
       stat('Edge taken', '−' + fmt(s.expectedLoss), 'bad'),
+      stat('Rebates', '+' + fmt(m.rewards?.rebateClaimed ?? 0), 'good'),
       h('div', { class: 'spacer' }),
+      h('a', { class: 'tier-badge lg', href: '#/rewards', style: { color: tierById(m.rewards?.tier).colour } }, svgUse('ph-medal'), tierById(m.rewards?.tier).name),
       button('Deposit', { kind: 'primary', size: 'sm', onClick: () => openWallet('deposit') }),
       button('Withdraw', { kind: 'tertiary', size: 'sm', onClick: () => openWallet('withdraw') })),
     open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
@@ -279,7 +289,20 @@ async function statsPage() {
     return out;
   })();
   return h('div', { class: 'stack', style: { gap: '24px' } },
-    h('div', { class: 'row between' }, h('h2', {}, 'Wallet'), h('span', { class: 't-desc' }, `Since ${new Date(m.user.createdAt).toLocaleDateString()}`)),
+    h('div', { class: 'row between' }, h('h2', {}, 'Stats'), h('span', { class: 't-desc' }, `Since ${new Date(m.user.createdAt).toLocaleDateString()}`)),
+    (() => {
+      const putIn = 1000 + (m.user.deposited ?? 0) + (m.user.refills ?? 0) * 1000;
+      const have = m.user.balance + (m.user.vault ?? 0);
+      const diff = have - putIn;
+      return h('section', { class: 'summary' },
+        h('div', { class: 'sum-row' },
+          h('div', { class: 'sum-cell' }, h('div', { class: 'l' }, 'Put in'), h('div', { class: 'v num' }, fmt(putIn, 0))),
+          h('div', { class: 'sum-cell' }, h('div', { class: 'l' }, 'Have now'), h('div', { class: 'v num' }, fmt(have, 0))),
+          h('div', { class: 'sum-cell' }, h('div', { class: 'l' }, diff >= 0 ? 'Up' : 'Down'), h('div', { class: `v num ${diff >= 0 ? 'good' : 'bad'}` }, fmtSigned(Math.round(diff))))),
+        h('p', { class: 'sum-line' }, s.bets
+          ? `${s.bets} bets. The house edge took ${fmt(s.expectedLoss)} on average; rebates gave ${fmt((m.rewards?.rebateClaimed ?? 0) + (m.rewards?.bonuses ?? 0))} back. ${diff < 0 ? `At €${fmt(m.user.notional)} a token, that is €${fmt(-diff)} gone.` : 'Variance is ahead of the edge for now.'}`
+          : 'No bets yet. Every bet shows its cost before you place it.'));
+    })(),
     h('div', { class: 'stat-grid' },
       tile(fmt(m.user.balance), 'Balance', 'AGT'),
       tile(fmt(s.wagered), 'Wagered', `${s.bets} bets`),
@@ -291,7 +314,8 @@ async function statsPage() {
       tile(fmtDuration(s.playMs), 'Time played'),
       tile(String(m.user.refills), 'Refills'),
       tile(fmt(m.user.deposited ?? 0), 'Deposited', 'lifetime'),
-      tile(fmt(m.user.vault ?? 0), 'In vault', 'withdrawn')),
+      tile(fmt(m.user.vault ?? 0), 'In vault', 'withdrawn'),
+      tile('+' + fmt((m.rewards?.rebateClaimed ?? 0) + (m.rewards?.bonuses ?? 0)), 'Rebates & bonuses', 'given back', 'good')),
     h('section', { class: 'plate' },
       h('div', { class: 'row between' }, h('h3', {}, 'Balance vs. expected'), h('span', { class: 't-desc' }, data.history.length >= 100 ? 'last 100 rounds' : '')),
       balanceChart(curve, expectedCurve)),
@@ -306,17 +330,17 @@ async function statsPage() {
       h('p', { class: 'help' }, 'Everything above, converted at the rate you choose.')),
     h('section', { class: 'plate' },
       h('h3', {}, 'By game'),
-      data.byGame.length ? h('table', { class: 'data' },
+      data.byGame.length ? h('div', { class: 'tscroll' }, h('table', { class: 'data' },
         h('thead', {}, h('tr', {}, h('th', {}, 'Game'), h('th', {}, 'Bets'), h('th', {}, 'Wagered'), h('th', {}, 'Returned'), h('th', {}, 'Net'), h('th', {}, 'RTP'), h('th', {}, 'Best'))),
         h('tbody', {}, ...data.byGame.sort((a, b) => b.wagered - a.wagered).map((g) => h('tr', {},
           h('td', {}, gameById(g.game)?.name ?? g.game), h('td', {}, g.bets), h('td', {}, fmt(g.wagered)), h('td', {}, fmt(g.returned)),
-          h('td', { class: g.returned - g.wagered >= 0 ? 'good' : 'bad' }, fmtSigned(g.returned - g.wagered)), h('td', {}, fmtPct(g.returned / g.wagered, 2)), h('td', {}, fmtMult(g.best || 0))))))
+          h('td', { class: g.returned - g.wagered >= 0 ? 'good' : 'bad' }, fmtSigned(g.returned - g.wagered)), h('td', {}, fmtPct(g.returned / g.wagered, 2)), h('td', {}, fmtMult(g.best || 0)))))))
         : h('p', { class: 'help' }, 'No bets yet.')),
     h('section', { class: 'plate' },
       h('h3', {}, 'Recent rounds'),
-      data.history.length ? h('table', { class: 'data' },
+      data.history.length ? h('div', { class: 'tscroll' }, h('table', { class: 'data' },
         h('thead', {}, h('tr', {}, h('th', {}, 'Game'), h('th', {}, 'Stake'), h('th', {}, 'Result'), h('th', {}, 'Net'), h('th', {}, 'Nonce'))),
-        h('tbody', {}, ...data.history.slice(0, 40).map((r) => h('tr', {}, h('td', {}, gameById(r.game)?.name), h('td', {}, fmt(r.amount)), h('td', {}, fmtMult(r.multiplier)), h('td', { class: r.net >= 0 ? 'good' : 'bad' }, fmtSigned(r.net)), h('td', { class: 'mono' }, r.nonce)))))
+        h('tbody', {}, ...data.history.slice(0, 20).map((r) => h('tr', {}, h('td', {}, gameById(r.game)?.name), h('td', {}, fmt(r.amount)), h('td', {}, fmtMult(r.multiplier)), h('td', { class: r.net >= 0 ? 'good' : 'bad' }, fmtSigned(r.net)), h('td', { class: 'mono' }, r.nonce))))))
         : h('p', { class: 'help' }, 'Nothing yet.'),
       h('p', { class: 'help' }, h('a', { href: '#/fair' }, 'Verify a round'))));
 }
@@ -445,6 +469,49 @@ plinko     one float per row: < 0.5 left, ≥ 0.5 right; bin = number of rights
 keno       partial Fisher–Yates over 40 numbers, 10 draws
 videopoker 5 floats deal from a 52-card deck, then one float per discarded card from the remaining deck
 blackjack  one float per card from an infinite shoe, dealt player, dealer, player, dealer, then as requested`)));
+}
+
+/* ---------------- rewards ---------------- */
+async function rewardsPage() {
+  const rw = await api.rewards();
+  const m = me();
+  const t = tierById(rw.tier);
+  const netCost = rw.edgePaid - rw.rebateClaimed - rw.rebatePending - rw.bonuses;
+  const claim = button(rw.rebatePending >= 1 ? `Claim ${fmt(rw.rebatePending)} AGT` : 'Nothing to claim yet', { kind: 'primary', size: 'lg', disabled: rw.rebatePending < 1, onClick: async () => { try { await api.claimRebate(); toast('Rebate claimed.', 'good'); render(); } catch (e) { toast(e.message, 'bad'); } } });
+  const ladder = h('div', { class: 'ladder' }, ...TIERS.map((tier, i) => {
+    const reached = TIERS.findIndex((x) => x.id === rw.tier) >= i;
+    return h('div', { class: `rung${reached ? ' reached' : ''}${tier.id === rw.tier ? ' current' : ''}` },
+      h('span', { class: 'tier-badge', style: { color: tier.colour } }, svgUse('ph-medal'), tier.name),
+      h('span', { class: 'rung-th num' }, tier.threshold ? `${fmt(tier.threshold, 0)} wagered` : 'start'),
+      h('span', { class: 'rung-rate num' }, `${(tier.rate * 100).toFixed(1)}% rakeback`),
+      h('span', { class: 'rung-bonus num' }, tier.bonus ? `+${fmt(tier.bonus, 0)} bonus` : '—'));
+  }));
+  return h('div', { class: 'stack', style: { gap: '20px' } },
+    h('div', { class: 'row between' }, h('h2', {}, 'Rewards'), h('span', { class: 'tier-badge lg', style: { color: t.colour } }, svgUse('ph-medal'), t.name)),
+    h('section', { class: 'rw-hero' },
+      h('div', { class: 'rw-main' },
+        h('div', { class: 't-label' }, 'Rakeback available'),
+        h('div', { class: 'rw-big num' }, fmt(rw.rebatePending), h('small', {}, 'AGT')),
+        h('p', { class: 'help' }, `${(t.rate * 100).toFixed(1)}% of the house edge on every bet comes back to you as ${t.name}.`),
+        claim),
+      rw.next ? h('div', { class: 'rw-next' },
+        h('div', { class: 'row between' }, h('span', { class: 't-label' }, `Next: ${rw.next.name}`), h('span', { class: 't-desc num' }, `${fmt(rw.wagered, 0)} / ${fmt(rw.next.threshold, 0)}`)),
+        h('div', { class: 'progress' }, h('i', { style: { width: `${rw.next.progress * 100}%` } })),
+        h('p', { class: 'help' }, `Wager ${fmt(rw.next.remaining, 0)} more AGT for ${(tierById(rw.next.id).rate * 100).toFixed(1)}% rakeback and a ${fmt(tierById(rw.next.id).bonus, 0)} AGT bonus.`))
+        : h('div', { class: 'rw-next' }, h('span', { class: 't-label' }, 'Top tier reached'))),
+    h('section', { class: 'plate' },
+      h('h3', {}, 'What the rebate is made of'),
+      h('div', { class: 'flow' },
+        h('div', { class: 'flow-step' }, h('div', { class: 'l' }, 'Wagered'), h('div', { class: 'v num' }, fmt(rw.wagered))),
+        h('span', { class: 'flow-arrow' }, svgUse('ph-caret-right')),
+        h('div', { class: 'flow-step bad' }, h('div', { class: 'l' }, 'Edge taken'), h('div', { class: 'v num' }, '−' + fmt(rw.edgePaid))),
+        h('span', { class: 'flow-arrow' }, svgUse('ph-caret-right')),
+        h('div', { class: 'flow-step good' }, h('div', { class: 'l' }, 'Given back'), h('div', { class: 'v num' }, '+' + fmt(rw.rebateClaimed + rw.rebatePending + rw.bonuses))),
+        h('span', { class: 'flow-arrow' }, svgUse('ph-caret-right')),
+        h('div', { class: 'flow-step' }, h('div', { class: 'l' }, 'Net cost of playing'), h('div', { class: `v num ${netCost > 0 ? 'bad' : ''}` }, '−' + fmt(Math.max(0, netCost))))),
+      h('p', { class: 'help' }, rw.edgePaid > 0 ? `Rebates and bonuses returned ${fmtPct((rw.rebateClaimed + rw.rebatePending + rw.bonuses) / rw.edgePaid, 1)} of what the edge took. The rest is the price of the loyalty programme.` : 'Place bets to see the edge, and the slice of it that comes back.')),
+    h('section', { class: 'plate' }, h('h3', {}, 'Tiers'), ladder,
+      h('p', { class: 'help' }, 'Tiers are earned by lifetime wager, not by winning. The faster you climb, the more the edge has already taken.')));
 }
 
 /* ---------------- account & limits ---------------- */

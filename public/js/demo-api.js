@@ -4,6 +4,7 @@
 import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { v, HttpError, bad } from '../shared/validate.js';
 import { sha256, hmacSha256, toHex } from '../shared/sha256.js';
+import { TIERS, tierFor, tierById, nextTier } from '../shared/tiers.js';
 
 const KEY = 'pentropy.demo.v2';
 const START = 1000_00, REFILL = 1000_00, MIN_BET = 10, MAX_BET = 1_000_000_00;
@@ -45,6 +46,7 @@ const me = (u) => ({
   seeds: { serverSeedHash: u.seeds.serverSeedHash, clientSeed: u.seeds.clientSeed, nonce: u.seeds.nonce },
   openRound: (() => { const r = openRound(u); return r ? publicRound(r, viewOf(r)) : null; })(),
   stats: statsOf(u),
+  rewards: rewardsOf(u),
 });
 function checkLimits(u) {
   const l = u.limits;
@@ -61,11 +63,31 @@ const rawObj = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? x : {})
 
 const FAUCET = 1000_00;
 const walletOf = (u) => {
+  const TYPES = ['deposit', 'withdraw', 'vault_in', 'refill', 'rebate', 'bonus'];
   const used = u.events.filter((e) => e.type === 'deposit' && e.at > now() - 24 * 3600e3).reduce((a, e) => a + e.amount, 0);
   return { balance: agt(u.balance), vault: agt(u.vault || 0), deposited: agt(u.deposited || 0), faucetAvailable: agt(Math.max(0, FAUCET - used)), faucetPerDay: agt(FAUCET), address: 'agt1' + sha256Hex(`addr:${u.username.toLowerCase()}`).slice(0, 38),
-    history: [...u.events].reverse().filter((e) => ['deposit', 'withdraw', 'vault_in', 'refill'].includes(e.type)).slice(0, 50).map((e, i) => ({ id: e.at, type: e.type, amount: agt(e.amount), balanceAfter: agt(e.balanceAfter), at: e.at, txid: sha256Hex(`${u.username}:${e.at}:${i}`).slice(0, 40) })) };
+    history: [...u.events].reverse().filter((e) => TYPES.includes(e.type)).slice(0, 50).map((e, i) => ({ id: e.at, type: e.type, amount: agt(e.amount), balanceAfter: agt(e.balanceAfter), at: e.at, txid: sha256Hex(`${u.username}:${e.at}:${i}`).slice(0, 40) })) };
+};
+function accrue(u, amountCents, rtp) {
+  u.tier ||= 'bronze'; u.rebatePending ||= 0; u.rebateClaimed ||= 0; u.bonuses ||= 0;
+  u.rebatePending += amountCents * (1 - rtp) * tierById(u.tier).rate;
+  const wagered = u.rounds.filter((r) => r.status === 'settled').reduce((a, r) => a + r.amount, 0) / 100;
+  const earned = tierFor(wagered);
+  if (TIERS.findIndex((t) => t.id === earned.id) > TIERS.findIndex((t) => t.id === u.tier)) {
+    for (const t of TIERS) if (t.threshold > tierById(u.tier).threshold && t.threshold <= earned.threshold) { u.balance += cents(t.bonus); u.bonuses += cents(t.bonus); u.events.push({ type: 'bonus', amount: cents(t.bonus), balanceAfter: u.balance, at: now() }); }
+    u.tier = earned.id;
+  }
+}
+const rewardsOf = (u) => {
+  u.tier ||= 'bronze'; u.rebatePending ||= 0;
+  const wagered = u.rounds.filter((r) => r.status === 'settled').reduce((a, r) => a + r.amount, 0) / 100;
+  const tier = tierById(u.tier), next = nextTier(u.tier);
+  return { tier: tier.id, rate: tier.rate, wagered, next: next ? { id: next.id, name: next.name, threshold: next.threshold, remaining: Math.max(0, next.threshold - wagered), progress: Math.min(1, (wagered - tier.threshold) / (next.threshold - tier.threshold)) } : null,
+    rebatePending: Math.floor(u.rebatePending) / 100, rebateClaimed: agt(u.rebateClaimed || 0), bonuses: agt(u.bonuses || 0), edgePaid: statsOf(u).expectedLoss, tiers: TIERS };
 };
 const routes = {
+  'GET /api/rewards': () => ({ body: rewardsOf(need()) }),
+  'POST /api/rewards/claim': () => { const u = need(); const c = Math.floor(u.rebatePending || 0); if (c < 100) throw bad('Rebates can be claimed from 1.00 AGT.'); u.rebatePending -= c; u.rebateClaimed = (u.rebateClaimed || 0) + c; u.balance += c; u.events.push({ type: 'rebate', amount: c, balanceAfter: u.balance, at: now() }); save(); return { body: { ...rewardsOf(u), balance: agt(u.balance) } }; },
   'GET /api/wallet': () => ({ body: walletOf(need()) }),
   'POST /api/wallet/deposit': (b) => {
     const u = need(); const { amount, source } = v.object(b, { amount: v.number({ min: 1, max: 1_000_000, decimals: 2 }), source: v.oneOf(['faucet', 'vault'], { optional: true, default: 'faucet' }) });
@@ -128,7 +150,7 @@ const routes = {
     const r = { id: u.nextId++, game, base: stake, amount: stake, rtp, params: p, nonce, serverSeedHash: seeds.serverSeedHash, clientSeed: seeds.clientSeed, status: 'open', state: null, floatsUsed: rng.used, openedAt: t };
     if (result.settled) { const units = result.multiplierUnits ?? result.multiplier; const payout = Math.round(stake * units); balance += payout; Object.assign(r, { status: 'settled', multiplier: payout / stake, payout, outcome: result.outcome, balanceAfter: balance, settledAt: t }); }
     else r.state = result.state;
-    u.balance = balance; u.rounds.push(r); if (u.rounds.length > 400) u.rounds.splice(0, u.rounds.length - 400); save();
+    u.balance = balance; u.rounds.push(r); if (result.settled) { accrue(u, stake, rtp); balance = u.balance; } if (u.rounds.length > 400) u.rounds.splice(0, u.rounds.length - 400); save();
     return { status: 201, body: { round: publicRound(r, result.settled ? null : engine.view(result.state, p)), balance: agt(balance) } };
   },
   'POST /api/rounds/current/action': (b) => {
@@ -142,7 +164,7 @@ const routes = {
     if (result.extraUnits) { const extra = Math.round(r.base * result.extraUnits); if (extra > balance) throw bad('Not enough tokens for that action.'); balance -= extra; amount += extra; }
     if (result.settled) { const units = result.multiplierUnits ?? result.multiplier; const payout = Math.round(r.base * units); balance += payout; Object.assign(r, { status: 'settled', state: null, amount, multiplier: payout / amount, payout, outcome: result.outcome, floatsUsed: rng.used, balanceAfter: balance, settledAt: t }); }
     else Object.assign(r, { state: result.state, amount, floatsUsed: rng.used });
-    u.balance = balance; save();
+    u.balance = balance; if (result.settled) { accrue(u, amount, r.rtp); balance = u.balance; } save();
     return { body: { round: publicRound(r, result.settled ? null : engine.view(result.state, r.params)), balance: agt(balance) } };
   },
   'GET /api/seeds': () => { const u = need(); return { body: { current: { serverSeedHash: u.seeds.serverSeedHash, clientSeed: u.seeds.clientSeed, nonce: u.seeds.nonce }, revealed: u.seedHistory } }; },

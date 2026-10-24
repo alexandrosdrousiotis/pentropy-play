@@ -83,6 +83,8 @@ export const api = {
   async rotateSeeds(clientSeed) { const out = await call('POST', '/api/seeds/rotate', clientSeed ? { clientSeed } : {}); if (state.me) state.me.seeds = out.current; emit('seeds'); return out; },
   async readLesson(id) { const out = await call('POST', '/api/lessons/read', { id }); if (state.me) state.me.user.lessonsRead = out.lessonsRead; emit('me'); return out; },
   wallet: () => call('GET', '/api/wallet'),
+  rewards: () => call('GET', '/api/rewards'),
+  async claimRebate() { const r = await call('POST', '/api/rewards/claim'); const before = state.me?.user.balance ?? 0; if (state.me) { state.me.user.balance = r.balance; state.me.rewards = r; } emit('balance', { balance: r.balance, delta: r.balance - before }); emit('me'); return r; },
   async deposit(amount, source = 'faucet') { const w = await call('POST', '/api/wallet/deposit', { amount, source }); const before = state.me?.user.balance ?? 0; if (state.me) { Object.assign(state.me.user, { balance: w.balance, vault: w.vault, deposited: w.deposited }); } emit('balance', { balance: w.balance, delta: w.balance - before }); emit('me'); return w; },
   async withdraw(amount) { const w = await call('POST', '/api/wallet/withdraw', { amount }); const before = state.me?.user.balance ?? 0; if (state.me) { Object.assign(state.me.user, { balance: w.balance, vault: w.vault }); } emit('balance', { balance: w.balance, delta: w.balance - before }); emit('me'); return w; },
   async refill(lessonId) { const out = await call('POST', '/api/refill', { id: lessonId }); await api.refresh(); emit('balance', { balance: out.balance, delta: out.balance, refill: true }); return out; },
@@ -91,6 +93,7 @@ export const api = {
 function bumpStats(round) {
   const s = state.me?.stats;
   if (!s) return;
+  const rw = state.me.rewards; if (rw) { rw.wagered += round.amount; rw.edgePaid += round.amount * (1 - round.rtp); rw.rebatePending += round.amount * (1 - round.rtp) * rw.rate; if (rw.next && rw.wagered >= rw.next.threshold) api.refresh().catch(() => {}); }
   s.bets++; s.wagered += round.amount; s.returned += round.payout; s.net = s.returned - s.wagered;
   s.expectedLoss += round.amount * (1 - round.rtp);
   if (round.net > 0) s.wins++; else s.losses++;

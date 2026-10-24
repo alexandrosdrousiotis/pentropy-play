@@ -4,6 +4,7 @@ import { transaction } from './db.js';
 import { FairRng, randomHex, sha256Hex } from './fairness.js';
 import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { LESSON_IDS } from './lessons.js';
+import { TIERS, tierFor, tierById, nextTier } from '../shared/tiers.js';
 
 const cents = (agt) => Math.round(agt * 100);
 const agt = (c) => c / 100;
@@ -39,7 +40,9 @@ export function createApi({ db, config, auth, seedCipher }) {
     playTime: db.prepare('SELECT COALESCE(SUM(last_seen - created_at),0) AS ms FROM sessions WHERE user_id = ?'),
     faucetToday: db.prepare("SELECT COALESCE(SUM(amount),0) AS c FROM events WHERE user_id = ? AND type = 'deposit' AND at > ?"),
     setWallet: db.prepare('UPDATE users SET balance = ?, vault = ?, deposited = ? WHERE id = ?'),
-    walletEvents: db.prepare("SELECT id, type, amount, balance_after, at FROM events WHERE user_id = ? AND type IN ('deposit','withdraw','vault_in','refill') ORDER BY id DESC LIMIT 50"),
+    walletEvents: db.prepare("SELECT id, type, amount, balance_after, at FROM events WHERE user_id = ? AND type IN ('deposit','withdraw','vault_in','refill','rebate','bonus') ORDER BY id DESC LIMIT 50"),
+    wageredOf: db.prepare("SELECT COALESCE(SUM(amount),0) AS w FROM rounds WHERE user_id = ? AND status = 'settled'"),
+    setRewards: db.prepare('UPDATE users SET tier = ?, rebate_pending = ?, rebate_claimed = ?, bonuses = ?, balance = ? WHERE id = ?'),
   };
 
   const serverSeedOf = (userId) => {
@@ -62,6 +65,7 @@ export function createApi({ db, config, auth, seedCipher }) {
     seeds: (() => { const s = q.seeds.get(user.id); return { serverSeedHash: s.server_seed_hash, clientSeed: s.client_seed, nonce: s.nonce }; })(),
     openRound: (() => { const r = q.openRound.get(user.id); return r ? publicRound(r, GAMES[r.game].view(JSON.parse(r.state), JSON.parse(r.params))) : null; })(),
     stats: statsOf(user.id),
+    rewards: rewardsOf(user),
   });
 
   function statsOf(userId) {
@@ -73,6 +77,40 @@ export function createApi({ db, config, auth, seedCipher }) {
     const l = limitsOf(user);
     if (l.lossLimit > 0 && session.start_balance - user.balance >= cents(l.lossLimit)) throw new HttpError(403, 'You reached the loss limit you set for this session. Sign out and back in to start a new session.');
     if (l.sessionMinutes > 0 && now() - session.created_at >= l.sessionMinutes * 60e3) throw new HttpError(403, 'You reached the session time limit you set. Sign out to end the session.');
+  }
+
+  /** Accrue rakeback on a settled stake and promote the tier when lifetime wager crosses a threshold. Runs inside the settlement transaction. */
+  function accrueRewards(userId, amountCents, rtp, balance) {
+    const u = q.user.get(userId);
+    const edge = amountCents * (1 - rtp);
+    let pending = u.rebate_pending + edge * tierById(u.tier).rate;
+    let tier = u.tier, bonuses = u.bonuses, bal = balance;
+    const earned = tierFor(agt(q.wageredOf.get(userId).w));
+    if (TIERS.findIndex((t) => t.id === earned.id) > TIERS.findIndex((t) => t.id === tier)) {
+      // credit every level-up bonus passed, in order
+      for (const t of TIERS) if (t.threshold > tierById(tier).threshold && t.threshold <= earned.threshold) { bal += cents(t.bonus); bonuses += cents(t.bonus); q.insertEvent.run(userId, 'bonus', cents(t.bonus), bal, now()); }
+      tier = earned.id;
+    }
+    q.setRewards.run(tier, pending, u.rebate_claimed, bonuses, bal, userId);
+    return bal;
+  }
+  function rewardsOf(u) {
+    const wagered = agt(q.wageredOf.get(u.id).w);
+    const tier = tierById(u.tier), next = nextTier(u.tier);
+    const edgePaid = agt(q.stats.get(u.id).expectedLoss);
+    return { tier: tier.id, rate: tier.rate, wagered, next: next ? { id: next.id, name: next.name, threshold: next.threshold, remaining: Math.max(0, next.threshold - wagered), progress: Math.min(1, (wagered - tier.threshold) / (next.threshold - tier.threshold)) } : null,
+      rebatePending: Math.floor(u.rebate_pending) / 100, rebateClaimed: agt(u.rebate_claimed), bonuses: agt(u.bonuses), edgePaid, tiers: TIERS };
+  }
+  function claimRebate(user) {
+    return transaction(db, () => {
+      const u = q.user.get(user.id);
+      const c = Math.floor(u.rebate_pending);
+      if (c < 100) throw bad('Rebates can be claimed from 1.00 AGT.');
+      const balance = u.balance + c;
+      q.setRewards.run(u.tier, u.rebate_pending - c, u.rebate_claimed + c, u.bonuses, balance, u.id);
+      q.insertEvent.run(u.id, 'rebate', c, balance, now());
+      return { ...rewardsOf(q.user.get(u.id)), balance: agt(balance) };
+    });
   }
 
   /* ---------------- round lifecycle ---------------- */
@@ -101,6 +139,8 @@ export function createApi({ db, config, auth, seedCipher }) {
         balance += payout;
         const multiplier = payout / stake;
         roundId = Number(q.insertRound.run(u.id, game, stake, stake, rtp, JSON.stringify(p), seeds.nonce, seeds.server_seed_hash, seeds.client_seed, 'settled', null, multiplier, payout, JSON.stringify(result.outcome), rng.used, balance, t, t).lastInsertRowid);
+        q.setBalance.run(balance, u.id);
+        balance = accrueRewards(u.id, stake, rtp, balance);
       } else {
         roundId = Number(q.insertRound.run(u.id, game, stake, stake, rtp, JSON.stringify(p), seeds.nonce, seeds.server_seed_hash, seeds.client_seed, 'open', JSON.stringify(result.state), null, null, null, rng.used, null, t, null).lastInsertRowid);
       }
@@ -135,6 +175,8 @@ export function createApi({ db, config, auth, seedCipher }) {
         const payout = Math.round(r.base * units);
         balance += payout;
         q.settleRound.run(amount, payout / amount, payout, JSON.stringify(result.outcome), rng.used, balance, t, r.id);
+        q.setBalance.run(balance, u.id);
+        balance = accrueRewards(u.id, amount, r.rtp, balance);
       } else {
         q.updateOpen.run(JSON.stringify(result.state), amount, rng.used, r.id);
       }
@@ -294,6 +336,8 @@ export function createApi({ db, config, auth, seedCipher }) {
   });
   route('POST', '/api/refill', {}, (c) => ({ body: refill(c.user, v.object(c.body, S.lesson).id) }));
   route('GET', '/api/wallet', {}, (c) => ({ body: walletOf(q.user.get(c.user.id)) }));
+  route('GET', '/api/rewards', {}, (c) => ({ body: rewardsOf(q.user.get(c.user.id)) }));
+  route('POST', '/api/rewards/claim', {}, (c) => ({ body: claimRebate(c.user) }));
   route('POST', '/api/wallet/deposit', {}, (c) => { const b = v.object(c.body, S.deposit); return { body: deposit(c.user, b.amount, b.source) }; });
   route('POST', '/api/wallet/withdraw', {}, (c) => ({ body: withdraw(c.user, v.object(c.body, S.withdraw).amount) }));
 

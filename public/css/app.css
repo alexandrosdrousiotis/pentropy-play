@@ -789,3 +789,47 @@ a.card:hover .art img{transform:scale(1.04)}
   body:has(.tabbar[hidden]) .wrap{padding-bottom:40px}
   body:has(.tabbar[hidden]) .foot-note{padding-bottom:28px}
 }
+
+/* ---- rewards & tiers ---- */
+.tier-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.02em}
+.tier-badge svg{width:16px;height:16px;fill:currentColor}
+.tier-badge.lg{height:32px;padding:0 12px;border-radius:999px;background:var(--surface-2);font-size:13px;text-decoration:none}
+.tierfoot{display:grid;gap:8px;text-decoration:none}
+.tierfoot:hover{text-decoration:none;background:var(--surface-2)}
+.tier-prog{display:grid;gap:4px;font-size:11px;color:var(--fg-3)}
+.rw-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:12px}
+.rw-main,.rw-next{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:10px;align-content:start}
+.rw-big{font-size:40px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.rw-big small{font-size:14px;color:var(--fg-3);margin-left:6px;font-weight:600}
+.rw-main .btn{justify-self:start}
+.flow{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.flow-step{flex:1;min-width:120px;padding:12px 14px;border-radius:12px;background:var(--surface-2);display:grid;gap:2px}
+.flow-step .l{font-size:11px;font-weight:600;color:var(--fg-3)}
+.flow-step .v{font-size:18px;font-weight:700}
+.flow-step.bad .v{color:var(--down)}.flow-step.good .v{color:var(--up)}
+.flow-arrow{align-self:center;color:var(--fg-4)}
+.flow-arrow svg{width:12px;height:12px;fill:currentColor}
+.ladder{display:grid;gap:6px}
+.rung{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:10px;align-items:center;padding:12px 14px;border-radius:12px;background:var(--surface-2);font-size:13px;color:var(--fg-3);opacity:.6}
+.rung.reached{opacity:1}
+.rung.current{box-shadow:inset 0 0 0 1px var(--accent)}
+.rung .rung-rate{color:var(--fg);font-weight:600}
+/* stats summary */
+.summary{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:12px}
+.sum-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sum-cell .l{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-4)}
+.sum-cell .v{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.sum-line{font-size:14px;color:var(--fg-2);line-height:1.5}
+.tscroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+.tscroll table{min-width:520px}
+@media (max-width:860px){
+  .rw-hero{grid-template-columns:1fr}
+  .rw-big{font-size:34px}
+  .flow{flex-direction:column}.flow-arrow{transform:rotate(90deg);justify-self:center}
+  .flow-step{min-width:0}
+  .rung{grid-template-columns:1fr 1fr;row-gap:4px;font-size:12px}
+  .sum-cell .v{font-size:22px}
+  .stat-grid .tile .v{font-size:18px}
+}
+.balance-row{column-gap:14px}
+.balance-row .stat .v{font-size:13px}

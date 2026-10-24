@@ -24,6 +24,10 @@ export function openDatabase(path) {
       refills INTEGER NOT NULL DEFAULT 0,
       vault INTEGER NOT NULL DEFAULT 0,
       deposited INTEGER NOT NULL DEFAULT 0,
+      tier TEXT NOT NULL DEFAULT 'bronze',
+      rebate_pending REAL NOT NULL DEFAULT 0,
+      rebate_claimed INTEGER NOT NULL DEFAULT 0,
+      bonuses INTEGER NOT NULL DEFAULT 0,
       failed_logins INTEGER NOT NULL DEFAULT 0,
       locked_until INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
@@ -90,6 +94,10 @@ export function openDatabase(path) {
   const cols = new Set(db.prepare('PRAGMA table_info(users)').all().map((c) => c.name));
   if (!cols.has('vault')) db.exec('ALTER TABLE users ADD COLUMN vault INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('deposited')) db.exec('ALTER TABLE users ADD COLUMN deposited INTEGER NOT NULL DEFAULT 0');
+  if (!cols.has('tier')) db.exec("ALTER TABLE users ADD COLUMN tier TEXT NOT NULL DEFAULT 'bronze'");
+  if (!cols.has('rebate_pending')) db.exec('ALTER TABLE users ADD COLUMN rebate_pending REAL NOT NULL DEFAULT 0');
+  if (!cols.has('rebate_claimed')) db.exec('ALTER TABLE users ADD COLUMN rebate_claimed INTEGER NOT NULL DEFAULT 0');
+  if (!cols.has('bonuses')) db.exec('ALTER TABLE users ADD COLUMN bonuses INTEGER NOT NULL DEFAULT 0');
   return db;
 }
 

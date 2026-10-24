@@ -44,6 +44,16 @@ the bet (within ±0.03% of 99%), not an asserted figure. `npm test` proves every
 * **Self-set limits** (loss per session, session time, reality-check cadence) enforced by the
   server on every bet, not by the client.
 
+## Wallet, rewards and tiers
+
+* **Wallet**: a daily play-money allowance (1,000 AGT), withdrawals into a vault and back, a
+  lifetime "deposited" counter that only goes up, transaction ids and history.
+* **Tiers**: Bronze → Silver (1,000 wagered) → Gold (5,000) → Platinum (25,000) → Diamond
+  (100,000), earned by lifetime wager. Each level-up credits a bonus.
+* **Rakeback**: a share of the house edge on every settled bet (5% at Silver up to 15% at
+  Diamond) accrues and can be claimed from 1 AGT. The Rewards page shows the edge taken, the slice
+  returned, and the net cost side by side, because that arithmetic is the lesson.
+
 ## Architecture
 
 Zero dependencies. Node 22+, built-in `node:sqlite` and `node:crypto`.

@@ -227,3 +227,28 @@ test('wallet: faucet deposits are capped per day, withdraw moves tokens to the v
   const me = (await c('GET', '/api/me')).json;
   assert.equal(me.user.vault, 1200); assert.equal(me.user.deposited, 1000);
 });
+
+test('rewards: rakeback accrues as a share of the edge, tiers promote on lifetime wager with a bonus, claim credits the balance', async () => {
+  const c = client('ivy');
+  await c('POST', '/api/auth/signup', { username: 'ivy', password: 'orbital yvi phrase 9' });
+  let me = (await c('GET', '/api/me')).json;
+  assert.equal(me.rewards.tier, 'bronze'); assert.equal(me.rewards.rate, 0);
+  // wager 1,000 at 99% to reach Silver: 10 limbo bets of 100 at target 1.01 (almost always win, keeps balance)
+  for (let i = 0; i < 10; i++) assert.equal((await c('POST', '/api/rounds', { game: 'limbo', amount: 100, params: { target: 1.01 } })).status, 201);
+  me = (await c('GET', '/api/me')).json;
+  assert.equal(me.rewards.tier, 'silver'); assert.equal(me.rewards.rate, 0.05); assert.equal(me.rewards.bonuses, 10, 'level-up bonus credited');
+  assert.equal(me.rewards.wagered, 1000);
+  const before = me.user.balance;
+  // one more bet at silver: edge = 100 * 0.01 = 1.00, rebate 5% = 0.05
+  await c('POST', '/api/rounds', { game: 'limbo', amount: 100, params: { target: 1.01 } });
+  const rw = (await c('GET', '/api/rewards')).json;
+  assert.ok(rw.rebatePending >= 0.05 - 1e-9 && rw.rebatePending < 0.06, `pending ${rw.rebatePending}`);
+  assert.equal((await c('POST', '/api/rewards/claim')).status, 400, 'below one token');
+  for (let i = 0; i < 20; i++) await c('POST', '/api/rounds', { game: 'limbo', amount: 100, params: { target: 1.01 } });
+  const rw2 = (await c('GET', '/api/rewards')).json;
+  assert.ok(rw2.rebatePending >= 1, `pending ${rw2.rebatePending}`);
+  const claim = await c('POST', '/api/rewards/claim');
+  assert.equal(claim.status, 200); assert.equal(claim.json.rebatePending, 0); assert.ok(claim.json.rebateClaimed >= 1);
+  const w = (await c('GET', '/api/wallet')).json;
+  assert.ok(w.history.some((h) => h.type === 'rebate') && w.history.some((h) => h.type === 'bonus'));
+});
