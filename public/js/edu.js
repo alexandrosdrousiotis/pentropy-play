@@ -1,6 +1,7 @@
 // The anti-gambling layer: lessons, reality checks, milestones and the bankruptcy flow.
 import { api, me, user, sessionNet, sessionMinutes, subscribe } from './api.js';
 import { h, modal, toast, fmt, fmtSigned, fmtMoney, button } from './ui.js';
+import { openWallet } from './wallet.js';
 
 export const LESSONS = [
   {
@@ -200,8 +201,8 @@ export async function maybeBankrupt() {
     h('h2', { class: 'gt' }, p.refills === 0 ? 'You are out of tokens' : `Out of tokens, again (${p.refills + 1})`),
     h('p', { class: 'lead' }, `It took ${s.bets} bets and ${fmt(s.wagered)} AGT of total wagering to lose ${fmt(lost, 0)} AGT. If one token had been ${fmtMoney(p.notional)}, that is ${fmtMoney(lost * p.notional)} gone.`),
     summaryBody(m),
-    h('p', { class: 't-body' }, 'Tokens here are free and imaginary. The point of running out is to feel the shape of it without the consequences. Read one lesson to refill.'),
-    h('div', { class: 'actions' }, readBtn, refillBtn, button('Go to stats', { kind: 'ghost', onClick: () => { bg.remove(); bankruptOpen = false; location.hash = '#/stats'; } })));
+    h('p', { class: 't-body' }, 'Tokens here are play money. Deposit from today\'s allowance, or read one lesson for a refill.'),
+    h('div', { class: 'actions' }, button('Deposit', { kind: 'tertiary', onClick: () => { bg.remove(); bankruptOpen = false; openWallet('deposit'); } }), readBtn, refillBtn, button('Go to stats', { kind: 'ghost', onClick: () => { bg.remove(); bankruptOpen = false; location.hash = '#/stats'; } })));
   const bg = h('div', { class: 'modal-bg' }, body);
   document.body.append(bg);
 }

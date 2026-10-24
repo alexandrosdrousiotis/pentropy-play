@@ -82,6 +82,9 @@ export const api = {
   seeds: () => call('GET', '/api/seeds'),
   async rotateSeeds(clientSeed) { const out = await call('POST', '/api/seeds/rotate', clientSeed ? { clientSeed } : {}); if (state.me) state.me.seeds = out.current; emit('seeds'); return out; },
   async readLesson(id) { const out = await call('POST', '/api/lessons/read', { id }); if (state.me) state.me.user.lessonsRead = out.lessonsRead; emit('me'); return out; },
+  wallet: () => call('GET', '/api/wallet'),
+  async deposit(amount, source = 'faucet') { const w = await call('POST', '/api/wallet/deposit', { amount, source }); const before = state.me?.user.balance ?? 0; if (state.me) { Object.assign(state.me.user, { balance: w.balance, vault: w.vault, deposited: w.deposited }); } emit('balance', { balance: w.balance, delta: w.balance - before }); emit('me'); return w; },
+  async withdraw(amount) { const w = await call('POST', '/api/wallet/withdraw', { amount }); const before = state.me?.user.balance ?? 0; if (state.me) { Object.assign(state.me.user, { balance: w.balance, vault: w.vault }); } emit('balance', { balance: w.balance, delta: w.balance - before }); emit('me'); return w; },
   async refill(lessonId) { const out = await call('POST', '/api/refill', { id: lessonId }); await api.refresh(); emit('balance', { balance: out.balance, delta: out.balance, refill: true }); return out; },
 };
 

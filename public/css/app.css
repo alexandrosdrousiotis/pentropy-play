@@ -640,3 +640,97 @@ a.island:hover{text-decoration:none;transform:translateY(-3px);filter:brightness
 .card .art.has-img svg{display:none}
 @media (max-width:860px){.islands{grid-template-columns:1fr;gap:10px}.island{min-height:130px;padding:14px}.island h3{font-size:18px}}
 @media (max-width:860px){.rtable{grid-template-columns:32px 1fr 32px;gap:3px}.rgrid,.rdozens,.routs{gap:2px}.rcell{height:28px;font-size:10px;padding:0;border-radius:5px}.rcols .rcell{font-size:9px}}
+
+/* ---- wallet sheet ---- */
+.wsheet{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xl);box-shadow:var(--shadow);width:100%;max-width:460px;max-height:92vh;overflow:auto;display:grid;gap:14px;padding:18px}
+.whead{display:flex;align-items:center;justify-content:space-between}
+.wtitle{display:flex;align-items:center;gap:8px;font-size:16px}
+.wtitle svg{width:20px;height:20px;fill:var(--accent-2)}
+.wclose{width:34px;height:34px;border-radius:50%;border:0;background:var(--surface-2);display:grid;place-items:center;color:var(--fg-2);cursor:pointer}
+.wclose svg{width:14px;height:14px;fill:currentColor}
+.wbalances{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px;border-radius:12px;background:var(--surface-2)}
+.wbalances .l{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-4)}
+.wbalances .v{font-size:14px;font-weight:700}
+.wtabs{margin:0}
+.wbody{display:grid;gap:12px}
+.wamount{display:flex;align-items:center;gap:10px;padding:16px;border-radius:14px;background:var(--surface-2)}
+.wamount input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--fg);font-size:36px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;font-family:var(--font)}
+.wamount input::placeholder{color:var(--fg-4)}
+.wamount input::-webkit-outer-spin-button,.wamount input::-webkit-inner-spin-button{-webkit-appearance:none}
+.wasset{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:999px;background:var(--surface-4);font-size:13px;font-weight:700}
+.wasset svg{width:16px;height:16px;fill:var(--gold)}
+.wquick{display:flex;gap:6px;flex-wrap:wrap}
+.waddr-row{display:flex;gap:8px;align-items:center}
+.waddr{flex:1;min-width:0;font-family:var(--mono);font-size:12px;padding:10px 12px;border-radius:10px;background:var(--bg-1);border:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-2)}
+.wprocessing{display:grid;gap:10px;padding:24px 8px}
+.wstep{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--fg-3)}
+.wstep .dot{width:10px;height:10px;border-radius:50%;background:var(--surface-4);flex:none;transition:background .2s}
+.wstep.done{color:var(--fg)}.wstep.done .dot{background:var(--up)}
+.wreceipt{display:grid;justify-items:center;gap:8px;padding:18px 0;text-align:center}
+.wreceipt h3{font-size:16px;text-transform:none;letter-spacing:0;color:var(--fg)}
+.wcheck{width:52px;height:52px;border-radius:50%;background:var(--up-soft);display:grid;place-items:center;color:var(--up)}
+.wcheck svg{width:24px;height:24px;fill:currentColor}
+.wamt{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.wtx{font-size:11px;color:var(--fg-4)}.wtx code{font-family:var(--mono)}
+.whist{display:grid;gap:4px;max-height:360px;overflow:auto}
+.wrow{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:var(--surface-2)}
+.wicon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--up-soft);color:var(--up);flex:none}
+.wicon.withdraw{background:var(--surface-4);color:var(--fg-2)}
+.wicon svg{width:16px;height:16px;fill:currentColor}
+.wmeta{flex:1;min-width:0;display:grid;font-size:12px;color:var(--fg-3)}
+.wmeta b{color:var(--fg);font-size:13px}.wmeta code{font-family:var(--mono);font-size:11px}
+.wamt2{font-weight:700;font-size:14px}
+@media (max-width:560px){.wbalances{grid-template-columns:1fr 1fr}.wamount input{font-size:30px}}
+
+/* ---- chicken road ---- */
+.road-view{position:relative;width:100%;height:260px;border-radius:14px;overflow:hidden;background:#3a3f4a;border:1px solid var(--line)}
+.road-world{position:absolute;left:0;top:0;height:100%;display:flex;will-change:transform}
+.kerb{flex:none;width:72px;height:100%;background:#3f8f4a;background-image:linear-gradient(0deg,rgba(0,0,0,.08) 50%,transparent 50%);background-size:100% 16px;display:grid;place-items:center;color:#d8ffd9;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;writing-mode:vertical-rl}
+.kerb.end{background:#3f8f4a}
+.lane{flex:none;position:relative;width:72px;height:100%;background:#2b2f38;border-left:2px dashed rgba(255,255,255,.12);overflow:hidden;transition:background .25s}
+.lane .dash{display:none}
+.lane .lm{position:absolute;left:50%;top:8px;transform:translateX(-50%);font-size:10px;font-weight:700;color:rgba(255,255,255,.45);background:rgba(0,0,0,.35);padding:2px 6px;border-radius:999px;z-index:2}
+.lane.crossed{background:#24322a}.lane.crossed .lm{color:#8af0b5}
+.lane.next{box-shadow:inset 0 0 0 2px var(--accent)}
+.lane.hazard{background:#3a2429}.lane.hit{background:#5a1f27}
+.car{position:absolute;left:14px;width:44px;height:26px;border-radius:7px;background:#4f7bff;box-shadow:0 3px 0 rgba(0,0,0,.35);animation:drive linear infinite;top:-40px}
+.car i{position:absolute;top:5px;width:8px;height:16px;border-radius:2px;background:rgba(255,255,255,.75)}
+.car i:first-child{left:6px}.car i:last-child{right:6px}
+.car.flip{animation-name:drive-up}
+.car.parked{animation:none;top:50%;transform:translateY(-50%);background:#8a919e}
+.car.crash{animation:crash-in .3s cubic-bezier(.2,.9,.3,1.2) both;background:#f0616d;width:50px;height:30px;top:0}
+@keyframes drive{from{transform:translateY(-40px)}to{transform:translateY(300px)}}
+@keyframes drive-up{from{transform:translateY(300px)}to{transform:translateY(-40px)}}
+@keyframes crash-in{from{top:-60px}to{top:calc(50% - 15px)}}
+.chick{position:absolute;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;color:#fff;z-index:3;display:grid;place-items:center;transition:left .4s cubic-bezier(.2,.75,.2,1);filter:drop-shadow(0 4px 4px rgba(0,0,0,.5))}
+.chick svg{width:34px;height:34px;fill:currentColor}
+.chick.hop{animation:hop .4s cubic-bezier(.3,.9,.4,1)}
+@keyframes hop{0%{transform:scale(1) translateY(0)}45%{transform:scale(1.15) translateY(-18px)}100%{transform:scale(1) translateY(0)}}
+.chick.squish{transform:scale(1.1);color:#fff;transition:transform .15s}
+.wallet{cursor:pointer}
+.chick.safe{color:#8af0b5}
+@media (max-width:860px){.road-view{height:220px}}
+
+/* ---- lobby v3: search, chips, rows with arrows ---- */
+.lobby-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.search svg{width:16px;height:16px;fill:var(--fg-3);flex:none}
+.search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--fg);font:inherit;font-size:14px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0}
+.chips button{flex:none;height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--surface);color:var(--fg-2);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chips button svg{width:14px;height:14px;fill:currentColor}
+.chips button[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+.grow{position:relative}
+.grow .cards{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;gap:12px;padding-bottom:2px}
+.grow .cards::-webkit-scrollbar{display:none}
+.grow .card{flex:0 0 150px;scroll-snap-align:start}
+.row-arrows{display:flex;gap:4px}
+.row-arrows button{width:30px;height:30px;border-radius:50%;border:0;background:var(--surface-2);color:var(--fg-2);display:grid;place-items:center;cursor:pointer}
+.row-arrows button svg{width:12px;height:12px;fill:currentColor}
+.row-arrows button:hover{background:var(--surface-3);color:var(--fg)}
+.all-games .cards{display:grid}
+.live-strip{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.live-strip .chip{flex:none}
+@media (max-width:860px){.row-arrows{display:none}.grow .card{flex-basis:132px}}
+.balance-row>.btn{flex:none}
+@media (max-width:860px){.balance-row>.btn{width:calc(50% - 5px);margin-top:4px}.balance-row{gap:10px}}

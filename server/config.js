@@ -42,5 +42,5 @@ export const config = Object.freeze({
   bodyLimit: 8 * 1024,
   rateLimit: { general: { windowMs: 60e3, max: 240 }, auth: { windowMs: 60e3, max: 12 }, play: { windowMs: 10e3, max: 60 } },
   lockout: { threshold: 5, baseMs: 60e3, maxMs: 6 * 3600e3 },
-  tokens: { start: 1000_00, refill: 1000_00, minBet: 10, maxBet: 1_000_000_00 }, // integer cents
+  tokens: { start: 1000_00, refill: 1000_00, minBet: 10, maxBet: 1_000_000_00, faucetPerDay: 1000_00 }, // integer cents
 });

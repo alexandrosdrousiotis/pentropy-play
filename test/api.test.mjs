@@ -204,3 +204,26 @@ test('sessions: another user cannot see or act on my round; delete needs the pas
   assert.equal((await fetch(base + '/api/unknown')).status, 404);
   assert.equal((await fetch(base + '/api/me', { method: 'POST' })).status, 404, 'wrong method is indistinguishable from unknown route');
 });
+
+test('wallet: faucet deposits are capped per day, withdraw moves tokens to the vault and back', async () => {
+  const c = client('hank');
+  await c('POST', '/api/auth/signup', { username: 'hank', password: 'orbital knah phrase 9' });
+  const w0 = (await c('GET', '/api/wallet')).json;
+  assert.equal(w0.faucetAvailable, 1000); assert.match(w0.address, /^agt1[0-9a-f]{38}$/);
+  assert.equal((await c('POST', '/api/wallet/deposit', { amount: 600 })).status, 200);
+  assert.equal((await c('POST', '/api/wallet/deposit', { amount: 500 })).status, 400, 'over the daily cap');
+  const w1 = (await c('POST', '/api/wallet/deposit', { amount: 400 })).json;
+  assert.equal(w1.balance, 2000); assert.equal(w1.deposited, 1000); assert.equal(w1.faucetAvailable, 0);
+  assert.equal((await c('POST', '/api/wallet/withdraw', { amount: 5000 })).status, 400);
+  const w2 = (await c('POST', '/api/wallet/withdraw', { amount: 1500 })).json;
+  assert.equal(w2.balance, 500); assert.equal(w2.vault, 1500);
+  const w3 = (await c('POST', '/api/wallet/deposit', { amount: 300, source: 'vault' })).json;
+  assert.equal(w3.balance, 800); assert.equal(w3.vault, 1200); assert.equal(w3.deposited, 1000, 'vault moves do not count as deposits');
+  assert.equal(w3.history.length, 4); assert.ok(w3.history.every((h) => /^[0-9a-f]{40}$/.test(h.txid)));
+  assert.equal((await c('POST', '/api/wallet/deposit', { amount: 0.5 })).status, 400);
+  assert.equal((await c('POST', '/api/wallet/deposit', { amount: 10, source: 'bank' })).status, 400);
+  await c('POST', '/api/rounds', { game: 'mines', amount: 1, params: { mines: 1 } });
+  assert.equal((await c('POST', '/api/wallet/withdraw', { amount: 10 })).status, 409, 'no withdrawals mid-round');
+  const me = (await c('GET', '/api/me')).json;
+  assert.equal(me.user.vault, 1200); assert.equal(me.user.deposited, 1000);
+});

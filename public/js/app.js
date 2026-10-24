@@ -7,6 +7,7 @@ import { replayFloats, sha256Hex } from './verify-rng.js';
 import { replayRound, canonicalOutcome } from '../shared/replay.js';
 import { gameHeader, gameIcon } from './games/common.js';
 import { countTo, sound } from './fx.js';
+import { openWallet } from './wallet.js';
 
 const app = document.getElementById('app');
 const side = document.getElementById('side');
@@ -46,10 +47,10 @@ function renderChrome() {
     h('div', { class: 'crumb' }, ...crumb),
     h('div', { class: 'spacer' }),
     u ? h('div', { class: 'row', style: { gap: '10px' } },
-      h('div', { class: 'wallet', id: 'balance', title: 'Play money. No cash value.' },
+      h('div', { class: 'wallet', id: 'balance', title: 'Play money. No cash value.', role: 'button', tabindex: '0', onClick: (e) => { if (!e.target.closest('.go')) openWallet('deposit'); } },
         svgUse('ph-coins', 'ic'), h('span', { class: 'amt num' }, fmt(u.balance)),
         h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta' }, fmtSigned(sessNet)),
-        h('a', { class: 'go', href: '#/stats' }, 'Wallet')),
+        h('button', { type: 'button', class: 'go', onClick: () => openWallet('deposit') }, 'Wallet')),
       soundToggle(),
       h('a', { class: 'avatar', href: '#/account', title: u.username }, u.username.slice(0, 2)))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Sign up'))),
@@ -115,7 +116,7 @@ function landingPage() {
       tile('€0', 'Token value', 'ever')));
 }
 
-/** Game tile: artwork image when public/art/<id>.webp exists, otherwise the flat colour field with the icon. */
+/** Game tile: artwork image when public/art/<id>.webp is listed in ART, otherwise the flat colour field with the icon. */
 function gameTile(g, linked) {
   const art = h('div', { class: `art ${g.id}`, style: { background: GAME_COLOR[g.id] } }, svgUse(gameIcon(g.id)));
   if (ART.has(g.id)) {
@@ -127,16 +128,19 @@ function gameTile(g, linked) {
   return h(linked ? 'a' : 'div', { class: 'card', href: linked ? `#/play/${g.id}` : null },
     art, h('div', { class: 'body' }, h('h4', {}, g.name), h('span', { class: 'rtp' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2))));
 }
-function gameRow(cat, linked) {
-  const games = CATALOG.filter((g) => g.cat === cat.id);
-  return h('section', { class: 'stack', style: { gap: '10px' } },
-    h('div', { class: 'section-head' }, h('h2', {}, cat.label), h('span', { class: 't-desc' }, `${games.length} games`)),
-    h('div', { class: 'cards' }, ...games.map((g) => gameTile(g, linked))));
+/** A horizontally scrolling row with arrow buttons. */
+function gameRow(title, games, linked, sub) {
+  if (!games.length) return null;
+  const cards = h('div', { class: 'cards' }, ...games.map((g) => gameTile(g, linked)));
+  const scroll = (dir) => cards.scrollBy({ left: dir * cards.clientWidth * 0.8, behavior: 'smooth' });
+  return h('section', { class: 'grow stack', style: { gap: '10px' } },
+    h('div', { class: 'section-head' }, h('h2', {}, title), h('div', { class: 'row', style: { gap: '10px' } }, sub && h('span', { class: 't-desc' }, sub), h('div', { class: 'row-arrows' }, h('button', { type: 'button', 'aria-label': 'Scroll left', onClick: () => scroll(-1) }, svgUse('ph-caret-left')), h('button', { type: 'button', 'aria-label': 'Scroll right', onClick: () => scroll(1) }, svgUse('ph-caret-right'))))),
+    cards);
 }
 const FEATURED = [
+  { id: 'chicken', title: 'Chicken', text: 'New. Cross 25 lanes of traffic. Cash out any time.' },
   { id: 'crash', title: 'Crash', text: 'Up to 1,000,000x if you hold your nerve.' },
   { id: 'mines', title: 'Mines', text: 'Twenty-five tiles. You set the odds.' },
-  { id: 'chicken', title: 'Chicken', text: 'New. Cross 25 lanes, cash out any time.' },
 ];
 function featured(linked) {
   return h('div', { class: 'islands' }, ...FEATURED.map((f) => {
@@ -146,17 +150,45 @@ function featured(linked) {
       h('div', { class: 'island-body' }, h('div', { class: 'island-kicker' }, `${fmtPct(g.rtp, 2)} RTP · max ${g.ceiling}`), h('h3', {}, f.title), h('p', {}, f.text), h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
   }));
 }
-function gamesGrid(linked = true) {
-  return h('div', { class: 'stack', style: { gap: '24px' } }, featured(linked), ...CATEGORIES.map((cat) => gameRow(cat, linked)));
+const TRENDING = ['crash', 'mines', 'plinko', 'chicken', 'dice', 'roulette', 'limbo', 'wheel'];
+/** Search + category chips + rows + full grid. `recent` is a list of game ids from the player's history. */
+function gamesBoard(linked = true, recent = []) {
+  let query = '', cat = 'all';
+  const input = h('input', { type: 'search', placeholder: 'Search games', 'aria-label': 'Search games', autocomplete: 'off' });
+  const chips = h('div', { class: 'chips' });
+  const rows = h('div', { class: 'stack', style: { gap: '24px' } });
+  const paintChips = () => chips.replaceChildren(...[{ id: 'all', label: 'All', icon: 'ph-squares-four' }, ...CATEGORIES.map((c) => ({ id: c.id, label: c.label, icon: c.id === 'table' ? 'ph-spade' : c.id === 'chains' ? 'ph-lightning' : 'ph-sparkle' }))].map((c) => h('button', { type: 'button', 'aria-pressed': String(cat === c.id), onClick: () => { cat = c.id; paintChips(); paint(); } }, svgUse(c.icon), c.label)));
+  const paint = () => {
+    const q = query.trim().toLowerCase();
+    const filtered = CATALOG.filter((g) => (cat === 'all' || g.cat === cat) && (!q || g.name.toLowerCase().includes(q) || g.blurb.toLowerCase().includes(q)));
+    if (q || cat !== 'all') {
+      rows.replaceChildren(h('section', { class: 'all-games stack', style: { gap: '10px' } }, h('div', { class: 'section-head' }, h('h2', {}, q ? `Results for “${query.trim()}”` : CATEGORIES.find((c) => c.id === cat)?.label), h('span', { class: 't-desc' }, `${filtered.length} games`)),
+        filtered.length ? h('div', { class: 'cards' }, ...filtered.map((g) => gameTile(g, linked))) : h('p', { class: 'help' }, 'No games match.')));
+      return;
+    }
+    rows.replaceChildren(...[
+      featured(linked),
+      gameRow('Trending', TRENDING.map(gameById), linked, 'most played'),
+      recent.length ? gameRow('Recently played', recent.map(gameById).filter(Boolean), linked) : null,
+      ...CATEGORIES.map((c) => gameRow(c.label, CATALOG.filter((g) => g.cat === c.id), linked, `${CATALOG.filter((g) => g.cat === c.id).length} games`)),
+      h('section', { class: 'all-games stack', style: { gap: '10px' } }, h('div', { class: 'section-head' }, h('h2', {}, 'All games'), h('span', { class: 't-desc' }, `${CATALOG.length} games`)), h('div', { class: 'cards' }, ...CATALOG.map((g) => gameTile(g, linked)))),
+    ].filter(Boolean));
+  };
+  input.addEventListener('input', () => { query = input.value; paint(); });
+  paintChips(); paint();
+  return h('div', { class: 'stack', style: { gap: '18px' } }, h('div', { class: 'lobby-top' }, h('label', { class: 'search' }, svgUse('ph-search'), input), chips), rows);
 }
+function gamesGrid(linked = true, recent = []) { return gamesBoard(linked, recent); }
 
 /* ---------------- lobby ---------------- */
-function lobbyPage() {
+async function lobbyPage() {
   const m = me();
   const s = m.stats;
   const open = m.openRound;
   const net = s.net;
   const sessNet = sessionNet();
+  let recent = [];
+  try { const r = await api.rounds(60); recent = [...new Set(r.rounds.map((x) => x.game))].slice(0, 8); } catch { /* fine */ }
   const stat = (l, v, cls = '') => h('div', { class: 'stat' }, h('span', { class: 'l' }, l), h('span', { class: `v ${cls}` }, v));
   return h('div', { class: 'stack', style: { gap: '20px' } },
     h('div', { class: 'balance-row' },
@@ -164,13 +196,14 @@ function lobbyPage() {
       h('div', { class: 'sep' }),
       stat('Session', fmtSigned(sessNet), sessNet > 0 ? 'good' : sessNet < 0 ? 'bad' : ''),
       stat('All time', fmtSigned(net), net > 0 ? 'good' : net < 0 ? 'bad' : ''),
-      stat('Wagered', fmt(s.wagered, 0)),
+      stat('Deposited', fmt(m.user.deposited ?? 0, 0)),
+      stat('Vault', fmt(m.user.vault ?? 0, 0)),
       stat('Edge taken', '−' + fmt(s.expectedLoss), 'bad'),
-      stat('In money', (net < 0 ? '−' : '') + fmtMoney(Math.abs(net) * m.user.notional), net >= 0 ? 'good' : 'bad'),
       h('div', { class: 'spacer' }),
-      h('a', { class: 'btn tertiary sm', href: '#/stats' }, h('span', {}, 'Stats'))),
+      button('Deposit', { kind: 'primary', size: 'sm', onClick: () => openWallet('deposit') }),
+      button('Withdraw', { kind: 'tertiary', size: 'sm', onClick: () => openWallet('withdraw') })),
     open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
-    gamesGrid(true));
+    gamesBoard(true, recent));
 }
 
 /* ---------------- auth ---------------- */
@@ -243,7 +276,9 @@ async function statsPage() {
       tile(fmtSigned(s.biggestWin), 'Best win', null, 'good'),
       tile('−' + fmt(s.biggestLoss), 'Worst loss', null, 'bad'),
       tile(fmtDuration(s.playMs), 'Time played'),
-      tile(String(m.user.refills), 'Refills')),
+      tile(String(m.user.refills), 'Refills'),
+      tile(fmt(m.user.deposited ?? 0), 'Deposited', 'lifetime'),
+      tile(fmt(m.user.vault ?? 0), 'In vault', 'withdrawn')),
     h('section', { class: 'plate' },
       h('div', { class: 'row between' }, h('h3', {}, 'Balance vs. expected'), h('span', { class: 't-desc' }, data.history.length >= 100 ? 'last 100 rounds' : '')),
       balanceChart(curve, expectedCurve)),

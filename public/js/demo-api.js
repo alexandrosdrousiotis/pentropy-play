@@ -40,7 +40,7 @@ function statsOf(u) {
     biggestWin: agt(Math.max(0, ...s.map((r) => r.payout - r.amount))), biggestLoss: agt(Math.max(0, ...s.map((r) => r.amount - r.payout))), expectedLoss: agt(s.reduce((a, r) => a + r.amount * (1 - r.rtp), 0)), playMs: now() - (db.sessionStart || now()) + (u.playMs || 0) };
 }
 const me = (u) => ({
-  user: { username: u.username, balance: agt(u.balance), notional: agt(u.notionalCents), limits: u.limits, lessonsRead: u.lessons, refills: u.refills, createdAt: u.createdAt },
+  user: { username: u.username, balance: agt(u.balance), vault: agt(u.vault || 0), deposited: agt(u.deposited || 0), notional: agt(u.notionalCents), limits: u.limits, lessonsRead: u.lessons, refills: u.refills, createdAt: u.createdAt },
   session: { startedAt: db.sessionStart, startBalance: agt(db.startBalance) },
   seeds: { serverSeedHash: u.seeds.serverSeedHash, clientSeed: u.seeds.clientSeed, nonce: u.seeds.nonce },
   openRound: (() => { const r = openRound(u); return r ? publicRound(r, viewOf(r)) : null; })(),
@@ -59,7 +59,29 @@ const S = {
 };
 const rawObj = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
 
+const FAUCET = 1000_00;
+const walletOf = (u) => {
+  const used = u.events.filter((e) => e.type === 'deposit' && e.at > now() - 24 * 3600e3).reduce((a, e) => a + e.amount, 0);
+  return { balance: agt(u.balance), vault: agt(u.vault || 0), deposited: agt(u.deposited || 0), faucetAvailable: agt(Math.max(0, FAUCET - used)), faucetPerDay: agt(FAUCET), address: 'agt1' + sha256Hex(`addr:${u.username.toLowerCase()}`).slice(0, 38),
+    history: [...u.events].reverse().filter((e) => ['deposit', 'withdraw', 'vault_in', 'refill'].includes(e.type)).slice(0, 50).map((e, i) => ({ id: e.at, type: e.type, amount: agt(e.amount), balanceAfter: agt(e.balanceAfter), at: e.at, txid: sha256Hex(`${u.username}:${e.at}:${i}`).slice(0, 40) })) };
+};
 const routes = {
+  'GET /api/wallet': () => ({ body: walletOf(need()) }),
+  'POST /api/wallet/deposit': (b) => {
+    const u = need(); const { amount, source } = v.object(b, { amount: v.number({ min: 1, max: 1_000_000, decimals: 2 }), source: v.oneOf(['faucet', 'vault'], { optional: true, default: 'faucet' }) });
+    if (openRound(u)) throw new HttpError(409, 'Finish the current round first.');
+    const c = cents(amount); u.vault ||= 0; u.deposited ||= 0;
+    if (source === 'vault') { if (c > u.vault) throw bad('Not enough in the vault.'); u.vault -= c; u.balance += c; u.events.push({ type: 'vault_in', amount: c, balanceAfter: u.balance, at: now() }); }
+    else { const w = walletOf(u); if (amount > w.faucetAvailable) throw bad(`Daily deposit limit is 1,000 AGT. ${w.faucetAvailable} left today.`); u.balance += c; u.deposited += c; u.events.push({ type: 'deposit', amount: c, balanceAfter: u.balance, at: now() }); }
+    save(); return { body: walletOf(u) };
+  },
+  'POST /api/wallet/withdraw': (b) => {
+    const u = need(); const { amount } = v.object(b, { amount: v.number({ min: 1, max: 1_000_000, decimals: 2 }) });
+    if (openRound(u)) throw new HttpError(409, 'Finish the current round first.');
+    const c = cents(amount); if (c > u.balance) throw bad('Not enough tokens.');
+    u.vault = (u.vault || 0) + c; u.balance -= c; u.events.push({ type: 'withdraw', amount: c, balanceAfter: u.balance, at: now() }); save();
+    return { body: walletOf(u) };
+  },
   'POST /api/auth/signup': (b) => {
     const { username, password } = v.object(b, S.credentials);
     if (password.length < 10) throw bad('Password must be 10–128 characters.');
@@ -67,7 +89,7 @@ const routes = {
     const key = username.toLowerCase();
     if (db.users[key]) throw new HttpError(409, 'That username is unavailable.');
     const salt = randomHex(8), serverSeed = randomHex(32);
-    db.users[key] = { username, salt, hash: hashPassword(password, salt), balance: START, notionalCents: 100, limits: { lossLimit: 0, sessionMinutes: 0, realityEvery: 25 }, lessons: [], refills: 0, createdAt: now(), seeds: { serverSeed, serverSeedHash: sha256Hex(serverSeed), clientSeed: randomHex(8), nonce: 0 }, seedHistory: [], rounds: [], events: [], nextId: 1, playMs: 0 };
+    db.users[key] = { username, salt, hash: hashPassword(password, salt), balance: START, vault: 0, deposited: 0, notionalCents: 100, limits: { lossLimit: 0, sessionMinutes: 0, realityEvery: 25 }, lessons: [], refills: 0, createdAt: now(), seeds: { serverSeed, serverSeedHash: sha256Hex(serverSeed), clientSeed: randomHex(8), nonce: 0 }, seedHistory: [], rounds: [], events: [], nextId: 1, playMs: 0 };
     db.session = key; db.sessionStart = now(); db.startBalance = START; save();
     return { status: 201, body: me(db.users[key]) };
   },
@@ -85,7 +107,7 @@ const routes = {
   'GET /api/stats': () => {
     const u = need();
     const settled = u.rounds.filter((r) => r.status === 'settled');
-    const curve = [{ t: u.createdAt, b: START }, ...settled.map((r) => ({ t: r.settledAt, b: r.balanceAfter })), ...u.events.map((e) => ({ t: e.at, b: e.balanceAfter, refill: true }))].sort((a, b) => a.t - b.t).map((p) => ({ ...p, b: agt(p.b) }));
+    const curve = [{ t: u.createdAt, b: START }, ...settled.map((r) => ({ t: r.settledAt, b: r.balanceAfter })), ...u.events.map((e) => ({ t: e.at, b: e.balanceAfter, refill: e.type === 'refill', event: e.type }))].sort((a, b) => a.t - b.t).map((p) => ({ ...p, b: agt(p.b) }));
     const byGame = {};
     for (const r of settled) { const g = (byGame[r.game] ||= { game: r.game, bets: 0, wagered: 0, returned: 0, best: 0 }); g.bets++; g.wagered += r.amount; g.returned += r.payout; g.best = Math.max(g.best, r.multiplier); }
     return { body: { stats: statsOf(u), byGame: Object.values(byGame).map((g) => ({ ...g, wagered: agt(g.wagered), returned: agt(g.returned) })), curve, history: settled.slice(-100).reverse().map((r) => publicRound(r)) } };

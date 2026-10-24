@@ -37,6 +37,9 @@ export function createApi({ db, config, auth, seedCipher }) {
     events: db.prepare('SELECT type, amount, balance_after, at FROM events WHERE user_id = ? ORDER BY id DESC LIMIT 100'),
     insertEvent: db.prepare('INSERT INTO events (user_id, type, amount, balance_after, at) VALUES (?, ?, ?, ?, ?)'),
     playTime: db.prepare('SELECT COALESCE(SUM(last_seen - created_at),0) AS ms FROM sessions WHERE user_id = ?'),
+    faucetToday: db.prepare("SELECT COALESCE(SUM(amount),0) AS c FROM events WHERE user_id = ? AND type = 'deposit' AND at > ?"),
+    setWallet: db.prepare('UPDATE users SET balance = ?, vault = ?, deposited = ? WHERE id = ?'),
+    walletEvents: db.prepare("SELECT id, type, amount, balance_after, at FROM events WHERE user_id = ? AND type IN ('deposit','withdraw','vault_in','refill') ORDER BY id DESC LIMIT 50"),
   };
 
   const serverSeedOf = (userId) => {
@@ -54,7 +57,7 @@ export function createApi({ db, config, auth, seedCipher }) {
 
   const limitsOf = (user) => JSON.parse(user.limits);
   const me = (user, session) => ({
-    user: { username: user.username, balance: agt(user.balance), notional: agt(user.notional_cents), limits: limitsOf(user), lessonsRead: JSON.parse(user.lessons), refills: user.refills, createdAt: user.created_at },
+    user: { username: user.username, balance: agt(user.balance), vault: agt(user.vault), deposited: agt(user.deposited), notional: agt(user.notional_cents), limits: limitsOf(user), lessonsRead: JSON.parse(user.lessons), refills: user.refills, createdAt: user.created_at },
     session: { startedAt: session.created_at, startBalance: agt(session.start_balance) },
     seeds: (() => { const s = q.seeds.get(user.id); return { serverSeedHash: s.server_seed_hash, clientSeed: s.client_seed, nonce: s.nonce }; })(),
     openRound: (() => { const r = q.openRound.get(user.id); return r ? publicRound(r, GAMES[r.game].view(JSON.parse(r.state), JSON.parse(r.params))) : null; })(),
@@ -165,6 +168,46 @@ export function createApi({ db, config, auth, seedCipher }) {
     });
   }
 
+  /* ---------------- wallet: deposit (faucet or vault) and withdraw (to vault) ---------------- */
+  const walletAddress = (u) => 'agt1' + sha256Hex(`addr:${u.username.toLowerCase()}`).slice(0, 38);
+  function walletOf(u) {
+    const used = q.faucetToday.get(u.id, now() - 24 * 3600e3).c;
+    return { balance: agt(u.balance), vault: agt(u.vault), deposited: agt(u.deposited), faucetAvailable: agt(Math.max(0, config.tokens.faucetPerDay - used)), faucetPerDay: agt(config.tokens.faucetPerDay), address: walletAddress(u),
+      history: q.walletEvents.all(u.id).map((e) => ({ id: e.id, type: e.type, amount: agt(e.amount), balanceAfter: agt(e.balance_after), at: e.at, txid: sha256Hex(`${u.id}:${e.id}:${e.at}`).slice(0, 40) })) };
+  }
+  function deposit(user, amountAgt, source) {
+    const amount = cents(amountAgt);
+    return transaction(db, () => {
+      const u = q.user.get(user.id);
+      if (q.openRound.get(u.id)) throw new HttpError(409, 'Finish the current round first.');
+      let balance = u.balance, vault = u.vault, deposited = u.deposited;
+      if (source === 'vault') {
+        if (amount > vault) throw bad('Not enough in the vault.');
+        vault -= amount; balance += amount;
+        q.insertEvent.run(u.id, 'vault_in', amount, balance, now());
+      } else {
+        const used = q.faucetToday.get(u.id, now() - 24 * 3600e3).c;
+        if (amount > config.tokens.faucetPerDay - used) throw bad(`Daily deposit limit is ${agt(config.tokens.faucetPerDay).toLocaleString()} AGT. ${agt(Math.max(0, config.tokens.faucetPerDay - used))} left today.`);
+        balance += amount; deposited += amount;
+        q.insertEvent.run(u.id, 'deposit', amount, balance, now());
+      }
+      q.setWallet.run(balance, vault, deposited, u.id);
+      return walletOf(q.user.get(u.id));
+    });
+  }
+  function withdraw(user, amountAgt) {
+    const amount = cents(amountAgt);
+    return transaction(db, () => {
+      const u = q.user.get(user.id);
+      if (q.openRound.get(u.id)) throw new HttpError(409, 'Finish the current round first.');
+      if (amount > u.balance) throw bad('Not enough tokens.');
+      const balance = u.balance - amount, vault = u.vault + amount;
+      q.insertEvent.run(u.id, 'withdraw', amount, balance, now());
+      q.setWallet.run(balance, vault, u.deposited, u.id);
+      return walletOf(q.user.get(u.id));
+    });
+  }
+
   /* ---------------- schemas ---------------- */
   const S = {
     credentials: { username: v.string({ min: 3, max: 20, pattern: /^[a-zA-Z0-9_]+$/ }), password: v.string({ min: 1, max: 128 }) },
@@ -177,6 +220,8 @@ export function createApi({ db, config, auth, seedCipher }) {
     lesson: { id: v.oneOf(LESSON_IDS) },
     rotate: { clientSeed: v.string({ min: 1, max: 64, pattern: /^[a-zA-Z0-9_-]+$/, optional: true }) },
     password: { password: v.string({ min: 1, max: 128 }) },
+    deposit: { amount: v.number({ min: 1, max: 1_000_000, decimals: 2 }), source: v.oneOf(['faucet', 'vault'], { optional: true, default: 'faucet' }) },
+    withdraw: { amount: v.number({ min: 1, max: 1_000_000, decimals: 2 }) },
   };
   // `params` and `payload` are validated by the engine against the game's own whitelist.
   const rawObj = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
@@ -217,7 +262,7 @@ export function createApi({ db, config, auth, seedCipher }) {
   });
 
   route('GET', '/api/stats', {}, (c) => {
-    const curve = [...q.curve.all(c.user.id).reverse(), ...q.events.all(c.user.id).map((e) => ({ t: e.at, b: e.balance_after, refill: true }))].sort((a, b) => a.t - b.t);
+    const curve = [...q.curve.all(c.user.id).reverse(), ...q.events.all(c.user.id).map((e) => ({ t: e.at, b: e.balance_after, refill: e.type === 'refill', event: e.type }))].sort((a, b) => a.t - b.t);
     return { body: { stats: statsOf(c.user.id), byGame: q.byGame.all(c.user.id).map((g) => ({ ...g, wagered: agt(g.wagered), returned: agt(g.returned) })), curve: [{ t: c.user.created_at, b: config.tokens.start }, ...curve].map((p) => ({ ...p, b: agt(p.b) })), history: q.history.all(c.user.id, 100).map((r) => publicRound(r)) } };
   });
   route('GET', '/api/rounds', {}, (c) => ({ body: { rounds: q.history.all(c.user.id, Math.min(300, Number(c.query.get('limit')) || 50)).map((r) => publicRound(r)) } }));
@@ -248,6 +293,9 @@ export function createApi({ db, config, auth, seedCipher }) {
     return { body: { lessonsRead: lessons } };
   });
   route('POST', '/api/refill', {}, (c) => ({ body: refill(c.user, v.object(c.body, S.lesson).id) }));
+  route('GET', '/api/wallet', {}, (c) => ({ body: walletOf(q.user.get(c.user.id)) }));
+  route('POST', '/api/wallet/deposit', {}, (c) => { const b = v.object(c.body, S.deposit); return { body: deposit(c.user, b.amount, b.source) }; });
+  route('POST', '/api/wallet/withdraw', {}, (c) => ({ body: withdraw(c.user, v.object(c.body, S.withdraw).amount) }));
 
   /* ---------------- dispatcher ---------------- */
   return async function handleApi(req, res, { body, ip, limiters, url }) {
