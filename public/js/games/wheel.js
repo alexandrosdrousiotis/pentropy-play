@@ -53,9 +53,9 @@ export function mount(root, meta) {
     if (!out) { busy = false; play.disabled = false; amount.setDisabled(false); return null; }
     const { round } = out; const idx = round.outcome.index; const t = wheelTable(risk, segments);
     const step = 360 / segments;
-    const target = 360 * 5 + (360 - (idx * step + step / 2)); // segment idx lands under the top pointer
-    const from = angle % 360;
-    const to = from + target;
+    const from = ((angle % 360) + 360) % 360;
+    const want = (360 - (idx * step + step / 2) + 360) % 360; // final angle that puts segment idx under the pointer
+    const to = from + 360 * 5 + ((want - from + 360) % 360);
     let lastTick = -1;
     paths.forEach((s) => s.classList.remove('hit')); readout.classList.add('dim');
     await tween(3800, (e) => { const a = from + (to - from) * e; disc.style.transform = `rotate(${a}deg)`; const tick = Math.floor(a / step); if (tick !== lastTick) { lastTick = tick; sound.play('tick'); pointer.classList.remove('flick'); void pointer.offsetWidth; pointer.classList.add('flick'); } }, spinEase);

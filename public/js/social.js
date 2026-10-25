@@ -134,6 +134,11 @@ export function mountChat() {
   drawer = h('aside', { class: 'chat', id: 'chat', 'aria-label': 'Chat', hidden: !chatOpen },
     h('div', { class: 'chat-head' }, h('span', { class: 'chat-title' }, svgUse('ph-chat-circle-dots'), 'Chat', DEMO ? h('span', { class: 'tag' }, 'demo room') : null), onlineBadge, h('button', { type: 'button', class: 'wclose', 'aria-label': 'Close chat', onClick: () => toggleChat(false) }, svgUse('ph-x'))),
     list, err, form);
+  let y0 = null;
+  const head = drawer.querySelector('.chat-head');
+  head.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; }, { passive: true });
+  head.addEventListener('touchmove', (e) => { if (y0 == null) return; const dy = e.touches[0].clientY - y0; drawer.style.transform = dy > 0 ? `translateY(${Math.min(dy, 160)}px)` : ''; }, { passive: true });
+  head.addEventListener('touchend', (e) => { const dy = (e.changedTouches[0]?.clientY ?? y0) - (y0 ?? 0); drawer.style.transform = ''; if (y0 != null && dy > 70) toggleChat(false); y0 = null; });
   document.body.append(drawer);
   document.body.classList.toggle('chat-open', chatOpen);
   onSocial(paintChat);

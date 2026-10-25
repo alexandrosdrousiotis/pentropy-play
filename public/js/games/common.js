@@ -1,4 +1,5 @@
 // Shared pieces for every game: the bet panel, the "reality" tiles, and settlement plumbing.
+import { haptic } from '../fx.js';
 import { api, user, me } from '../api.js';
 import { h, numberInput, fmt, fmtPct, fmtMult, toast, button } from '../ui.js';
 import { expectedLoss } from '../../shared/math.js';
@@ -72,6 +73,7 @@ export function gameHeader(game) {
 
 /** Open a round; shows a toast on refusal and returns null. */
 export async function tryBet(game, amount, params, opts) {
+  haptic(8);
   try { return await api.bet(game, amount, params, opts); }
   catch (e) { toast(e.message, 'bad'); return null; }
 }

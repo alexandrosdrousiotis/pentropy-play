@@ -683,33 +683,75 @@ a.island:hover{text-decoration:none;transform:translateY(-3px);filter:brightness
 @media (max-width:560px){.wbalances{grid-template-columns:1fr 1fr}.wamount input{font-size:30px}}
 
 /* ---- chicken road ---- */
-.road-view{position:relative;width:100%;height:260px;border-radius:14px;overflow:hidden;background:#3a3f4a;border:1px solid var(--line)}
+/* ---- chicken: a drawn road ---- */
+.chick-stage{width:100%;justify-items:center;gap:10px}
+.chick-stage .bignum{font-size:44px}
+.road-view{position:relative;width:100%;height:300px;border-radius:14px;overflow:hidden;background:#20242e;border:1px solid var(--line);isolation:isolate}
+.road-view::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.35),transparent 18%,transparent 82%,rgba(0,0,0,.4));z-index:4}
 .road-world{position:absolute;left:0;top:0;height:100%;display:flex;will-change:transform}
-.kerb{flex:none;width:72px;height:100%;background:#3f8f4a;background-image:linear-gradient(0deg,rgba(0,0,0,.08) 50%,transparent 50%);background-size:100% 16px;display:grid;place-items:center;color:#d8ffd9;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;writing-mode:vertical-rl}
-.kerb.end{background:#3f8f4a}
-.lane{flex:none;position:relative;width:72px;height:100%;background:#2b2f38;border-left:2px dashed rgba(255,255,255,.12);overflow:hidden;transition:background .25s}
-.lane .dash{display:none}
-.lane .lm{position:absolute;left:50%;top:8px;transform:translateX(-50%);font-size:10px;font-weight:700;color:rgba(255,255,255,.45);background:rgba(0,0,0,.35);padding:2px 6px;border-radius:999px;z-index:2}
-.lane.crossed{background:#24322a}.lane.crossed .lm{color:#8af0b5}
-.lane.next{box-shadow:inset 0 0 0 2px var(--accent)}
-.lane.hazard{background:#3a2429}.lane.hit{background:#5a1f27}
-.car{position:absolute;left:14px;width:44px;height:26px;border-radius:7px;background:#4f7bff;box-shadow:0 3px 0 rgba(0,0,0,.35);animation:drive linear infinite;top:-40px}
-.car i{position:absolute;top:5px;width:8px;height:16px;border-radius:2px;background:rgba(255,255,255,.75)}
-.car i:first-child{left:6px}.car i:last-child{right:6px}
-.car.flip{animation-name:drive-up}
-.car.parked{animation:none;top:50%;transform:translateY(-50%);background:#8a919e}
-.car.crash{animation:crash-in .3s cubic-bezier(.2,.9,.3,1.2) both;background:#f0616d;width:50px;height:30px;top:0}
-@keyframes drive{from{transform:translateY(-40px)}to{transform:translateY(300px)}}
-@keyframes drive-up{from{transform:translateY(300px)}to{transform:translateY(-40px)}}
-@keyframes crash-in{from{top:-60px}to{top:calc(50% - 15px)}}
-.chick{position:absolute;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;color:#fff;z-index:3;display:grid;place-items:center;transition:left .4s cubic-bezier(.2,.75,.2,1);filter:drop-shadow(0 4px 4px rgba(0,0,0,.5))}
-.chick svg{width:34px;height:34px;fill:currentColor}
-.chick.hop{animation:hop .4s cubic-bezier(.3,.9,.4,1)}
-@keyframes hop{0%{transform:scale(1) translateY(0)}45%{transform:scale(1.15) translateY(-18px)}100%{transform:scale(1) translateY(0)}}
-.chick.squish{transform:scale(1.1);color:#fff;transition:transform .15s}
-.wallet{cursor:pointer}
-.chick.safe{color:#8af0b5}
-@media (max-width:860px){.road-view{height:220px}}
+.kerb{flex:none;position:relative;width:76px;height:100%;background:#3f8f4a;background-image:repeating-linear-gradient(180deg,rgba(255,255,255,.06) 0 14px,transparent 14px 28px);box-shadow:inset -6px 0 0 #2f6e39}
+.kerb.end{box-shadow:inset 6px 0 0 #2f6e39}
+.kerb span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.75)}
+.kerb .flower{position:absolute;width:8px;height:8px;border-radius:50%;background:#ffd166;box-shadow:0 0 0 3px rgba(255,255,255,.55)}
+.kerb .f1{left:14px;top:18%}.kerb .f2{right:16px;top:72%;background:#ff6b8a}.kerb .f3{right:18px;top:26%;background:#9ad0ff}
+.lane{flex:none;position:relative;width:76px;height:100%;background:#2b303b;overflow:hidden;transition:background .3s}
+.lane.alt{background:#272c36}
+.lane::before{content:"";position:absolute;left:-1px;top:0;bottom:0;width:2px;background:repeating-linear-gradient(180deg,rgba(255,255,255,.22) 0 16px,transparent 16px 34px)}
+.lane .lm{position:absolute;left:50%;top:8px;transform:translateX(-50%);font-size:10px;font-weight:700;color:rgba(255,255,255,.5);background:rgba(0,0,0,.4);padding:2px 7px;border-radius:999px;z-index:3;white-space:nowrap}
+.lane.crossed{background:#26342c}.lane.crossed .lm{color:#8af0b5;background:rgba(0,0,0,.5)}
+.lane.next{box-shadow:inset 0 0 0 2px var(--accent),inset 0 0 30px rgba(230,182,85,.25)}
+.lane.next .lm{color:var(--accent-fg);background:var(--accent)}
+.lane.hazard{background:#3b2228}.lane.hit{background:#5a1f27}
+.lane .sign{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:#ff5c7a;color:#fff;font-weight:900;display:grid;place-items:center;font-size:14px;box-shadow:0 0 0 3px rgba(255,92,122,.3);z-index:2;animation:signpop .3s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes signpop{from{transform:scale(0)}}
+/* vehicles */
+.veh{position:absolute;left:14px;width:48px;height:32px;border-radius:7px 7px 6px 6px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 70%,#000),var(--c) 35%,var(--c) 65%,color-mix(in srgb,var(--c) 70%,#000));box-shadow:0 6px 10px rgba(0,0,0,.45),inset 0 0 0 1px rgba(0,0,0,.25);animation:drive linear infinite;top:-120px;z-index:2}
+.veh::before,.veh::after{content:"";position:absolute;left:-3px;right:-3px;height:9px;background:#0f1115;border-radius:3px;z-index:-1}
+.veh::before{top:4px}.veh::after{bottom:4px}
+.veh .w{position:absolute;left:7px;right:7px;height:7px;border-radius:2px;background:rgba(170,215,255,.85);top:6px}
+.veh .w.b{top:auto;bottom:6px;background:rgba(170,215,255,.55)}
+.veh .hl{position:absolute;top:-2px;width:8px;height:3px;border-radius:2px;background:#fff6c2;box-shadow:0 -6px 10px rgba(255,246,194,.35);left:8px}
+.veh .hl.r{left:auto;right:8px}
+.veh.truck{height:62px;border-radius:6px}
+.veh.truck .w{top:6px}.veh.truck .w.b{display:none}
+.veh.truck::before{top:4px}.veh.truck::after{bottom:4px}
+.veh.bus{height:78px;width:50px;left:13px}
+.veh.bus .w{top:8px;box-shadow:0 12px 0 rgba(170,215,255,.7),0 24px 0 rgba(170,215,255,.7),0 36px 0 rgba(170,215,255,.7)}
+.veh.bus .w.b{display:none}
+.veh.flip{animation-name:drive-up}
+.veh.flip .hl{top:auto;bottom:-2px;box-shadow:0 6px 10px rgba(255,246,194,.35)}
+.veh.crash{animation:crash-in .32s cubic-bezier(.2,.9,.3,1.1) both;z-index:5}
+@keyframes drive{from{transform:translateY(0)}to{transform:translateY(460px)}}
+@keyframes drive-up{from{transform:translateY(460px)}to{transform:translateY(0)}}
+@keyframes crash-in{from{top:-90px}to{top:calc(50% - 30px)}}
+/* chicken */
+.chick{position:absolute;top:50%;width:44px;height:44px;margin:-26px 0 0 -22px;z-index:3;pointer-events:none}
+.chick .shadow{position:absolute;left:50%;bottom:-2px;width:34px;height:10px;margin-left:-17px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(1px);transition:transform .2s}
+.chick .sprite{position:absolute;inset:0;animation:chick-idle 1.3s ease-in-out infinite;transform-origin:50% 100%}
+.chick .sprite i{position:absolute;display:block}
+.chick .body{left:6px;top:14px;width:30px;height:24px;border-radius:55% 60% 50% 50%;background:radial-gradient(circle at 35% 30%,#fff,#e9ecf2 70%,#c9cfdb);box-shadow:inset -3px -3px 0 rgba(0,0,0,.08)}
+.chick .tail{left:2px;top:14px;width:12px;height:12px;border-radius:50% 0 50% 50%;background:#e9ecf2;transform:rotate(20deg)}
+.chick .wing{left:12px;top:20px;width:14px;height:10px;border-radius:50%;background:#dfe3ea}
+.chick .head{left:24px;top:6px;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e9ecf2 75%)}
+.chick .comb{left:30px;top:1px;width:9px;height:8px;border-radius:50% 50% 0 0;background:#ff4d5e;box-shadow:-5px 2px 0 -1px #ff4d5e}
+.chick .eye{left:35px;top:11px;width:3px;height:3px;border-radius:50%;background:#111}
+.chick .beak{left:41px;top:13px;width:0;height:0;border-top:3px solid transparent;border-bottom:3px solid transparent;border-left:7px solid #ffa03a}
+.chick .wattle{left:38px;top:17px;width:4px;height:6px;border-radius:50%;background:#ff4d5e}
+.chick .leg{left:18px;top:36px;width:2px;height:8px;background:#ffa03a}
+.chick .leg::after{content:"";position:absolute;left:-2px;bottom:0;width:7px;height:2px;background:#ffa03a}
+.chick .leg.r{left:25px}
+@keyframes chick-idle{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-1px) scale(1.02,.98)}}
+.chick.hop .sprite{animation:chick-hop .42s cubic-bezier(.3,.9,.4,1)}
+.chick.hop .shadow{animation:shadow-hop .42s ease-out}
+@keyframes chick-hop{0%{transform:translateY(0) scale(1.1,.9)}40%{transform:translateY(-26px) scale(.92,1.12)}70%{transform:translateY(-8px) scale(1,1)}100%{transform:translateY(0) scale(1.08,.92)}}
+@keyframes shadow-hop{40%{transform:scale(.55);opacity:.5}}
+.chick.ready .sprite{animation:chick-ready .6s ease-out}
+@keyframes chick-ready{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.chick.splat .sprite{animation:none;transform:scaleY(.22) rotate(8deg);transform-origin:50% 100%;filter:brightness(.85);transition:transform .15s}
+.chick.splat .shadow{opacity:0}
+.chick.safe .sprite{animation:chick-dance .5s ease-in-out infinite}
+@keyframes chick-dance{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-12px) rotate(6deg)}}
+@media (max-width:860px){.road-view{height:230px}.chick-stage .bignum{font-size:36px}}
 
 /* ---- lobby v3: search, chips, rows with arrows ---- */
 .lobby-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}

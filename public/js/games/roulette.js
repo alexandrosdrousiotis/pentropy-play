@@ -81,8 +81,9 @@ export function mount(root, meta) {
   }
   async function spinTo(n, ms) {
     const idx = ORDER.indexOf(n);
-    const target = 360 * 4 + (360 - (idx * step + step / 2));
-    const from = angle % 360, to = from + target; let lastTick = -1;
+    const from = ((angle % 360) + 360) % 360;
+    const want = (360 - (idx * step + step / 2) + 360) % 360;
+    const to = from + 360 * 4 + ((want - from + 360) % 360); let lastTick = -1;
     const ballTurns = -(360 * 6 + 90);
     await tween(Math.max(1500, ms), (e, k) => {
       const a = from + (to - from) * e; disc.style.transform = `rotate(${a}deg)`;
