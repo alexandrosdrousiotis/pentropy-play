@@ -2179,3 +2179,9 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .cat-card:hover{border-color:var(--line-3)}
 .card:hover{border-color:var(--line-3)}
 a.card:hover .art img,a.island:hover,a.card:hover{transform:none}
+/* the coin toss: up, over, down, once; the rotation rides the same 1.5 seconds */
+.coin3d.spin .c-inner{animation:none}
+.coin3d.toss .c-tilt{animation:cointoss-arc 1.5s cubic-bezier(.3,.5,.4,1)}
+.coin3d.toss .c-shadow{animation:cointoss-shadow 1.5s cubic-bezier(.3,.5,.4,1)}
+@keyframes cointoss-arc{0%{transform:translateY(0) rotateY(-24deg) rotateX(8deg)}50%{transform:translateY(-150px) rotateY(-24deg) rotateX(8deg)}100%{transform:translateY(0) rotateY(-24deg) rotateX(8deg)}}
+@keyframes cointoss-shadow{0%{transform:scale(1);opacity:1}50%{transform:scale(.55);opacity:.4}100%{transform:scale(1);opacity:1}}

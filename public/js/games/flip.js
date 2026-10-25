@@ -44,15 +44,12 @@ export function mount(root, meta) {
   async function flip(choice) {
     if (busy || !round) return;
     busy = true; paint(); sound.play('flip');
-    coin.spin(true);
     const out = await tryAct('flip', { choice }, { defer: true });
-    await sleep(500);
-    coin.spin(false);
     if (!out) { busy = false; paint(); return; }
     const flips = out.round.status === 'settled' ? out.round.outcome.flips : out.round.view.flips;
     const last = flips[flips.length - 1];
-    setFace(last.result, 2); sound.play('tick');
-    await sleep(1500);
+    setFace(last.result, 3); // one toss: three full turns in the air, landing on the called side
+    await sleep(1550);
     if (last.ok) { sound.play('reveal'); flashGreen(L.board); pulse(mult); } else { sound.play('lose'); flashRed(L.board); }
     busy = false;
     if (out.round.status === 'settled') { out.commit(); return finish(out.round); }
