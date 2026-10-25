@@ -2185,3 +2185,21 @@ a.card:hover .art img,a.island:hover,a.card:hover{transform:none}
 .coin3d.toss .c-shadow{animation:cointoss-shadow 1.5s cubic-bezier(.3,.5,.4,1)}
 @keyframes cointoss-arc{0%{transform:translateY(0) rotateY(-24deg) rotateX(8deg)}50%{transform:translateY(-150px) rotateY(-24deg) rotateX(8deg)}100%{transform:translateY(0) rotateY(-24deg) rotateX(8deg)}}
 @keyframes cointoss-shadow{0%{transform:scale(1);opacity:1}50%{transform:scale(.55);opacity:.4}100%{transform:scale(1);opacity:1}}
+/* wallet home, simplified: the number, two buttons, four quiet links */
+.wsheet{max-width:420px}
+.whb{padding:8px 2px 6px}
+.wmain{gap:10px;padding:6px 0 2px}
+.wmain .btn{height:50px;border-radius:14px;font-size:15px}
+.wlinks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:4px}
+.wlink{display:grid;justify-items:center;gap:4px;padding:10px 4px 9px;border:0;border-radius:12px;background:var(--surface-2);color:var(--fg-2);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;position:relative}
+.wlink:hover{background:var(--surface-3);color:#fff}
+.wlink svg{width:18px;height:18px;fill:var(--fg-3)}
+.wlink:hover svg{fill:var(--accent)}
+.wlink b{font-size:11px;color:var(--fg);font-weight:800}
+.wlink[data-tip]::after{left:50%;right:auto;transform:translate(-50%,4px);white-space:normal;width:170px;text-align:center}
+.wlink[data-tip]:hover::after{transform:translate(-50%,0)}
+.wsheet[data-view=more] .wchart{height:72px}
+.wlink[data-tip]::after{top:auto;bottom:calc(100% + 8px);transform:translate(-50%,-4px)}
+.wlink[data-tip]:hover::after,.wlink[data-tip]:focus-visible::after{transform:translate(-50%,0)}
+.wsheet{overflow:visible}
+.wsheet .wbody{overflow:visible}

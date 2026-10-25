@@ -13,7 +13,7 @@ export async function openWallet(initialTab = 'home') {
   let view = initialTab === 'history' ? 'history' : initialTab === 'withdraw' ? 'withdraw' : initialTab === 'deposit' ? 'deposit' : 'home', busy = false;
   const close = () => { bg.remove(); document.removeEventListener('keydown', onKey); };
   const onKey = (e) => { if (e.key === 'Escape' && !busy) close(); };
-  const TITLE = { home: 'Wallet', deposit: 'Deposit', withdraw: 'Withdraw', history: 'Transactions' };
+  const TITLE = { home: 'Wallet', deposit: 'Deposit', withdraw: 'Withdraw', history: 'Transactions', more: 'More' };
   const back = h('button', { type: 'button', class: 'wclose wback', 'aria-label': 'Back', onClick: () => { if (!busy) go('home'); } }, svgUse('ph-caret-left'));
   const title = h('b', {}, 'Wallet');
   const head = h('div', { class: 'whead' }, h('div', { class: 'wtitle' }, back, title), h('button', { type: 'button', class: 'wclose', 'aria-label': 'Close', onClick: () => { if (!busy) close(); } }, svgUse('ph-x')));
@@ -41,31 +41,38 @@ export async function openWallet(initialTab = 'home') {
     h('span', { class: 'wltext' }, h('b', {}, TYPE_LABEL[e.type] || e.type), h('small', {}, `${new Date(e.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${e.txid.slice(0, 8)}`)),
     h('span', { class: `wlright num ${e.type === 'withdraw' ? '' : 'good'}` }, `${e.type === 'withdraw' ? '−' : '+'}${fmt(e.amount)}`));
 
-  /* ---- home: the balance, the curve, four actions, the accounts, the last transactions ---- */
+  /* ---- home: the balance and the two things you do with it; everything else sits behind More ---- */
   let range = 40;
   function home() {
     const m = me(), t = tierById(m?.rewards?.tier);
+    const pts = curveOf(range), delta = pts.length > 1 ? pts[pts.length - 1] - pts[0] : 0;
+    const link = (icon, label, value, onClick, tip) => h('button', { type: 'button', class: 'wlink', 'data-tip': tip, onClick }, svgUse(icon), h('span', {}, label), value != null ? h('b', { class: 'num' }, value) : null);
+    return h('div', { class: 'whome' },
+      h('div', { class: 'whb' },
+        h('div', { class: 'l' }, `Balance · ${t.name}`),
+        h('div', { class: 'wbig num' }, fmt(w.balance), h('small', {}, 'AGT')),
+        h('div', { class: `wchg num ${delta > 0 ? 'good' : delta < 0 ? 'bad' : ''}` }, rounds && rounds.length ? `${fmtSigned(delta)} over your last ${Math.min(range, rounds.length)} bets` : 'Play money. Nothing to cash out, ever.')),
+      h('div', { class: 'two wmain' }, button('Deposit', { kind: 'primary', size: 'lg', onClick: () => go('deposit') }), button('Withdraw', { kind: 'tertiary', size: 'lg', onClick: () => go('withdraw') })),
+      h('div', { class: 'wlinks' },
+        link('ph-lock', 'Vault', fmt(w.vault, 0), () => (w.vault > 0 ? go('deposit', 'vault') : go('withdraw')), 'Tokens set aside; they cannot be bet until you deposit them back'),
+        link('ph-hand-coins', 'Allowance', `${fmt(w.faucetAvailable, 0)} left`, () => go('deposit', 'faucet'), `${fmt(w.faucetPerDay, 0)} a day, resets at midnight`),
+        link('ph-clock-counter-clockwise', 'History', null, () => go('history'), 'Deposits and withdrawals'),
+        link('ph-dots-nine', 'More', null, () => go('more'), 'Balance curve, accounts, rebates')));
+  }
+  /* ---- more: the curve, the accounts, the last transactions ---- */
+  function more() {
     const pts = curveOf(range), delta = pts.length > 1 ? pts[pts.length - 1] - pts[0] : 0, base = pts[0] || w.balance;
     const pct = base > 0 ? (delta / base) * 100 : 0;
     const chart = h('div', { class: 'wchart' }, sparkline(pts));
     const ranges = h('div', { class: 'wranges' }, ...[[10, '10 bets'], [40, '40 bets'], [200, '200 bets']].map(([n, l]) => h('button', { type: 'button', 'aria-pressed': String(range === n), onClick: () => { range = n; paint(); } }, l)));
-    const act = (icon, label, onClick) => h('button', { type: 'button', class: 'wact', onClick }, h('span', {}, svgUse(icon)), label);
     return h('div', { class: 'whome' },
-      h('div', { class: 'whb' },
-        h('div', { class: 'l' }, `Available to play · ${t.name}`),
-        h('div', { class: 'wbig num' }, fmt(w.balance), h('small', {}, 'AGT')),
-        h('div', { class: `wchg num ${delta > 0 ? 'good' : delta < 0 ? 'bad' : ''}` }, rounds && rounds.length ? `${fmtSigned(delta)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%) over the last ${Math.min(range, rounds.length)} bets` : 'No bets yet. The curve starts with your first one.')),
-      chart, ranges,
-      h('div', { class: 'wacts' },
-        act('ph-plus', 'Deposit', () => go('deposit')),
-        act('ph-arrow-up', 'Withdraw', () => go('withdraw')),
-        act('ph-gift', 'Rebates', () => { close(); location.hash = '#/rebates'; }),
-        act('ph-clock-counter-clockwise', 'History', () => go('history'))),
+      h('div', { class: 'wsection' }, h('div', { class: 'wsh' }, 'Balance over your bets', h('span', { class: `wdelta num ${delta > 0 ? 'good' : delta < 0 ? 'bad' : ''}` }, rounds && rounds.length ? `${fmtSigned(delta)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)` : 'no bets yet')), chart, ranges),
       h('div', { class: 'wsection' }, h('div', { class: 'wsh' }, 'Accounts'),
         h('div', { class: 'wlist' },
           row({ icon: 'ph-coins', title: 'Balance', sub: 'in play', right: fmt(w.balance) }),
           row({ icon: 'ph-lock', title: 'Vault', sub: w.vault > 0 ? 'safe from bets · tap to deposit back' : 'nothing set aside', right: fmt(w.vault), onClick: w.vault > 0 ? () => go('deposit', 'vault') : null }),
-          row({ icon: 'ph-hand-coins', title: 'Daily allowance', sub: `${fmt(w.faucetPerDay, 0)} a day · resets at midnight`, right: `${fmt(w.faucetAvailable, 0)} left`, onClick: () => go('deposit', 'faucet') }))),
+          row({ icon: 'ph-hand-coins', title: 'Daily allowance', sub: `${fmt(w.faucetPerDay, 0)} a day · resets at midnight`, right: `${fmt(w.faucetAvailable, 0)} left`, onClick: () => go('deposit', 'faucet') }),
+          row({ icon: 'ph-gift', title: 'Rebates', sub: 'chest, drips, rakeback', onClick: () => { close(); location.hash = '#/rebates'; } }))),
       h('div', { class: 'wsection' }, h('div', { class: 'wsh' }, 'Transactions', w.history.length > 3 ? h('button', { type: 'button', class: 'wsee', onClick: () => go('history') }, 'See all') : null),
         w.history.length ? h('div', { class: 'wlist' }, ...w.history.slice(0, 3).map(txRow)) : h('div', { class: 'wlrow muted' }, h('span', { class: 'wlicon' }, svgUse('ph-receipt')), h('span', { class: 'wltext' }, h('b', {}, 'No transactions yet')))));
   }
@@ -142,9 +149,9 @@ export async function openWallet(initialTab = 'home') {
   function go(v, source = null) { if (source) preferSource = source; view = v; sound.play('tick'); paint(); }
   function paint() {
     title.textContent = TITLE[view]; back.hidden = view === 'home'; sheet.dataset.view = view;
-    body.replaceChildren(view === 'home' ? home() : view === 'deposit' ? deposit() : view === 'withdraw' ? withdraw() : history());
+    body.replaceChildren(view === 'home' ? home() : view === 'more' ? more() : view === 'deposit' ? deposit() : view === 'withdraw' ? withdraw() : history());
   }
-  api.rounds(200).then((r) => { rounds = r.rounds; if (view === 'home') paint(); }).catch(() => {});
+  api.rounds(200).then((r) => { rounds = r.rounds; if (view === 'home' || view === 'more') paint(); }).catch(() => {});
   paint();
   document.body.append(bg); document.addEventListener('keydown', onKey);
   sound.play('click');
