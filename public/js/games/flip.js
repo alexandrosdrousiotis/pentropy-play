@@ -68,7 +68,7 @@ export function mount(root, meta) {
     if (win) { sound.play(r.multiplier >= 8 ? 'bigwin' : 'cashout'); if (r.multiplier >= 8) winBurst(L.board); }
     mult.textContent = fmtMult(win ? r.multiplier : 0); mult.className = `bignum num ${win ? 'win' : 'loss'}`; mult.style.fontSize = '56px';
     banner.show(win ? `WIN ${payoutLine(r)}` : `Lost after ${r.outcome.flips.length} · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '✗', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     paint(); trail.replaceChildren(...r.outcome.flips.slice(-14).map((x) => h('span', { class: `chip ${x.ok ? 'win' : 'loss'}` }, `${x.choice[0].toUpperCase()}→${x.result[0].toUpperCase()}`)));
     reality.update();
   }

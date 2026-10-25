@@ -134,7 +134,7 @@ export function mount(root, meta) {
     const win = r.multiplier > 0; round = null;
     if (win) { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.multiplier >= 5) winBurst(L.board); chicken.classList.add('safe'); sparkle(chicken, L.board, { color: '#e6b655', count: 14, spread: 50 }); }
     banner.show(win ? `WIN ${payoutLine(r)}` : `Hit on lane ${r.outcome.lane + 1} · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '✗', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     r.outcome.layout.forEach((i) => { if (i !== r.outcome.hit && lanes[i]) { lanes[i].classList.add('hazard'); lanes[i].querySelectorAll('.veh').forEach((v) => v.remove()); lanes[i].append(h('i', { class: 'sign' }, '!')); } });
     mult.textContent = fmtMult(win ? r.multiplier : 0); mult.className = `bignum num ${win ? 'win' : 'loss'}`;
     busy = false; paintControls(); reality.update();

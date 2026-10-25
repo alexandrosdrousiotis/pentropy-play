@@ -116,7 +116,7 @@ export function mount(root, meta) {
     choices.replaceChildren();
     play.disabled = false; amount.setDisabled(false); cash.disabled = true; cash.querySelector('span').textContent = 'Cash out';
     banner.show(win ? `WIN ${payoutLine(r)}` : `Wrong call · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '✗', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     reality.update();
   }
   async function playAuto() {

@@ -69,7 +69,7 @@ export function mountChain(root, meta, { id, action, choices, icons, historyKey,
     if (win) { sound.play(r.multiplier >= 8 ? 'bigwin' : 'cashout'); if (r.multiplier >= 8) winBurst(L.board); }
     mult.textContent = fmtMult(win ? r.multiplier : 0); mult.className = `bignum num ${win ? 'win' : 'loss'}`; mult.style.fontSize = '56px';
     banner.show(win ? `WIN ${payoutLine(r)}` : `Lost after ${hist.length} · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '✗', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     paint(); trail.replaceChildren(...hist.slice(-14).map((x) => h('span', { class: `chip ${resultOf(x) === 'win' ? 'win' : resultOf(x) === 'lose' ? 'loss' : ''}` }, labelOf(x))));
     reality.update();
   }

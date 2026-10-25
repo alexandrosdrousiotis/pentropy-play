@@ -120,7 +120,7 @@ export function mount(root, meta) {
       seen.add(b.id);
       const win = b.payout > 0, net = b.payout - b.amount;
       banner.show(win ? `WIN ${fmtMult(b.cashout)} · +${fmt(net)} AGT` : `Crashed at ${fmtMult(r.result ?? 0)} · −${fmt(b.amount)} AGT`, win);
-      strip.push(win ? fmtMult(b.cashout) : '✗', win);
+      strip.push(fmtMult(win ? b.cashout : 0), win);
       if (win) { sound.play(b.cashout >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (b.cashout >= 5) winBurst(L.board); }
       api.refresh().catch(() => {});
     }

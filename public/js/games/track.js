@@ -80,7 +80,7 @@ export function mountTrack(root, meta, { id, levels, stepAction, unit, bustKey, 
     const win = r.multiplier > 0; round = null;
     if (win) { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.multiplier >= 5) winBurst(L.board); }
     banner.show(win ? `WIN ${payoutLine(r)}` : `${bustKey === 'hit' ? 'Hit' : 'Popped'} at ${r.outcome[unit] + 1} · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '✗', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     build(r.outcome); mult.textContent = fmtMult(win ? r.multiplier : 0); mult.className = `bignum num ${win ? 'win' : 'loss'}`; mult.style.fontSize = '48px';
     busy = false; paintControls(); reality.update();
   }

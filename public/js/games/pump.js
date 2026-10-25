@@ -77,7 +77,7 @@ export function mount(root, meta) {
     const win = r.multiplier > 0; round = null;
     if (win) { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.multiplier >= 5) winBurst(L.board); }
     banner.show(win ? `WIN ${payoutLine(r)}` : `Popped on pump ${r.outcome.pumps + 1} · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '💥', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     mult.textContent = fmtMult(win ? r.multiplier : 0); mult.className = `bignum num ${win ? 'win' : 'loss'}`; mult.style.fontSize = '48px';
     busy = false; paint(); reality.update();
     mult.textContent = fmtMult(win ? r.multiplier : 0);
