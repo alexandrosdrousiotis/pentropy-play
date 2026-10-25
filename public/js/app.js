@@ -219,9 +219,9 @@ function promoHero(m) {
   return { key: 'promo', img: obj, copy: h('div', { class: 'hero-copy' }, h('div', { class: 'eyebrow' }, eyebrow), h('h1', {}, title), h('p', { class: 'lead' }, text), h('div', { class: 'row' }, cta)), thumb: 'art/chest-closed.webp', label: 'Rebates' };
 }
 const FEATURED = [
-  { id: 'roulette', title: 'Roulette', text: 'European single zero. Every bet pays 36 to 37.' },
-  { id: 'chicken', title: 'Chicken', text: 'New. Cross 25 lanes of traffic. Cash out any time.' },
-  { id: 'crash', title: 'Crash', text: 'Up to 1,000,000x if you hold your nerve.' },
+  { id: 'roulette', title: 'Roulette', tag: 'Live table' },
+  { id: 'chicken', title: 'Chicken', tag: 'New' },
+  { id: 'crash', title: 'Crash', tag: 'Original' },
 ];
 function featured(linked) {
   return h('div', { class: 'islands' }, ...FEATURED.map((f, i) => {
@@ -229,7 +229,7 @@ function featured(linked) {
     const hasBanner = BANNERS.has(f.id);
     const isle = h(linked ? 'a' : 'div', { class: `island${hasBanner ? ' has-img' : ''}${i === 0 ? ' lead' : ''}`, href: linked ? `#/play/${f.id}` : '#/signup' },
       hasBanner ? h('img', { class: 'island-img', src: `art/${f.id}-banner.webp`, alt: '', decoding: 'async' }) : h('div', { class: 'island-art' }, svgUse(gameIcon(f.id))),
-      h('div', { class: 'island-body' }, h('div', { class: 'island-kicker' }, `${fmtPct(g.rtp, 2)} RTP · max ${g.ceiling}`), h('h3', {}, f.title), h('p', {}, f.text), h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
+      h('div', { class: 'island-body' }, h('div', { class: 'island-kicker' }, f.tag), h('h3', {}, f.title), h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
     isle.style.setProperty('--c', GAME_COLOR[f.id]);
     return isle;
   }));
