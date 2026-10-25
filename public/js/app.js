@@ -12,6 +12,7 @@ import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
 import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout, toggleChat } from './social.js';
 import { chestCard, chestPill } from './chest.js';
 import { authPage, rememberRef } from './signup.js';
+import { userMenu, accountBody } from './menu.js';
 import { REFERRAL } from '../shared/tiers.js';
 
 const app = document.getElementById('app');
@@ -37,27 +38,22 @@ function renderChrome() {
     ...CATEGORIES.map((cat) => h('div', { class: 'group' }, h('div', { class: 'group-title' }, cat.label), ...CATALOG.filter((g) => g.cat === cat.id).map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, svgUse(gameIcon(g.id)), g.name)))),
     u && me()?.rewards ? tierFoot(me().rewards) : h('div', { class: 'foot' }, svgUse('ph-info'), 'Tokens have no cash value'),
   );
-  const crumb = (() => {
-    const g = route.match(/^#\/play\/([a-z]+)$/);
-    if (g) return [h('a', { href: '#/', class: 'crumb-back' }, svgUse('ph-caret-left'), 'Games'), h('span', { class: 'crumb-sep' }, '/'), h('b', {}, gameById(g[1])?.name ?? '')];
-    const found = NAV.find(([href]) => isCurrent(href, route));
-    if (route === '#/signup') return [h('b', {}, 'Create account')];
-    if (route === '#/login') return [h('b', {}, 'Log in')];
-    if (route.startsWith('#/account')) return [h('b', {}, 'You')];
-    return [h('b', {}, found ? found[1] : 'Home')];
-  })();
+  const playing = /^#\/play\//.test(route);
+  const searchIn = h('input', { type: 'search', placeholder: 'Search games', 'aria-label': 'Search games', autocomplete: 'off' });
+  searchIn.addEventListener('keydown', (e) => { if (e.key === 'Enter' && searchIn.value.trim()) { location.hash = `#/games?q=${encodeURIComponent(searchIn.value.trim())}`; searchIn.blur(); } });
   const sessNet = u ? sessionNet() : 0;
   top.replaceChildren(
     h('a', { class: 'logo brand-sm', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning'))),
-    h('div', { class: 'crumb' }, ...crumb),
+    playing ? h('a', { href: '#/', class: 'crumb-back', 'aria-label': 'Back to games', 'data-tip': 'Back to games' }, svgUse('ph-caret-left')) : h('span', { class: 'crumb-gap', hidden: true }),
+    h('label', { class: 'top-search' }, svgUse('ph-search'), searchIn),
     h('div', { class: 'spacer' }),
     u ? h('div', { class: 'row', style: { gap: '10px' } },
-      h('div', { class: 'wallet', id: 'balance', title: 'Play money. No cash value.', role: 'button', tabindex: '0', onClick: (e) => { if (!e.target.closest('.go')) openWallet('deposit'); } },
+      h('div', { class: 'wallet', id: 'balance', 'data-tip': 'Play money balance. Tap to open the wallet.', role: 'button', tabindex: '0', onClick: (e) => { if (!e.target.closest('.go')) openWallet('history'); } },
         svgUse('ph-coins', 'ic'), h('span', { class: 'amt num' }, fmt(u.balance)),
-        h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta' }, fmtSigned(sessNet)),
-        h('button', { type: 'button', class: 'go', onClick: () => openWallet('deposit') }, 'Wallet')),
+        h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta', 'data-tip': 'Net this session' }, fmtSigned(sessNet)),
+        h('button', { type: 'button', class: 'go', 'data-tip': 'Deposit or withdraw', onClick: () => openWallet('deposit') }, 'Wallet')),
       h('span', { class: 'top-tools row' }, chatButton()),
-      h('a', { class: 'avatar', href: '#/account', title: u.username }, u.username.slice(0, 2)))
+      h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': u.username, onClick: (e) => userMenu(e.currentTarget) }, u.username.slice(0, 2)))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Sign up'))),
   );
   tabbar.hidden = !u;
@@ -211,9 +207,9 @@ function featured(linked) {
 }
 const TRENDING = ['crash', 'mines', 'plinko', 'chicken', 'dice', 'roulette', 'limbo', 'wheel'];
 /** Search + category chips + rows + full grid. `recent` is a list of game ids from the player's history. */
-function gamesBoard(linked = true, recent = [], initialCat = 'all') {
-  let query = '', cat = initialCat;
-  const input = h('input', { type: 'search', placeholder: 'Search games', 'aria-label': 'Search games', autocomplete: 'off' });
+function gamesBoard(linked = true, recent = [], initialCat = 'all', initialQuery = '') {
+  let query = initialQuery, cat = initialCat;
+  const input = h('input', { type: 'search', placeholder: 'Search games', 'aria-label': 'Search games', autocomplete: 'off', value: initialQuery });
   const chips = h('div', { class: 'chips' });
   const rows = h('div', { class: 'stack page' });
   const paintChips = () => chips.replaceChildren(...[{ id: 'all', label: 'All', icon: 'ph-squares-four' }, ...CATEGORIES.map((c) => ({ id: c.id, label: c.label, icon: c.id === 'table' ? 'ph-spade' : c.id === 'chains' ? 'ph-lightning' : 'ph-sparkle' }))].map((c) => h('button', { type: 'button', 'aria-pressed': String(cat === c.id), onClick: () => { cat = c.id; paintChips(); paint(); } }, svgUse(c.icon), c.label)));
@@ -260,8 +256,8 @@ async function lobbyPage() {
 }
 /** All games: search, category chips, every tile. Linked from the rows' View all. */
 function gamesPage() {
-  const cat = new URLSearchParams((location.hash.split('?')[1]) || '').get('cat') || 'all';
-  return h('div', { class: 'stack page' }, h('h2', { class: 'gt' }, 'Games'), gamesBoard(Boolean(user()), [], cat));
+  const qs = new URLSearchParams((location.hash.split('?')[1]) || '');
+  return h('div', { class: 'stack page' }, h('h2', { class: 'gt' }, 'Games'), gamesBoard(Boolean(user()), [], qs.get('cat') || 'all', qs.get('q') || ''));
 }
 
 /* ---------------- auth ---------------- */
@@ -568,39 +564,10 @@ async function rewardsPage() {
 /* ---------------- account & limits ---------------- */
 function accountPage() {
   const m = me();
-  const l = m.user.limits;
-  const loss = numberInput({ label: 'Loss limit per session (0 = off)', value: l.lossLimit, min: 0, max: 1000000, step: 10, unit: 'AGT', onChange: () => {} });
-  const mins = numberInput({ label: 'Session time limit in minutes (0 = off)', value: l.sessionMinutes, min: 0, max: 1440, step: 5, unit: 'min', onChange: () => {} });
-  const every = numberInput({ label: 'Reality check every N bets', value: l.realityEvery, min: 5, max: 500, step: 5, unit: 'bets', onChange: () => {} });
-  const saveLimits = button('Save limits', { kind: 'primary', onClick: async () => {
-    try {
-      await api.updateProfile({ limits: { lossLimit: Number(loss.input.value), sessionMinutes: Math.round(Number(mins.input.value)), realityEvery: Math.round(Number(every.input.value)) } });
-      toast('Limits saved. The server enforces them.', 'good');
-    } catch (e) { toast(e.message, 'bad'); }
-  } });
   return h('div', { class: 'stack page' },
-    h('div', { class: 'row between' }, h('h2', { class: 'gt' }, m.user.username), button('Log out', { kind: 'tertiary', size: 'sm', onClick: async () => { await api.logOut(); location.hash = '#/'; } })),
-    h('div', { class: 'two' },
-      h('div', { class: 'panel' },
-        h('h3', {}, 'Limits you set for yourself'),
-        h('p', { class: 'help' }, `This session: ${fmtSigned(sessionNet())} AGT over ${Math.round(sessionMinutes())} minutes. Limits apply per login session and are checked by the server on every bet.`),
-        loss, mins, every, saveLimits),
-      h('div', { class: 'panel' },
-        h('h3', {}, 'Account'),
-        h('div', { class: 'kv' }, h('span', {}, 'Created'), h('b', {}, new Date(m.user.createdAt).toLocaleDateString())),
-        h('div', { class: 'kv' }, h('span', {}, 'Balance'), h('b', {}, fmtAgt(m.user.balance))),
-        h('div', { class: 'kv' }, h('span', {}, 'Refills'), h('b', {}, m.user.refills)),
-        h('div', { class: 'kv' }, h('span', {}, 'Lessons read'), h('b', {}, `${m.user.lessonsRead.length} / ${edu.LESSONS.length}`)),
-        h('div', { class: 'kv' }, h('span', {}, 'Sound'), soundToggle()),
-        h('div', { class: 'more-links' }, h('a', { class: 'btn tertiary sm', href: '#/learn' }, h('span', {}, 'Learn')), h('a', { class: 'btn tertiary sm', href: '#/fair' }, h('span', {}, 'Fairness')), h('a', { class: 'btn tertiary sm', href: '#/rebates' }, h('span', {}, 'Rebates'))),
-        h('label', { class: 'check-row' }, h('input', { type: 'checkbox', checked: Boolean(m.user.ghost), onChange: async (e) => { try { await api.updateProfile({ ghost: e.target.checked }); toast(e.target.checked ? 'Ghost mode on. The feed shows you as Hidden.' : 'Ghost mode off.', 'good'); } catch (x) { toast(x.message, 'bad'); } } }), h('span', {}, svgUse('ph-ghost', 'inline-ic'), ' Ghost mode: hide my name in the live feed and leaderboard.')),
-        h('p', { class: 'help' }, 'We hold a username, a password hash, your seeds and your bet history. Nothing else. Deleting the account removes all of it immediately.'),
-        button('Delete account', { kind: 'danger', size: 'sm', onClick: async () => {
-          const pass = h('input', { type: 'password', autocomplete: 'current-password', placeholder: 'password' });
-          const ok = await modal({ title: 'Delete this account?', body: h('div', { class: 'stack' }, h('p', { class: 't-body' }, 'All history, seeds and tokens are erased. This cannot be undone.'), h('div', { class: 'input' }, pass)), actions: [{ label: 'Delete', kind: 'danger', value: 'yes' }, { label: 'Cancel', kind: 'tertiary', value: 'no' }] });
-          if (ok !== 'yes') return;
-          try { await api.deleteAccount(pass.value); toast('Account deleted.'); location.hash = '#/'; } catch (e) { toast(e.message, 'bad'); }
-        } }))));
+    h('div', { class: 'row between' }, h('h2', { class: 'gt' }, m.user.username), h('div', { class: 'row' }, soundToggle(), button('Log out', { kind: 'tertiary', size: 'sm', onClick: async () => { await api.logOut(); location.hash = '#/'; } }))),
+    accountBody(),
+    h('div', { class: 'more-links' }, h('a', { class: 'btn tertiary sm', href: '#/learn' }, h('span', {}, 'Learn')), h('a', { class: 'btn tertiary sm', href: '#/fair' }, h('span', {}, 'Fairness')), h('a', { class: 'btn tertiary sm', href: '#/rebates' }, h('span', {}, 'Rebates'))));
 }
 
 /* ---------------- boot ---------------- */

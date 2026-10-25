@@ -32,7 +32,8 @@ export function betAmount(initial = 10, onChange = () => {}) {
  */
 export function realityPanel(game, getAmount, calc) {
   const root = h('div', { class: 'reality' });
-  const tile = (v, l, d, cls = '') => h('div', { class: `tile ${cls}` }, h('div', { class: 'v num' }, v), h('div', { class: 'l' }, l), d && h('div', { class: 'd' }, d));
+  const TIPS = { RTP: 'Return to player: the share of every bet the game pays back over the long run. The rest is the house edge.', 'Win chance': 'How often this exact bet wins. Multiply by the payout and you get the RTP, never more.', 'Expected loss': 'What this bet costs on average: stake times the house edge. Some rounds you win, but this is the price per spin.', 'Per 100 bets': 'The expected loss over a hundred bets of this size, in the euro value you set for a token.' };
+  const tile = (v, l, d, cls = '') => h('div', { class: `tile tip-wide ${cls}`, 'data-tip': TIPS[l] || null, tabindex: '0' }, h('div', { class: 'v num' }, v), h('div', { class: 'l' }, l), d && h('div', { class: 'd' }, d));
   const update = () => {
     const amt = getAmount() || 0;
     const c = calc() || {};
