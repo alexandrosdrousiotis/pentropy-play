@@ -2234,3 +2234,7 @@ a.card:hover .art img,a.island:hover,a.card:hover{transform:none}
 .tierfoot .tag{justify-self:start}
 body.side-collapsed .tierfoot .tf-next,body.side-collapsed .tierfoot .progress{display:none}
 body.side-collapsed .tierfoot .tier-badge{padding:0;height:auto}
+
+/* inverse corner where the top bar and sidebar meet the content */
+.top::after{content:"";position:absolute;left:0;top:100%;width:18px;height:18px;background:var(--bg);-webkit-mask:radial-gradient(circle at 100% 100%,transparent 17.5px,#000 18px);mask:radial-gradient(circle at 100% 100%,transparent 17.5px,#000 18px);pointer-events:none}
+@media (max-width:860px){.top::after{display:none}}
