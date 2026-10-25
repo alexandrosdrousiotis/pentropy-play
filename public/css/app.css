@@ -1940,3 +1940,136 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .tag,.rtp-chip{border-radius:8px}
 .view-all{border-radius:10px}
 .row-arrows button{border-radius:10px}
+
+/* ============ v15: wallet home after Revolut, Coinbase, Kraken; solids sized to their tiles ============ */
+.wsheet{max-width:460px;padding:18px 20px 22px;gap:14px}
+.wtitle{gap:6px}
+.wback{margin-left:-8px}
+.wback svg{width:16px;height:16px}
+.whome{display:grid;gap:14px}
+.whb{display:grid;gap:4px;padding:6px 2px 0}
+.whb .l{font-size:12px;font-weight:600;color:var(--fg-3)}
+.whb .wbig{font-size:38px;margin:0;gap:8px;letter-spacing:-.03em}
+.whb .wbig small{font-size:13px;font-weight:700;color:var(--fg-3);margin-bottom:4px}
+.wchg{font-size:13px;font-weight:600;color:var(--fg-3)}
+.wchg.good{color:var(--up)}.wchg.bad{color:var(--down)}
+.wchart{height:84px;margin:0 -4px}
+.wchart .wspark{width:100%;height:100%;display:block}
+.wranges{display:flex;gap:4px}
+.wranges button{height:28px;padding:0 12px;border-radius:999px;border:0;background:transparent;color:var(--fg-3);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.wranges button[aria-pressed=true]{background:var(--surface-3);color:#fff}
+.wacts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:6px 0 2px}
+.wact{display:grid;justify-items:center;gap:8px;border:0;background:transparent;color:var(--fg-2);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0}
+.wact span{width:52px;height:52px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center;color:#fff;transition:background var(--fast),transform 80ms}
+.wact span svg{width:22px;height:22px;fill:currentColor}
+.wact:hover span{background:var(--surface-4)}
+.wact:active span{transform:scale(.95)}
+.wact:first-child span{background:var(--accent);color:var(--accent-fg)}
+.wact:first-child:hover span{background:var(--accent-hover)}
+.wsection{display:grid;gap:8px}
+.wsh{display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:800;color:var(--fg);padding:4px 2px 0}
+.wsee{border:0;background:transparent;color:var(--accent);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:0}
+.wlist{display:grid;border-radius:16px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.wlist .wlrow{border-radius:0;border:0;border-bottom:1px solid var(--line);background:transparent;padding:12px 14px}
+.wlist .wlrow:last-child{border-bottom:0}
+.wlist button.wlrow:hover{background:var(--surface-3)}
+.wlrow.muted .wltext b{color:var(--fg-3);font-weight:600}
+.wlicon.in{color:var(--up)}
+.wlright{font-size:14px;font-weight:700;color:var(--fg);white-space:nowrap}
+.wlright.good{color:var(--up)}
+.wsheet[data-view=deposit] .wbody,.wsheet[data-view=withdraw] .wbody{padding-top:4px}
+/* solids in tiles: the gem takes 62% of the tile, the egg 70% of the row */
+.cell .gem3d{font-size:clamp(34px,4.2vw,60px);width:1em;height:1em}
+.cell .gem3d .g-body{animation-duration:9s}
+.cell .toy{width:40%;height:40%}
+.tower .cell{height:54px;border-radius:12px}
+.tower .trow .mult{font-size:12px;margin-top:0}
+.egg3d{position:relative;width:.78em;height:1em;flex:none}
+.egg3d .e-body{position:absolute;inset:0;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:radial-gradient(ellipse at 36% 28%,#fff6d6 0%,color-mix(in srgb,var(--g) 92%,#fff) 26%,var(--g) 55%,color-mix(in srgb,var(--g) 55%,#2a1a05) 100%);box-shadow:inset -.06em -.08em .12em rgba(0,0,0,.35),inset .04em .05em .08em rgba(255,255,255,.35);overflow:hidden}
+.egg3d .e-spot{position:absolute;border-radius:50%;background:color-mix(in srgb,var(--g) 55%,#5a3a0a);opacity:.75}
+.egg3d .s1{width:.16em;height:.12em;left:.22em;top:.3em;transform:rotate(-20deg)}
+.egg3d .s2{width:.12em;height:.1em;left:.46em;top:.5em;transform:rotate(25deg)}
+.egg3d .s3{width:.1em;height:.14em;left:.3em;top:.64em;transform:rotate(10deg)}
+.egg3d .e-shadow{position:absolute;left:12%;right:12%;bottom:-.06em;height:.12em;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.5),transparent 70%)}
+.egg3d.crack .e-body{animation:eggwobble .6s cubic-bezier(.34,1.56,.64,1)}
+@keyframes eggwobble{0%{transform:rotate(0) scale(.6)}40%{transform:rotate(-12deg) scale(1.08)}70%{transform:rotate(10deg) scale(1)}100%{transform:rotate(0) scale(1)}}
+.tower .cell .egg3d{font-size:34px}
+.tower .cell.dim .egg3d{font-size:26px;opacity:.8}
+.tower .cell .toy{width:26px;height:26px}
+.cell.gem{background:radial-gradient(circle at 50% 30%,#1c5a45,#10322a 70%)}
+@media (max-width:860px){.cell .gem3d{font-size:clamp(28px,9vw,44px)}.tower .cell{height:46px}.tower .cell .egg3d{font-size:28px}.wacts{gap:4px}.wact span{width:48px;height:48px}}
+.cell{width:100%;justify-self:stretch;align-self:stretch}
+.tower .cell{width:100%}
+.cell{min-width:0;min-height:0;overflow:visible}
+.cell .gem3d{font-size:clamp(30px,3.6vw,56px)}
+.tower .cell.dim{opacity:.65}
+.tower .cell .egg3d{font-size:40px}
+.tower .cell.dim .egg3d{font-size:30px;opacity:1}
+.tower .cell{height:58px}
+@media (max-width:860px){.cell .gem3d{font-size:clamp(26px,8vw,40px)}.tower .cell{height:48px}.tower .cell .egg3d{font-size:32px}.tower .cell.dim .egg3d{font-size:26px}}
+
+/* ============ v16: the five notes on the demo ============ */
+/* the ranked row only scrolls sideways */
+.grow .cards{overflow-y:hidden}
+.cards.ranked{padding-bottom:4px;align-items:flex-end}
+.rk-num{line-height:.9;margin-bottom:-6px}
+/* game of the day: the tile shown whole, on its own colour */
+.slide[data-key=gotd]{background:radial-gradient(80% 120% at 85% 50%,color-mix(in srgb,var(--c,#334) 45%,#0a0b0d),#0a0b0d 70%)}
+.hero-img.gotd-back{opacity:.35;filter:blur(18px) saturate(1.2);transform:scale(1.15);object-position:center}
+.gotd-card{position:absolute;right:7%;top:50%;width:min(24%,190px);aspect-ratio:3/4;transform:translateY(-50%) rotate(6deg);border-radius:14px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08);z-index:1}
+.gotd-card img{width:100%;height:100%;object-fit:cover;display:block}
+.slide[data-key=gotd]::after{content:"";position:absolute;right:4%;top:50%;width:min(30%,240px);aspect-ratio:1;transform:translateY(-50%);border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--c,#fff) 35%,transparent),transparent 65%);pointer-events:none}
+@media (max-width:860px){.gotd-card{right:6%;top:auto;bottom:-6%;width:34%;transform:rotate(6deg)}.slide[data-key=gotd]::after{display:none}}
+/* boards: no painting behind the stage, a whisper of colour only */
+.board.has-art::after{display:none}
+.board::before{background:radial-gradient(70% 55% at 50% 40%,color-mix(in srgb,var(--c,#334) 12%,transparent),transparent 72%)}
+/* Keno: the flat grid it had before */
+.keno-grid{gap:6px;max-width:540px}
+.keno-grid .cell{background:var(--surface-2);box-shadow:none;border-radius:10px;font-size:14px;font-weight:700;color:var(--fg)}
+.keno-grid .cell:hover:not(:disabled){background:var(--surface-3);transform:translateY(-2px);box-shadow:none}
+.keno-grid .cell.pick{background:var(--accent);color:var(--accent-fg);box-shadow:none}
+.keno-grid .cell.hit{background:var(--up);color:#06281b;box-shadow:none}
+.keno-grid .cell.miss{background:var(--down-soft);color:var(--down);box-shadow:none}
+.keno-grid .cell.drawn{background:var(--surface-4);box-shadow:none}
+/* the numbers strip under a game: one quiet bar, the way the big books do it */
+.reality.bar{display:flex;align-items:center;flex-wrap:wrap;gap:4px 22px;min-height:52px;padding:8px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.reality.bar .rf{display:inline-flex;align-items:baseline;gap:6px;font-size:12px;color:var(--fg-3);cursor:default;border-radius:6px}
+.reality.bar .rf .l{font-weight:600}
+.reality.bar .rf .v{font-size:13px;font-weight:800;color:var(--fg)}
+.reality.bar .rf .d{font-size:11px;color:var(--fg-4);font-weight:500}
+.reality.bar .rf-links{margin-left:auto;display:inline-flex;gap:16px}
+.reality.bar .rf-links a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--fg-3)}
+.reality.bar .rf-links a:hover{color:var(--fg);text-decoration:none}
+.reality.bar .rf-links svg{width:14px;height:14px;fill:currentColor}
+.reality.bar .rf.tip-wide[data-tip]::after{bottom:calc(100% + 8px);top:auto}
+@media (max-width:860px){.reality.bar{gap:2px 14px;padding:8px 12px}.reality.bar .rf .d{display:none}.reality.bar .rf-links{width:100%;margin:4px 0 0;justify-content:flex-start}}
+.grow .cards.ranked{overflow-y:clip;align-items:flex-end}
+.rk{overflow:visible}
+.rk-num{margin-bottom:0;line-height:.8;transform:translateY(6px)}
+/* Top 10 numerals: mostly visible, the card covers only their right edge, two digits stay two digits */
+.grow .cards.ranked{padding:0 0 6px 12px;gap:var(--s5)}
+.rk{align-items:flex-end}
+.rk-num{font-size:132px;font-weight:800;line-height:.82;letter-spacing:-.03em;width:auto;min-width:64px;margin-right:-18px;margin-bottom:0;transform:none;text-align:right;-webkit-text-stroke:1.5px rgba(255,255,255,.4);padding-bottom:2px}
+.rk:hover .rk-num{-webkit-text-stroke-color:rgba(255,255,255,.65)}
+@media (max-width:860px){.grow .cards.ranked{padding-left:8px;gap:var(--s4)}.rk-num{font-size:92px;min-width:44px;margin-right:-12px}}
+
+/* ============ v17: flat wallet pill, rewards icons, Plinko balls ============ */
+.wallet{background:var(--surface-2);border:0}
+.wallet .coin{width:30px;height:30px;border-radius:50%;background:var(--accent);box-shadow:none}
+.wallet .coin .ic{fill:var(--accent-fg)}
+.wallet .go,.wallet .go:hover{background:var(--accent);box-shadow:none;border:0}
+.wallet .go:hover{background:var(--accent-hover)}
+.rw-ic{display:inline-grid;place-items:center;flex:none;width:44px;height:44px;border-radius:12px;background:var(--surface-3);color:var(--accent)}
+.rw-ic svg{width:22px;height:22px;fill:currentColor}
+.rw-ic img{width:100%;height:100%;object-fit:contain;display:block;opacity:0}
+.rw-ic.painted{background:transparent;width:56px;height:56px}
+.rw-ic.painted img{opacity:1;filter:drop-shadow(0 6px 12px rgba(0,0,0,.5))}
+.rw-ic.sm{width:36px;height:36px;border-radius:10px}.rw-ic.sm svg{width:18px;height:18px}.rw-ic.sm.painted{width:44px;height:44px}
+.rw-ic.xs{width:22px;height:22px;border-radius:6px;background:transparent}.rw-ic.xs svg{width:16px;height:16px}.rw-ic.xs.painted{width:24px;height:24px}
+.drip-head{gap:10px;align-items:center}
+.drip{gap:10px}
+.rung{display:grid;grid-template-columns:36px minmax(0,1fr) auto auto auto;align-items:center;gap:12px}
+.flow-step{display:grid;gap:4px;justify-items:center;text-align:center}
+.flow-step .rw-ic{margin-bottom:4px}
+.rw-main .drip-head{margin-bottom:6px}
+.tier-badge.lg{gap:8px;padding-left:8px}

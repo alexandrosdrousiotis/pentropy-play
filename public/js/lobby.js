@@ -1,7 +1,7 @@
 // Lobby furniture: a rotating hero with a live Crash slide, a ranked Top 10 row, and a live chip.
 // One Crash poller is shared by every widget on the page and stops itself when they leave the DOM.
 import { h, svgUse, fmt, fmtMult, fmtPct } from './ui.js';
-import { CATALOG, gameById, ART, BANNERS } from './games/index.js';
+import { CATALOG, gameById, ART, BANNERS, GAME_COLOR } from './games/index.js';
 import { livePoller } from './games/live-ui.js';
 import { crashMultAt } from '../shared/live.js';
 import { socialBets, socialOnline, onSocial } from './social.js';
@@ -65,7 +65,10 @@ export function gameOfDaySlide() {
     h('h1', {}, g.name),
     h('p', { class: 'lead' }, `${g.blurb} RTP ${fmtPct(g.rtp, 2)} · pays up to ${g.ceiling}.`),
     h('div', { class: 'row' }, h('a', { class: 'btn primary lg', href: `#/play/${g.id}` }, h('span', {}, `Play ${g.name}`))));
-  return { key: 'gotd', img: h('img', { class: `hero-img${BANNERS.has(g.id) ? '' : ' portrait'}`, src, alt: '', decoding: 'async' }), copy, thumb: `art/${g.id}.webp`, label: g.name };
+  const back = h('img', { class: 'hero-img gotd-back', src, alt: '', decoding: 'async' });
+  const card = h('div', { class: 'gotd-card' }, h('img', { src: `art/${g.id}.webp`, alt: '', decoding: 'async' }));
+  back.style.setProperty('--c', GAME_COLOR[g.id] || '#334'); card.style.setProperty('--c', GAME_COLOR[g.id] || '#334');
+  return { key: 'gotd', img: [back, card], copy, thumb: `art/${g.id}.webp`, label: g.name };
 }
 /** Rotating hero. Each slide is `{ key, img, copy, thumb, label }`. Thumbnails steer it on desktop, dots on phones, swipes everywhere. */
 export function heroCarousel(slides, { interval = 7000 } = {}) {

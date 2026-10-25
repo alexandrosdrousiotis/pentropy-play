@@ -116,8 +116,10 @@ Plinko tile, so the slots are never empty.
 
 Drop masters in `docs/art/` as PNG and run `python3 scripts/art.py` (needs Pillow). It writes every
 `public/art/*.webp` at the right size, and always takes the newest revision of a master:
-`limbo-v2.png` wins over `limbo.png`, `limbo-v3.png` wins over both. So a recolour is a new file
-with a `-v2` suffix and nothing to delete or rename.
+`limbo-v2.png` wins over `limbo.png`, `limbo-v3.png` wins over both, and a variant suffix like
+`videopoker-v2-1.png` is fine (highest variant wins). Files that fail to decode are skipped. So a
+recolour is a new file with a `-v2` suffix and nothing to delete or rename. Baccarat also answers
+to `poker`.
 
 Master names: `<id>.png` for tiles (limbo, mines, dice, crash, tower, plinko, keno, wheel, slide,
 diamonds, chicken, pump, hilo, flip, rps, blackjack, videopoker, baccarat, roulette),
@@ -162,6 +164,30 @@ Aspect ratio [ 3:4 ]
 **Detail density:** High on the chest and coins, soft and painterly on the haze; no text.
 **Empty space:** 20% margin on all sides so the UI can scale it; nothing touches the edges.
 **Aspect ratio:** 1:1, deliver as PNG with alpha, 1024×1024. A second closed-lid variant for the "filling" state.
+
+### Rewards icon set (1:1, transparent background, fourteen pieces)
+
+The Rebates page carries a painted icon on every card, in the chest's style: one object lit by its
+own glow, a wisp of smoke behind it, nothing else. Deliver each as `docs/art/rw-<id>.png` (PNG with
+alpha, 1024×1024, 15% margin, no text); `python3 scripts/art.py` writes them to `public/art/rw/`.
+Until a file exists the page shows a line glyph in its place.
+
+| id | GLOW | Elements |
+|---|---|---|
+| `rw-hourly` | ember orange #ff8a3d | A small brass pocket watch, lid open, hands at the hour, a trail of three tiny coins falling from it |
+| `rw-daily` | gold #f5c45a | A sunrise behind a stack of three gold coins, rays as short strokes of light |
+| `rw-weekly` | royal purple #a855f7 | A gold crown with seven small gems along the band, one per day |
+| `rw-rakeback` | emerald #27ad75 | A croupier's rake pulling a small pile of chips back toward the viewer |
+| `rw-wagered` | pale blue #8fd3ff | A loose stack of casino chips, pale blue and navy, one chip leaning |
+| `rw-edge` | scarlet #ff3b3b | A single chip being pinched by a tongue of flame, a sliver of it already gone |
+| `rw-given` | emerald #27ad75 | A small open gift box with a chip and two coins lifting out of it |
+| `rw-net` | muted gold #d4a650 | A folded paper receipt with a single visible line and a wax seal |
+| `rw-referral` | sky blue #38bdf8 | Two linked chips, one gold and one blue, joined by a short chain of light |
+| `rw-bronze` | bronze #b87333 | A round medal on a short ribbon, bronze, plain face |
+| `rw-silver` | silver #c0c7d1 | The same medal in silver with one engraved star |
+| `rw-gold` | gold #f5ac37 | The same medal in gold with two engraved stars |
+| `rw-platinum` | ice blue #8fd3ff | The same medal in white metal with a pale blue gem at the centre |
+| `rw-diamond` | lilac #b9a7ff | The same medal cut from a single faceted gem, light refracting through it |
 
 ### Lobby hero (replaces the roulette banner on the landing page, 16:9)
 

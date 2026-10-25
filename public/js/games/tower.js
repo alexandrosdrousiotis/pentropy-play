@@ -1,6 +1,7 @@
 import { h, button, segmented, toy, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { TOWER_LEVELS, TOWER_ROWS, towerMultiplier, round2 } from '../../shared/math.js';
+import { egg3d } from '../solid.js';
 import { sleep, sound, shake, flashRed, flashGreen, winBurst, popIn, pulse, sparkle, shockwave } from '../fx.js';
 
 export function mount(root, meta) {
@@ -45,8 +46,8 @@ export function mount(root, meta) {
   function setActive(r) {
     rows.forEach((row, i) => { row.el.classList.toggle('active', i === r); row.cells.forEach((c) => { if (!c.classList.contains('gem') && !c.classList.contains('mine')) c.disabled = i !== r || busy; }); });
   }
-  function markEgg(r, t, animate = true) { const c = rows[r].cells[t]; c.className = 'cell gem'; c.replaceChildren(toy('dragon', 22)); c.disabled = true; if (animate) { popIn(c.firstChild); sparkle(c, L.board, { color: '#3ccf8f', count: 9, spread: 44 }); } }
-  function markBomb(r, t) { const c = rows[r].cells[t]; c.className = 'cell mine hitcell'; c.replaceChildren(toy('bomb', 22)); c.disabled = true; popIn(c.firstChild); shockwave(c, L.board); }
+  function markEgg(r, t, animate = true) { const c = rows[r].cells[t]; c.className = 'cell gem'; c.replaceChildren(egg3d('#f5c45a', 40)); c.disabled = true; if (animate) { c.firstChild.classList.add('crack'); popIn(c.firstChild); sparkle(c, L.board, { color: '#3ccf8f', count: 9, spread: 44 }); } }
+  function markBomb(r, t) { const c = rows[r].cells[t]; c.className = 'cell mine hitcell'; c.replaceChildren(toy('bomb', 26)); c.disabled = true; popIn(c.firstChild); shockwave(c, L.board); }
   function paintControls() {
     const v = round?.view; const live = Boolean(round);
     play.disabled = live; amount.setDisabled(live); levelSeg.setDisabled(live);
@@ -60,7 +61,7 @@ export function mount(root, meta) {
       rows[r].cells.forEach((c, t) => {
         if (c.classList.contains('gem') || c.classList.contains('mine')) return;
         const egg = outcome.layout[r].includes(t);
-        c.className = `cell ${egg ? 'gem' : 'mine'} dim`; c.replaceChildren(toy(egg ? 'dragon' : 'bomb', 18)); c.disabled = true;
+        c.className = `cell ${egg ? 'gem' : 'mine'} dim`; c.replaceChildren(egg ? egg3d('#f5c45a', 30) : toy('bomb', 20)); c.disabled = true;
       });
       rows[r].el.classList.remove('active');
       sound.play('tick'); await sleep(45);

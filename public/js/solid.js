@@ -6,28 +6,29 @@ const DEG = 180 / Math.PI;
 /** Brightness of a facet at `deg` around the axis, lamp up-front-left. */
 const lamp = (deg, lo = 0.35, hi = 1) => { const c = Math.cos((deg - 330) / DEG); return (lo + (hi - lo) * (0.5 + 0.5 * c)).toFixed(3); };
 
-/** A brilliant-cut gem of `size` px in `colour`. Add `.spin` for a fast turn, `.match` for the win pulse. */
+/** A brilliant-cut gem of `size` px in `colour` (null: the CSS font-size decides). Add `.spin` for a fast turn, `.match` for the win pulse. */
 export function gem3d(colour = '#3ccf8f', size = 84) {
-  const R = size / 2, N = 8, T = 0.5, H1 = size * 0.26, H2 = size * 0.44;
+  const S = size || 100; // geometry is built at this scale and expressed in em, so the CSS font-size can resize it
+  const R = S / 2, N = 8, T = 0.5, H1 = S * 0.26, H2 = S * 0.44;
   const a = R * Math.cos(Math.PI / N), b = 2 * R * Math.sin(Math.PI / N), at = a * T, bt = b * T;
   const root = h('div', { class: 'gem3d', 'aria-hidden': 'true' });
-  root.style.width = root.style.height = `${size}px`; root.style.setProperty('--g', colour);
+  if (size) root.style.fontSize = `${size}px`; root.style.width = root.style.height = '1em'; root.style.setProperty('--g', colour);
   const body = h('div', { class: 'g-body' });
   const s1 = Math.hypot(H1, a - at), s2 = Math.hypot(H2, a);
   const inset = (((b - bt) / 2 / b) * 100).toFixed(2);
   for (let i = 0; i < N; i++) {
     const th = (360 / N) * i;
     const c = h('i', { class: 'g-f crown' });
-    Object.assign(c.style, { width: `${b}px`, height: `${s1}px`, left: `${R - b / 2}px`, top: `${R - s1}px`, clipPath: `polygon(${inset}% 0, ${100 - inset}% 0, 100% 100%, 0 100%)`, transformOrigin: '50% 100%', transform: `rotateY(${th}deg) translateZ(${a}px) rotateX(${(Math.atan2(a - at, H1) * DEG).toFixed(2)}deg)` });
+    Object.assign(c.style, { width: `${(b) / S}em`, height: `${(s1) / S}em`, left: `${(R - b / 2) / S}em`, top: `${(R - s1) / S}em`, clipPath: `polygon(${inset}% 0, ${100 - inset}% 0, 100% 100%, 0 100%)`, transformOrigin: '50% 100%', transform: `rotateY(${th}deg) translateZ(${(a) / S}em) rotateX(${(Math.atan2(a - at, H1) * DEG).toFixed(2)}deg)` });
     c.style.setProperty('--l', lamp(th, 0.45, 1));
     const p = h('i', { class: 'g-f pav' });
-    Object.assign(p.style, { width: `${b}px`, height: `${s2}px`, left: `${R - b / 2}px`, top: `${R}px`, clipPath: 'polygon(0 0, 100% 0, 50% 100%)', transformOrigin: '50% 0', transform: `rotateY(${th + 22.5}deg) translateZ(${a}px) rotateX(${(-Math.atan2(a, H2) * DEG).toFixed(2)}deg)` });
+    Object.assign(p.style, { width: `${(b) / S}em`, height: `${(s2) / S}em`, left: `${(R - b / 2) / S}em`, top: `${(R) / S}em`, clipPath: 'polygon(0 0, 100% 0, 50% 100%)', transformOrigin: '50% 0', transform: `rotateY(${th + 22.5}deg) translateZ(${(a) / S}em) rotateX(${(-Math.atan2(a, H2) * DEG).toFixed(2)}deg)` });
     p.style.setProperty('--l', lamp(th + 22.5, 0.2, 0.8));
     body.append(c, p);
   }
   const d = 2 * at / Math.cos(Math.PI / N);
   const table = h('i', { class: 'g-f table' });
-  Object.assign(table.style, { width: `${d}px`, height: `${d}px`, left: `${R - d / 2}px`, top: `${R - d / 2}px`, clipPath: 'polygon(29.3% 0, 70.7% 0, 100% 29.3%, 100% 70.7%, 70.7% 100%, 29.3% 100%, 0 70.7%, 0 29.3%)', transform: `translateY(${-H1}px) rotateX(90deg)` });
+  Object.assign(table.style, { width: `${(d) / S}em`, height: `${(d) / S}em`, left: `${(R - d / 2) / S}em`, top: `${(R - d / 2) / S}em`, clipPath: 'polygon(29.3% 0, 70.7% 0, 100% 29.3%, 100% 70.7%, 70.7% 100%, 29.3% 100%, 0 70.7%, 0 29.3%)', transform: `translateY(${(-H1) / S}em) rotateX(90deg)` });
   table.style.setProperty('--l', '1');
   body.append(table);
   root.append(h('i', { class: 'g-glow' }), body, h('i', { class: 'g-shadow' }));
@@ -63,4 +64,11 @@ export function coin3d({ size = 140, thick = 12, heads = 'ph-crown', tails = 'ph
       if (animate && extra) { root.classList.remove('toss'); void root.offsetWidth; root.classList.add('toss'); }
     },
   };
+}
+
+/** A speckled egg of `size` px; `.crack` for the reveal. Lit like the gem, from up-front-left. */
+export function egg3d(colour = '#f5c45a', size = 40) {
+  const el = h('div', { class: 'egg3d', 'aria-hidden': 'true' }, h('i', { class: 'e-body' }, h('i', { class: 'e-spot s1' }), h('i', { class: 'e-spot s2' }), h('i', { class: 'e-spot s3' })), h('i', { class: 'e-shadow' }));
+  el.style.fontSize = `${size}px`; el.style.setProperty('--g', colour);
+  return el;
 }
