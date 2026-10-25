@@ -296,7 +296,7 @@ function referralPanel(rf) {
   const copy = button('Copy link', { kind: 'primary', size: 'sm', onClick: async () => { try { await navigator.clipboard.writeText(link); toast('Link copied.', 'good'); } catch { toast(link); } } });
   const claim = button(rf.pending >= rf.minClaim ? `Claim ${fmt(rf.pending)} AGT` : 'Nothing to claim yet', { kind: rf.pending >= rf.minClaim ? 'primary' : 'tertiary', size: 'sm', disabled: rf.pending < rf.minClaim, onClick: async () => { try { await api.claimReferral(); toast('Referral earnings claimed.', 'good'); render(); } catch (e) { toast(e.message, 'bad'); } } });
   return h('section', { class: 'plate ref-panel' },
-    h('div', { class: 'row between' }, h('h3', {}, 'Refer a friend'), h('span', { class: 't-desc' }, `${rf.count} friend${rf.count === 1 ? '' : 's'} joined`)),
+    h('div', { class: 'row between' }, h('span', { class: 'row drip-head' }, rwArt('referral'), h('h3', {}, 'Refer a friend')), h('span', { class: 't-desc' }, `${rf.count} friend${rf.count === 1 ? '' : 's'} joined`)),
     h('div', { class: 'ref-grid' },
       h('div', { class: 'ref-link' },
         h('div', { class: 't-label' }, 'Your link'),
@@ -525,6 +525,16 @@ blackjack  one float per card from an infinite shoe, dealt player, dealer, playe
 }
 
 /* ---------------- rewards ---------------- */
+/** A painted Inferno-style icon from public/art/rw/<id>.webp, or the glyph until the painting lands. */
+const RW_GLYPH = { hourly: 'ph-clock-counter-clockwise', daily: 'ph-sparkle', weekly: 'ph-crown-simple', rakeback: 'ph-percent', wagered: 'ph-coins', edge: 'ph-flame', given: 'ph-gift', net: 'ph-receipt', referral: 'ph-users-three', bronze: 'ph-medal', silver: 'ph-medal', gold: 'ph-medal', platinum: 'ph-medal', diamond: 'ph-medal' };
+function rwArt(id, { size = 'md', colour = null } = {}) {
+  const img = h('img', { src: `art/rw/${id}.webp`, alt: '', decoding: 'async', loading: 'lazy' });
+  const el = h('span', { class: `rw-ic ${size}` }, img);
+  if (colour) el.style.color = colour;
+  img.addEventListener('error', () => { img.replaceWith(svgUse(RW_GLYPH[id] || 'ph-sparkle')); el.classList.add('glyph'); });
+  img.addEventListener('load', () => el.classList.add('painted'));
+  return el;
+}
 async function rewardsPage() {
   const [rw, rf] = await Promise.all([api.rewards(), api.referrals().catch(() => null)]);
   const m = me();
@@ -534,7 +544,7 @@ async function rewardsPage() {
   const ladder = h('div', { class: 'ladder' }, ...TIERS.map((tier, i) => {
     const reached = TIERS.findIndex((x) => x.id === rw.tier) >= i;
     return h('div', { class: `rung${reached ? ' reached' : ''}${tier.id === rw.tier ? ' current' : ''}` },
-      h('span', { class: 'tier-badge', style: { color: tier.colour } }, svgUse('ph-medal'), tier.name),
+      rwArt(tier.id, { size: 'sm', colour: tier.colour }), h('span', { class: 'tier-badge', style: { color: tier.colour } }, tier.name),
       h('span', { class: 'rung-th num' }, tier.threshold ? `${fmt(tier.threshold, 0)} wagered` : 'start'),
       h('span', { class: 'rung-rate num' }, `${(tier.rate * 100).toFixed(1)}% rakeback`),
       h('span', { class: 'rung-bonus num' }, tier.bonus ? `+${fmt(tier.bonus, 0)} bonus` : '—'));
@@ -546,7 +556,7 @@ async function rewardsPage() {
     drips.replaceChildren(...DRIP_IDS.map((kind) => {
       const d = dripState[kind]; const ready = d.ready || Date.now() >= d.nextAt;
       return h('div', { class: `drip${ready && d.available > 0 ? ' ready' : ''}` },
-        h('div', { class: 'row between' }, h('span', { class: 't-label' }, d.label), h('span', { class: `tag${ready ? ' green' : ''} num` }, svgUse(ready ? 'ph-gift' : 'ph-lock'), ready ? 'Unlocked' : countdown(d.nextAt - Date.now()))),
+        h('div', { class: 'row between' }, h('span', { class: 'row drip-head' }, rwArt(kind), h('span', { class: 't-label' }, d.label)), h('span', { class: `tag${ready ? ' green' : ''} num` }, svgUse(ready ? 'ph-gift' : 'ph-lock'), ready ? 'Unlocked' : countdown(d.nextAt - Date.now()))),
         h('div', { class: 'drip-amt num' }, fmt(ready ? d.available : dripAmountNow(d)), h('small', {}, 'AGT')),
         h('p', { class: 'help' }, `${d.blurb} You wagered ${fmt(d.wagered)}.`),
         button(ready ? (d.available > 0 ? `Claim ${fmt(d.available)} AGT` : 'Nothing to claim') : `Unlocks in ${countdown(d.nextAt - Date.now())}`, { kind: ready && d.available > 0 ? 'primary' : 'tertiary', size: 'sm', disabled: !(ready && d.available > 0), onClick: async () => { try { const r = await api.claimDrip(kind); dripState = r.drips; toast(`${d.label}: +${fmt(r.claimed)} AGT`, 'good'); render(); } catch (e) { toast(e.message, 'bad'); } } }));
@@ -557,7 +567,7 @@ async function rewardsPage() {
   dripTimer = setInterval(() => { if (!drips.isConnected) return clearInterval(dripTimer); paintDrips(); }, 1000);
   const given = rw.rebateClaimed + rw.rebatePending + rw.bonuses;
   return h('div', { class: 'stack page' },
-    h('div', { class: 'row between' }, h('h2', {}, 'Rebates'), h('span', { class: 'tier-badge lg', style: { color: t.colour } }, svgUse('ph-medal'), t.name)),
+    h('div', { class: 'row between' }, h('h2', {}, 'Rebates'), h('span', { class: 'tier-badge lg', style: { color: t.colour } }, rwArt(t.id, { size: 'xs', colour: t.colour }), t.name)),
     chestCard(rw.chest),
     h('section', { class: 'plate' },
       h('div', { class: 'row between' }, h('h3', {}, 'Timed rebates'), h('span', { class: 't-desc' }, `${fmt(rw.bonuses)} AGT given so far`)),
@@ -565,25 +575,25 @@ async function rewardsPage() {
       h('p', { class: 'help' }, `Each drip returns a fraction of what you wagered in its window, and only if you come back in time. The edge took ${fmtPct(1 - 0.99, 0)} of every bet on the way; the hourly one gives back 0.5%. The timer is the product, not the money.`)),
     h('section', { class: 'rw-hero' },
       h('div', { class: 'rw-main' },
-        h('div', { class: 't-label' }, 'Rakeback to claim'),
+        h('div', { class: 'row drip-head' }, rwArt('rakeback'), h('div', { class: 't-label' }, 'Rakeback to claim')),
         h('div', { class: 'rw-big num' }, fmt(rw.rebatePending), h('small', {}, 'AGT')),
         h('p', { class: 'help' }, `${(t.rate * 100).toFixed(1)}% of the house edge on every bet comes back to you as ${t.name}.`),
         claim),
       rw.next ? h('div', { class: 'rw-next' },
-        h('div', { class: 'row between' }, h('span', { class: 't-label' }, `Next: ${rw.next.name}`), h('span', { class: 't-desc num' }, `${fmt(rw.wagered, 0)} / ${fmt(rw.next.threshold, 0)}`)),
+        h('div', { class: 'row between' }, h('span', { class: 'row drip-head' }, rwArt(rw.next.id, { colour: tierById(rw.next.id).colour }), h('span', { class: 't-label' }, `Next: ${rw.next.name}`)), h('span', { class: 't-desc num' }, `${fmt(rw.wagered, 0)} / ${fmt(rw.next.threshold, 0)}`)),
         h('div', { class: 'progress' }, h('i', { style: { width: `${rw.next.progress * 100}%` } })),
         h('p', { class: 'help' }, `Wager ${fmt(rw.next.remaining, 0)} more AGT for ${(tierById(rw.next.id).rate * 100).toFixed(1)}% rakeback and a ${fmt(tierById(rw.next.id).bonus, 0)} AGT bonus.`))
         : h('div', { class: 'rw-next' }, h('span', { class: 't-label' }, 'Top tier reached'))),
     h('section', { class: 'plate' },
       h('h3', {}, 'What the rebate is made of'),
       h('div', { class: 'flow' },
-        h('div', { class: 'flow-step' }, h('div', { class: 'l' }, 'Wagered'), h('div', { class: 'v num' }, fmt(rw.wagered))),
+        h('div', { class: 'flow-step' }, rwArt('wagered', { size: 'sm' }), h('div', { class: 'l' }, 'Wagered'), h('div', { class: 'v num' }, fmt(rw.wagered))),
         h('span', { class: 'flow-arrow' }, svgUse('ph-caret-right')),
-        h('div', { class: 'flow-step bad' }, h('div', { class: 'l' }, 'Edge taken'), h('div', { class: 'v num' }, '−' + fmt(rw.edgePaid))),
+        h('div', { class: 'flow-step bad' }, rwArt('edge', { size: 'sm' }), h('div', { class: 'l' }, 'Edge taken'), h('div', { class: 'v num' }, '−' + fmt(rw.edgePaid))),
         h('span', { class: 'flow-arrow' }, svgUse('ph-caret-right')),
-        h('div', { class: 'flow-step good' }, h('div', { class: 'l' }, 'Given back'), h('div', { class: 'v num' }, '+' + fmt(rw.rebateClaimed + rw.rebatePending + rw.bonuses))),
+        h('div', { class: 'flow-step good' }, rwArt('given', { size: 'sm' }), h('div', { class: 'l' }, 'Given back'), h('div', { class: 'v num' }, '+' + fmt(rw.rebateClaimed + rw.rebatePending + rw.bonuses))),
         h('span', { class: 'flow-arrow' }, svgUse('ph-caret-right')),
-        h('div', { class: 'flow-step' }, h('div', { class: 'l' }, 'Net cost of playing'), h('div', { class: `v num ${netCost > 0 ? 'bad' : ''}` }, '−' + fmt(Math.max(0, netCost))))),
+        h('div', { class: 'flow-step' }, rwArt('net', { size: 'sm' }), h('div', { class: 'l' }, 'Net cost of playing'), h('div', { class: `v num ${netCost > 0 ? 'bad' : ''}` }, '−' + fmt(Math.max(0, netCost))))),
       h('p', { class: 'help' }, rw.edgePaid > 0 ? `Rebates and bonuses returned ${fmtPct((rw.rebateClaimed + rw.rebatePending + rw.bonuses) / rw.edgePaid, 1)} of what the edge took. The rest is the price of the loyalty programme.` : 'Place bets to see the edge, and the slice of it that comes back.')),
     h('section', { class: 'plate' }, h('h3', {}, 'Tiers'), ladder,
       h('p', { class: 'help' }, 'Tiers are earned by lifetime wager, not by winning. The faster you climb, the more the edge has already taken.')),

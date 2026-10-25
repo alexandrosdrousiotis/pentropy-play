@@ -10,12 +10,19 @@ const binColor = (m) => (m >= 100 ? 'var(--down)' : m >= 10 ? 'var(--warn)' : m 
 
 export function mount(root, meta) {
   const L = layout(root);
-  let rows = 16, risk = 'medium', inFlight = 0, dead = false;
+  let rows = 16, risk = 'medium', balls = 1, inFlight = 0, dead = false;
+  const MAX_FLIGHT = 12;
   const amount = betAmount(10, () => reality.update());
   const riskSeg = segmented(PLINKO_RISKS.map((r) => ({ value: r, label: r })), risk, (v) => { if (inFlight) { riskSeg.set(risk); return; } risk = v; build(); reality.update(); }, { block: true });
   const rowsSeg = segmented(PLINKO_ROWS.map((r) => ({ value: r, label: String(r) })), rows, (v) => { if (inFlight) { rowsSeg.set(rows); return; } rows = v; build(); reality.update(); }, { block: true });
-  const play = button('Drop ball', { kind: 'primary', size: 'lg block', onClick: () => go() });
-  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Risk'), riskSeg), h('div', { class: 'field' }, h('label', {}, 'Rows'), rowsSeg), play);
+  const ballsSeg = segmented([1, 3, 5, 10].map((n) => ({ value: n, label: String(n) })), balls, (v) => { balls = v; paintPlay(); }, { block: true });
+  const play = button('Drop ball', { kind: 'primary', size: 'lg block', onClick: () => dropMany() });
+  const paintPlay = () => { play.querySelector('span').textContent = balls === 1 ? 'Drop ball' : `Drop ${balls} balls`; play.disabled = inFlight >= MAX_FLIGHT; };
+  L.controls.append(amount, h('div', { class: 'field' }, h('label', {}, 'Risk'), riskSeg), h('div', { class: 'field' }, h('label', {}, 'Rows'), rowsSeg), h('div', { class: 'field' }, h('label', {}, 'Balls per drop'), ballsSeg), play);
+  /** Fire `balls` bets a beat apart; each ball is its own round and its own animation. */
+  async function dropMany() {
+    for (let i = 0; i < balls; i++) { if (dead || inFlight >= MAX_FLIGHT) break; go(); if (i < balls - 1) await new Promise((r) => setTimeout(r, 170)); }
+  }
 
   const board = h('div', { class: 'plinko' });
   const bins = h('div', { class: 'bins' });
@@ -90,11 +97,11 @@ export function mount(root, meta) {
     onDone();
   }
   async function go(amt = amount.get()) {
-    if (inFlight >= 3) return null;
-    inFlight++; play.disabled = inFlight >= 3; sound.play('click');
+    if (inFlight >= MAX_FLIGHT) return null;
+    inFlight++; paintPlay(); sound.play('click');
     const t = plinkoTable(risk, rows);
     const out = await tryBet('plinko', amt, { rows, risk }, { defer: true });
-    if (!out) { inFlight--; play.disabled = false; return null; }
+    if (!out) { inFlight--; paintPlay(); return null; }
     const { round } = out;
     await drop(round.outcome.dirs, round.outcome.bin, () => {
       const bin = round.outcome.bin;
@@ -107,9 +114,10 @@ export function mount(root, meta) {
       strip.push(fmtMult(round.multiplier), round.multiplier > 1);
       out.commit();
     });
-    inFlight--; play.disabled = false;
+    inFlight--; paintPlay();
     return round;
   }
+  paintPlay();
   attachAuto({ panel: L.controls, amount, manual: [play], playRound: (a) => go(a), rtp: () => plinkoRtp(risk, rows) });
   return { unmount() { dead = true; } };
 }

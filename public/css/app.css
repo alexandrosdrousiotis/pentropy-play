@@ -2052,3 +2052,24 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .rk-num{font-size:132px;font-weight:800;line-height:.82;letter-spacing:-.03em;width:auto;min-width:64px;margin-right:-18px;margin-bottom:0;transform:none;text-align:right;-webkit-text-stroke:1.5px rgba(255,255,255,.4);padding-bottom:2px}
 .rk:hover .rk-num{-webkit-text-stroke-color:rgba(255,255,255,.65)}
 @media (max-width:860px){.grow .cards.ranked{padding-left:8px;gap:var(--s4)}.rk-num{font-size:92px;min-width:44px;margin-right:-12px}}
+
+/* ============ v17: flat wallet pill, rewards icons, Plinko balls ============ */
+.wallet{background:var(--surface-2);border:0}
+.wallet .coin{width:30px;height:30px;border-radius:50%;background:var(--accent);box-shadow:none}
+.wallet .coin .ic{fill:var(--accent-fg)}
+.wallet .go,.wallet .go:hover{background:var(--accent);box-shadow:none;border:0}
+.wallet .go:hover{background:var(--accent-hover)}
+.rw-ic{display:inline-grid;place-items:center;flex:none;width:44px;height:44px;border-radius:12px;background:var(--surface-3);color:var(--accent)}
+.rw-ic svg{width:22px;height:22px;fill:currentColor}
+.rw-ic img{width:100%;height:100%;object-fit:contain;display:block;opacity:0}
+.rw-ic.painted{background:transparent;width:56px;height:56px}
+.rw-ic.painted img{opacity:1;filter:drop-shadow(0 6px 12px rgba(0,0,0,.5))}
+.rw-ic.sm{width:36px;height:36px;border-radius:10px}.rw-ic.sm svg{width:18px;height:18px}.rw-ic.sm.painted{width:44px;height:44px}
+.rw-ic.xs{width:22px;height:22px;border-radius:6px;background:transparent}.rw-ic.xs svg{width:16px;height:16px}.rw-ic.xs.painted{width:24px;height:24px}
+.drip-head{gap:10px;align-items:center}
+.drip{gap:10px}
+.rung{display:grid;grid-template-columns:36px minmax(0,1fr) auto auto auto;align-items:center;gap:12px}
+.flow-step{display:grid;gap:4px;justify-items:center;text-align:center}
+.flow-step .rw-ic{margin-bottom:4px}
+.rw-main .drip-head{margin-bottom:6px}
+.tier-badge.lg{gap:8px;padding-left:8px}

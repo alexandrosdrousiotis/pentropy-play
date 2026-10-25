@@ -59,6 +59,13 @@ def main():
         p = master(name) or (fallback and master(fallback))
         if not p: missing.append(name); continue
         save(cover(Image.open(p).convert('RGB'), w, h, anchor), name)
+    RW = ['hourly', 'daily', 'weekly', 'rakeback', 'wagered', 'edge', 'given', 'net', 'referral', 'bronze', 'silver', 'gold', 'platinum', 'diamond']
+    os.makedirs(os.path.join(OUT, 'rw'), exist_ok=True)
+    for r in RW:
+        p = master(f'rw-{r}')
+        if not p: continue
+        im = Image.open(p).convert('RGBA'); im = im.crop(im.getbbox()); im.thumbnail((256, 256), Image.LANCZOS)
+        im.save(os.path.join(OUT, 'rw', f'{r}.webp'), 'WEBP', quality=86, method=6); print(f'  rw/{r}.webp  {im.width}x{im.height}')
     for c in ['chest-open', 'chest-closed']:
         p = master(c)
         if not p: missing.append(c); continue
