@@ -4,7 +4,7 @@ import { transaction } from './db.js';
 import { FairRng, randomHex, sha256Hex } from './fairness.js';
 import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { LESSON_IDS } from './lessons.js';
-import { TIERS, tierFor, tierById, nextTier } from '../shared/tiers.js';
+import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount } from '../shared/tiers.js';
 
 const cents = (agt) => Math.round(agt * 100);
 const agt = (c) => c / 100;
@@ -42,6 +42,8 @@ export function createApi({ db, config, auth, seedCipher, social }) {
     setWallet: db.prepare('UPDATE users SET balance = ?, vault = ?, deposited = ? WHERE id = ?'),
     walletEvents: db.prepare("SELECT id, type, amount, balance_after, at FROM events WHERE user_id = ? AND type IN ('deposit','withdraw','vault_in','refill','rebate','bonus') ORDER BY id DESC LIMIT 50"),
     wageredOf: db.prepare("SELECT COALESCE(SUM(amount),0) AS w FROM rounds WHERE user_id = ? AND status = 'settled'"),
+    wageredSince: db.prepare("SELECT COALESCE(SUM(amount),0) AS w FROM rounds WHERE user_id = ? AND status = 'settled' AND settled_at > ?"),
+    setDrips: db.prepare('UPDATE users SET drips = ?, bonuses = ?, balance = ? WHERE id = ?'),
     setRewards: db.prepare('UPDATE users SET tier = ?, rebate_pending = ?, rebate_claimed = ?, bonuses = ?, balance = ? WHERE id = ?'),
   };
 
@@ -99,7 +101,30 @@ export function createApi({ db, config, auth, seedCipher, social }) {
     const tier = tierById(u.tier), next = nextTier(u.tier);
     const edgePaid = agt(q.stats.get(u.id).expectedLoss);
     return { tier: tier.id, rate: tier.rate, wagered, next: next ? { id: next.id, name: next.name, threshold: next.threshold, remaining: Math.max(0, next.threshold - wagered), progress: Math.min(1, (wagered - tier.threshold) / (next.threshold - tier.threshold)) } : null,
-      rebatePending: Math.floor(u.rebate_pending) / 100, rebateClaimed: agt(u.rebate_claimed), bonuses: agt(u.bonuses), edgePaid, tiers: TIERS };
+      rebatePending: Math.floor(u.rebate_pending) / 100, rebateClaimed: agt(u.rebate_claimed), bonuses: agt(u.bonuses), edgePaid, tiers: TIERS, drips: dripsOf(u) };
+  }
+  /** Timed bonuses: what each window would pay now, and when it unlocks. Claims are stored as {kind: lastClaimMs}. */
+  function dripsOf(u) {
+    const last = JSON.parse(u.drips || '{}'), t = now(), out = {};
+    for (const kind of DRIP_IDS) {
+      const d = DRIPS[kind], at = last[kind] || 0, ready = t - at >= d.windowMs;
+      const wagered = agt(q.wageredSince.get(u.id, Math.max(at, t - d.windowMs)).w);
+      out[kind] = { label: d.label, blurb: d.blurb, rate: d.rate, min: d.min, max: d.max, windowMs: d.windowMs, wagered, available: ready ? dripAmount(kind, wagered) : 0, ready, nextAt: ready ? t : at + d.windowMs, claimedAt: at || null };
+    }
+    return out;
+  }
+  function claimDrip(user, kind) {
+    return transaction(db, () => {
+      const u = q.user.get(user.id);
+      const d = dripsOf(u)[kind];
+      if (!d.ready) throw bad(`${d.label} unlocks in ${Math.ceil((d.nextAt - now()) / 60000)} min.`);
+      if (d.available <= 0) throw bad(`Nothing wagered in the window, so there is nothing to give back.`);
+      const c = cents(d.available), balance = u.balance + c;
+      const last = JSON.parse(u.drips || '{}'); last[kind] = now();
+      q.setDrips.run(JSON.stringify(last), u.bonuses + c, balance, u.id);
+      q.insertEvent.run(u.id, 'bonus', c, balance, now());
+      return { ...rewardsOf(q.user.get(u.id)), balance: agt(balance), claimed: d.available, kind };
+    });
   }
   function claimRebate(user) {
     return transaction(db, () => {
@@ -261,6 +286,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
       ghost: v.boolean({ optional: true }),
     },
     chat: { text: v.string({ min: 1, max: 200, pattern: /^[^\x00-\x1F\x7F]+$/ }) },
+    drip: { kind: v.oneOf(DRIP_IDS) },
     lesson: { id: v.oneOf(LESSON_IDS) },
     rotate: { clientSeed: v.string({ min: 1, max: 64, pattern: /^[a-zA-Z0-9_-]+$/, optional: true }) },
     password: { password: v.string({ min: 1, max: 128 }) },
@@ -340,6 +366,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
   route('GET', '/api/wallet', {}, (c) => ({ body: walletOf(q.user.get(c.user.id)) }));
   route('GET', '/api/rewards', {}, (c) => ({ body: rewardsOf(q.user.get(c.user.id)) }));
   route('POST', '/api/rewards/claim', {}, (c) => ({ body: claimRebate(c.user) }));
+  route('POST', '/api/rewards/drip', {}, (c) => ({ body: claimDrip(c.user, v.object(c.body, S.drip).kind) }));
   route('POST', '/api/wallet/deposit', {}, (c) => { const b = v.object(c.body, S.deposit); return { body: deposit(c.user, b.amount, b.source) }; });
   route('POST', '/api/wallet/withdraw', {}, (c) => ({ body: withdraw(c.user, v.object(c.body, S.withdraw).amount) }));
 

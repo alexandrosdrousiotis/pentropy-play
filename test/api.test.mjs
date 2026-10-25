@@ -285,3 +285,29 @@ test('social: settled bets appear in the feed, ghost mode hides the name, chat i
   const anon = await fetch(base + '/api/social');
   assert.equal(anon.status, 401);
 });
+
+test('bonus drips: hourly reload pays a slice of the window wager once per hour; nothing wagered means nothing to claim', async () => {
+  const c = client('drip');
+  await c('POST', '/api/auth/signup', { username: 'dripper', password: 'a very fine passphrase' });
+  const empty = await c('POST', '/api/rewards/drip', { kind: 'hourly' });
+  assert.equal(empty.status, 400);
+  for (let i = 0; i < 4; i++) await c('POST', '/api/rounds', { game: 'dice', amount: 25, params: { chance: 50, over: true } });
+  let rw = await c('GET', '/api/rewards');
+  assert.equal(rw.json.drips.hourly.wagered, 100);
+  assert.equal(rw.json.drips.hourly.available, 0.5);
+  assert.equal(rw.json.drips.weekly.available, 1); // 1% of 100, floored to the 1 AGT minimum
+  const before = (await c('GET', '/api/me')).json.user.balance;
+  const claim = await c('POST', '/api/rewards/drip', { kind: 'hourly' });
+  assert.equal(claim.status, 200);
+  assert.equal(claim.json.claimed, 0.5);
+  assert.equal(claim.json.balance, Math.round((before + 0.5) * 100) / 100);
+  assert.equal(claim.json.bonuses, 0.5);
+  const again = await c('POST', '/api/rewards/drip', { kind: 'hourly' });
+  assert.equal(again.status, 400);
+  assert.match(again.json.error, /unlocks in/);
+  rw = await c('GET', '/api/rewards');
+  assert.equal(rw.json.drips.hourly.ready, false);
+  assert.ok(rw.json.drips.hourly.nextAt > Date.now());
+  const bad = await c('POST', '/api/rewards/drip', { kind: 'monthly' });
+  assert.equal(bad.status, 400);
+});

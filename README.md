@@ -63,7 +63,10 @@ Real casinos sell the crowd as hard as the games, so Pentropy has one too, built
 - **Leaders** ranks by wager, the way real boards do, and says how many of the top ten are down.
 - **Chat** is a drawer off the top bar. Messages are 1 to 200 printable characters, one per 1.5 s per user, six per 10 s per IP, kept to the last 500 rows. Rendering uses `textContent`, never HTML.
 - **Ghost mode** (Account) replaces your name with "Hidden" in the feed and leaderboard. Chat always shows the name you post under.
+- **Bonus drips** (Rewards page): hourly reload, daily and weekly bonus, each a fixed fraction of what you wagered in that window, claimable once the window has passed. Use it or lose it, like the real ones; the page says in so many words that the timer is the product.
 - **Simulated players** keep the room from looking empty on a quiet server. They live in memory, never touch the database or any statistic, and every row and message they produce carries `bot: true` and a robot mark in the UI. Real sites fill their feeds the same way and never tell you; `SOCIAL_AMBIENT=0` turns them off.
+
+See `docs/third-party-slots.md` for what it would take to add provider slots behind a seamless wallet.
 
 ## Architecture
 

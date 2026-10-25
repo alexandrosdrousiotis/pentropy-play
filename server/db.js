@@ -102,6 +102,7 @@ export function openDatabase(path) {
   const cols = new Set(db.prepare('PRAGMA table_info(users)').all().map((c) => c.name));
   if (!cols.has('vault')) db.exec('ALTER TABLE users ADD COLUMN vault INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('ghost')) db.exec('ALTER TABLE users ADD COLUMN ghost INTEGER NOT NULL DEFAULT 0');
+  if (!cols.has('drips')) db.exec("ALTER TABLE users ADD COLUMN drips TEXT NOT NULL DEFAULT '{}'");
   if (!cols.has('deposited')) db.exec('ALTER TABLE users ADD COLUMN deposited INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('tier')) db.exec("ALTER TABLE users ADD COLUMN tier TEXT NOT NULL DEFAULT 'bronze'");
   if (!cols.has('rebate_pending')) db.exec('ALTER TABLE users ADD COLUMN rebate_pending REAL NOT NULL DEFAULT 0');

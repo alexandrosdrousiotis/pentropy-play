@@ -8,7 +8,7 @@ import { replayRound, canonicalOutcome } from '../shared/replay.js';
 import { gameHeader, gameIcon } from './games/common.js';
 import { countTo, sound } from './fx.js';
 import { openWallet } from './wallet.js';
-import { TIERS, tierById } from '../shared/tiers.js';
+import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
 import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout } from './social.js';
 
 const app = document.getElementById('app');
@@ -488,8 +488,29 @@ async function rewardsPage() {
       h('span', { class: 'rung-rate num' }, `${(tier.rate * 100).toFixed(1)}% rakeback`),
       h('span', { class: 'rung-bonus num' }, tier.bonus ? `+${fmt(tier.bonus, 0)} bonus` : '—'));
   }));
+  const drips = h('div', { class: 'drips' });
+  const countdown = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); const d = Math.floor(s / 86400), hh = Math.floor((s % 86400) / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60; return d ? `${d}d ${hh}h` : hh ? `${hh}h ${String(mm).padStart(2, '0')}m` : `${mm}:${String(ss).padStart(2, '0')}`; };
+  let dripState = rw.drips, dripTimer = 0;
+  function paintDrips() {
+    drips.replaceChildren(...DRIP_IDS.map((kind) => {
+      const d = dripState[kind]; const ready = d.ready || Date.now() >= d.nextAt;
+      return h('div', { class: `drip${ready && d.available > 0 ? ' ready' : ''}` },
+        h('div', { class: 'row between' }, h('span', { class: 't-label' }, d.label), h('span', { class: `tag${ready ? ' green' : ''} num` }, svgUse(ready ? 'ph-gift' : 'ph-lock'), ready ? 'Unlocked' : countdown(d.nextAt - Date.now()))),
+        h('div', { class: 'drip-amt num' }, fmt(ready ? d.available : dripAmountNow(d)), h('small', {}, 'AGT')),
+        h('p', { class: 'help' }, `${d.blurb} You wagered ${fmt(d.wagered)}.`),
+        button(ready ? (d.available > 0 ? `Claim ${fmt(d.available)} AGT` : 'Nothing to claim') : `Unlocks in ${countdown(d.nextAt - Date.now())}`, { kind: ready && d.available > 0 ? 'primary' : 'tertiary', size: 'sm', disabled: !(ready && d.available > 0), onClick: async () => { try { const r = await api.claimDrip(kind); dripState = r.drips; toast(`${d.label}: +${fmt(r.claimed)} AGT`, 'good'); render(); } catch (e) { toast(e.message, 'bad'); } } }));
+    }));
+  }
+  const dripAmountNow = (d) => (d.wagered > 0 ? Math.min(d.max, Math.max(d.min, d.wagered * d.rate)) : 0);
+  paintDrips();
+  dripTimer = setInterval(() => { if (!drips.isConnected) return clearInterval(dripTimer); paintDrips(); }, 1000);
+  const given = rw.rebateClaimed + rw.rebatePending + rw.bonuses;
   return h('div', { class: 'stack', style: { gap: '20px' } },
     h('div', { class: 'row between' }, h('h2', {}, 'Rewards'), h('span', { class: 'tier-badge lg', style: { color: t.colour } }, svgUse('ph-medal'), t.name)),
+    h('section', { class: 'plate' },
+      h('div', { class: 'row between' }, h('h3', {}, 'Bonuses'), h('span', { class: 't-desc' }, `${fmt(rw.bonuses)} AGT given so far`)),
+      drips,
+      h('p', { class: 'help' }, `Each drip returns a fraction of what you wagered in its window, and only if you come back in time. The edge took ${fmtPct(1 - 0.99, 0)} of every bet on the way; the hourly one gives back 0.5%. The timer is the product, not the money.`)),
     h('section', { class: 'rw-hero' },
       h('div', { class: 'rw-main' },
         h('div', { class: 't-label' }, 'Rakeback available'),

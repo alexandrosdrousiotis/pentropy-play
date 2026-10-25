@@ -4,7 +4,7 @@
 import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { v, HttpError, bad } from '../shared/validate.js';
 import { sha256, hmacSha256, toHex } from '../shared/sha256.js';
-import { TIERS, tierFor, tierById, nextTier } from '../shared/tiers.js';
+import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount } from '../shared/tiers.js';
 import { botRound, BOT_HANDLES } from '../shared/social-bots.js';
 
 const KEY = 'pentropy.demo.v2';
@@ -85,8 +85,17 @@ const rewardsOf = (u) => {
   const wagered = u.rounds.filter((r) => r.status === 'settled').reduce((a, r) => a + r.amount, 0) / 100;
   const tier = tierById(u.tier), next = nextTier(u.tier);
   return { tier: tier.id, rate: tier.rate, wagered, next: next ? { id: next.id, name: next.name, threshold: next.threshold, remaining: Math.max(0, next.threshold - wagered), progress: Math.min(1, (wagered - tier.threshold) / (next.threshold - tier.threshold)) } : null,
-    rebatePending: Math.floor(u.rebatePending) / 100, rebateClaimed: agt(u.rebateClaimed || 0), bonuses: agt(u.bonuses || 0), edgePaid: statsOf(u).expectedLoss, tiers: TIERS };
+    rebatePending: Math.floor(u.rebatePending) / 100, rebateClaimed: agt(u.rebateClaimed || 0), bonuses: agt(u.bonuses || 0), edgePaid: statsOf(u).expectedLoss, tiers: TIERS, drips: dripsOf(u) };
 };
+function dripsOf(u) {
+  const last = u.drips || {}, t = now(), out = {};
+  for (const kind of DRIP_IDS) {
+    const d = DRIPS[kind], at = last[kind] || 0, ready = t - at >= d.windowMs, since = Math.max(at, t - d.windowMs);
+    const wagered = u.rounds.filter((r) => r.status === 'settled' && r.settledAt > since).reduce((a, r) => a + r.amount, 0) / 100;
+    out[kind] = { label: d.label, blurb: d.blurb, rate: d.rate, min: d.min, max: d.max, windowMs: d.windowMs, wagered, available: ready ? dripAmount(kind, wagered) : 0, ready, nextAt: ready ? t : at + d.windowMs, claimedAt: at || null };
+  }
+  return out;
+}
 /* ---- social: simulated room, real rounds from every local account, chat kept in storage ---- */
 const bots = []; let botClock = now() - 36e3, chatSeq = Math.max(0, ...((load().chat || []).map((m) => m.id))), botChatAt = 0;
 const LINES = ['gg', 'crash did 1.01x three times in a row lol', 'anyone else down bad today', 'chicken on hard is cruel', 'took the 2x and ran', 'claimed my rebate, still down 40 for the day', 'the edge never sleeps', 'plinko high risk is a donation box', 'how is everyone', 'tower expert is unplayable', 'roulette red red red red black', 'what is the point of martingale if the limit stops you', 'nice hit', 'one more and I stop', '2.00x on limbo is just a coin flip with extra steps', 'dice 50% is the honest one', 'hit 24x on wheel then gave it back in 10 minutes', 'the stats page is brutal', 'anyone up today?', 'lost the refill already'];
@@ -118,6 +127,7 @@ const routes = {
   },
   'GET /api/rewards': () => ({ body: rewardsOf(need()) }),
   'POST /api/rewards/claim': () => { const u = need(); const c = Math.floor(u.rebatePending || 0); if (c < 100) throw bad('Rebates can be claimed from 1.00 AGT.'); u.rebatePending -= c; u.rebateClaimed = (u.rebateClaimed || 0) + c; u.balance += c; u.events.push({ type: 'rebate', amount: c, balanceAfter: u.balance, at: now() }); save(); return { body: { ...rewardsOf(u), balance: agt(u.balance) } }; },
+  'POST /api/rewards/drip': (b) => { const u = need(); const { kind } = v.object(b, { kind: v.oneOf(DRIP_IDS) }); const d = dripsOf(u)[kind]; if (!d.ready) throw bad(`${d.label} unlocks in ${Math.ceil((d.nextAt - now()) / 60000)} min.`); if (d.available <= 0) throw bad('Nothing wagered in the window, so there is nothing to give back.'); const c = cents(d.available); u.balance += c; u.bonuses = (u.bonuses || 0) + c; u.drips = { ...(u.drips || {}), [kind]: now() }; u.events.push({ type: 'bonus', amount: c, balanceAfter: u.balance, at: now() }); save(); return { body: { ...rewardsOf(u), balance: agt(u.balance), claimed: d.available, kind } }; },
   'GET /api/wallet': () => ({ body: walletOf(need()) }),
   'POST /api/wallet/deposit': (b) => {
     const u = need(); const { amount, source } = v.object(b, { amount: v.number({ min: 1, max: 1_000_000, decimals: 2 }), source: v.oneOf(['faucet', 'vault'], { optional: true, default: 'faucet' }) });

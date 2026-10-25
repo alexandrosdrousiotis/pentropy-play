@@ -10,3 +10,14 @@ export const TIERS = [
 export const tierFor = (wageredAgt) => [...TIERS].reverse().find((t) => wageredAgt >= t.threshold) || TIERS[0];
 export const tierById = (id) => TIERS.find((t) => t.id === id) || TIERS[0];
 export const nextTier = (id) => { const i = TIERS.findIndex((t) => t.id === id); return TIERS[i + 1] || null; };
+
+// Timed bonus drips: a slice of what you wagered in the window, claimable once per window.
+// Use it or lose it, like the real ones: the design brings you back on the hour, not the maths.
+export const DRIPS = {
+  hourly: { label: 'Hourly reload', windowMs: 3600e3, rate: 0.005, min: 0.1, max: 50, blurb: '0.5% of what you wagered in the last hour.' },
+  daily: { label: 'Daily bonus', windowMs: 86400e3, rate: 0.0075, min: 0.5, max: 250, blurb: '0.75% of what you wagered in the last 24 hours.' },
+  weekly: { label: 'Weekly bonus', windowMs: 7 * 86400e3, rate: 0.01, min: 1, max: 1000, blurb: '1% of what you wagered in the last 7 days.' },
+};
+export const DRIP_IDS = Object.keys(DRIPS);
+/** Bonus in AGT for `wageredAgt` inside the window; 0 when nothing was wagered. */
+export const dripAmount = (kind, wageredAgt) => { const d = DRIPS[kind]; if (!d || wageredAgt <= 0) return 0; return Math.round(Math.min(d.max, Math.max(d.min, wageredAgt * d.rate)) * 100) / 100; };

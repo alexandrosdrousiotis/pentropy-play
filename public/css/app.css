@@ -1132,3 +1132,11 @@ body.chat-open .main{margin-right:340px}
   body.chat-open .main{margin-right:0}
   .chat-form{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 }
+/* bonus drips */
+.drips{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.drip{display:grid;gap:8px;padding:14px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--line);align-content:start}
+.drip.ready{border-color:rgba(60,207,143,.45);box-shadow:0 0 0 3px var(--up-soft)}
+.drip .tag svg{width:13px;height:13px;fill:currentColor}
+.drip-amt{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.drip-amt small{font-size:12px;color:var(--fg-3);font-weight:600;margin-left:5px}
+.drip .btn{justify-self:start}
