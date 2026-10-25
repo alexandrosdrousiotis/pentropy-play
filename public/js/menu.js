@@ -24,7 +24,7 @@ export function userMenu(anchor) {
     h('div', { class: 'menu-bal', 'data-tip': 'Play money. No cash value, ever.' }, h('span', { class: 't-label' }, 'Balance'), h('b', { class: 'num' }, `${fmt(u.balance)} AGT`), h('span', { class: `delta ${net > 0 ? 'up' : net < 0 ? 'down' : ''}` }, `${fmtSigned(net)} this session`)),
     h('div', { class: 'menu-actions' }, button('Deposit', { kind: 'primary', size: 'sm', onClick: () => { closeMenu(); openWallet('deposit'); } }), button('Withdraw', { kind: 'tertiary', size: 'sm', onClick: () => { closeMenu(); openWallet('withdraw'); } })),
     h('div', { class: 'menu-sep' }),
-    item('ph-wallet', 'Wallet', () => openWallet('history'), { sub: 'deposits, vault, history' }),
+    item('ph-wallet', 'Wallet', () => openWallet('home'), { sub: 'balance, vault, history' }),
     item('ph-gift', 'Rebates', () => { location.hash = '#/rebates'; }, { sub: m.rewards?.chest?.ready && m.rewards.chest.wagered > 0 ? 'chest ready' : 'chest, drips, referrals' }),
     item('ph-chart-bar', 'Statistics', () => { location.hash = '#/stats'; }),
     item('ph-shield-check', 'Fairness', () => { location.hash = '#/fair'; }),

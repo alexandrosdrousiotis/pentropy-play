@@ -30,7 +30,7 @@ export function mount(root, meta) {
 
   const setCell = (c, kind, { dim = false, hit = false } = {}) => {
     c.className = `cell flip ${kind}${dim ? ' dim' : ''}${hit ? ' hitcell' : ''}`;
-    c.replaceChildren(kind === 'gem' ? gem3d('#3ccf8f', 40) : toy('bomb', 28));
+    c.replaceChildren(kind === 'gem' ? gem3d('#3ccf8f', null) : toy('bomb', 34));
     c.disabled = true;
   };
   function resetGrid(enabled) {

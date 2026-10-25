@@ -73,9 +73,9 @@ function renderChrome() {
     h('label', { class: 'top-search' }, svgUse('ph-search'), searchIn),
     h('div', { class: 'spacer' }),
     u ? h('div', { class: 'row', style: { gap: '10px' } },
-      h('div', { class: 'wallet', id: 'balance', 'data-tip': 'Play money balance. Tap to open the wallet.', role: 'button', tabindex: '0', onClick: (e) => { if (!e.target.closest('.go')) openWallet('history'); } },
+      h('div', { class: 'wallet', id: 'balance', 'data-tip': 'Play money balance. Tap to open the wallet.', role: 'button', tabindex: '0', onClick: (e) => { if (!e.target.closest('.go')) openWallet('home'); } },
         h('span', { class: 'coin' }, svgUse('ph-coins', 'ic')), h('span', { class: 'bal' }, h('span', { class: 'amt num' }, fmt(u.balance)), h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta', 'data-tip': 'Net this session' }, fmtSigned(sessNet))),
-        h('button', { type: 'button', class: 'go', 'data-tip': 'Deposit or withdraw', onClick: () => openWallet('deposit') }, svgUse('ph-wallet'), h('span', {}, 'Wallet'))),
+        h('button', { type: 'button', class: 'go', 'data-tip': 'Open the wallet', onClick: () => openWallet('home') }, svgUse('ph-wallet'), h('span', {}, 'Wallet'))),
       h('span', { class: 'top-tools row' }, chatButton()),
       h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': u.username, onClick: (e) => userMenu(e.currentTarget) }, u.username.slice(0, 2)))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login', onClick: (e) => { e.preventDefault(); authModal('login'); } }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup', onClick: (e) => { e.preventDefault(); authModal('signup'); } }, h('span', {}, 'Sign up'))),
