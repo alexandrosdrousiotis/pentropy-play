@@ -155,7 +155,12 @@ const CUES = {
   land: () => { tone({ freq: 190, dur: 0.14, type: 'triangle', gain: 0.07, slide: -100 }); noise({ dur: 0.08, gain: 0.05, hp: 80, lp: 700 }); },
   // a balloon: air rushing in with a rubbery creak that climbs as it stretches, and a snap when it goes
   inflate: ({ k = 0 } = {}) => { noise({ dur: 0.26, gain: 0.045, hp: 700, lp: 1800, sweep: 3600, decay: false }); tone({ freq: 300 + k * 28, dur: 0.22, type: 'sawtooth', gain: 0.012, slide: 90 + k * 10, filter: 1400, q: 6, attack: 0.04 }); },
-  balloonpop: () => { noise({ dur: 0.06, gain: 0.4, hp: 900, lp: 11000 }); tone({ freq: 150, dur: 0.1, type: 'sine', gain: 0.12, slide: -100 }); noise({ dur: 0.22, gain: 0.04, hp: 2500, lp: 7000, at: 0.03 }); },
+  bust: [18, 30, 12], balloonpop: () => { noise({ dur: 0.06, gain: 0.4, hp: 900, lp: 11000 }); tone({ freq: 150, dur: 0.1, type: 'sine', gain: 0.12, slide: -100 }); noise({ dur: 0.22, gain: 0.04, hp: 2500, lp: 7000, at: 0.03 }); },
+  // crash table: quiet, short, no harsh sweeps
+  liftoff: () => { tone({ freq: 90, dur: 0.45, type: 'sine', gain: 0.05, slide: 140, attack: 0.08 }); noise({ dur: 0.45, gain: 0.012, hp: 200, lp: 900, sweep: 1400 }); },
+  bust: () => { tone({ freq: 70, dur: 0.32, type: 'sine', gain: 0.13, slide: -38, attack: 0.004 }); noise({ dur: 0.16, gain: 0.05, hp: 80, lp: 800 }); },
+  cashin: () => { tone({ freq: 880, dur: 0.16, type: 'sine', gain: 0.05, send: 0.3 }); tone({ freq: 1318, dur: 0.24, type: 'sine', gain: 0.05, at: 0.09, send: 0.3 }); },
+  blip: () => { tone({ freq: 1200, dur: 0.025, type: 'sine', gain: 0.016 }); },
   launch: () => { tone({ freq: 140, dur: 0.6, type: 'sawtooth', gain: 0.035, slide: 520, filter: 900, q: 2 }); noise({ dur: 0.6, gain: 0.03, hp: 300, lp: 600, sweep: 6000, decay: false }); },
   crash: () => { noise({ dur: 0.55, gain: 0.28, hp: 40, lp: 3200, sweep: 180 }); tone({ freq: 85, dur: 0.6, type: 'sine', gain: 0.16, slide: -55 }); noise({ dur: 0.3, gain: 0.08, hp: 1500, lp: 6000, at: 0.03 }); },
   bomb: () => { noise({ dur: 0.4, gain: 0.22, hp: 50, lp: 2400, sweep: 150 }); tone({ freq: 95, dur: 0.4, type: 'sawtooth', gain: 0.1, slide: -60, filter: 500 }); },
@@ -172,7 +177,7 @@ export const sound = {
   play(name, opts = {}) {
     if (!this.enabled) return;
     try { ensureBus(); CUES[name]?.(opts); } catch { /* audio unavailable */ }
-    const hp = { bomb: [30, 30, 60], balloonpop: [20, 20, 50], crash: [30, 30, 60], bigwin: [15, 30, 15, 30, 40], win: 18, cashout: 18, lose: 35, coins: [10, 20, 10], land: 10 }[name];
+    const hp = { bomb: [30, 30, 60], balloonpop: [20, 20, 50], crash: [30, 30, 60], bust: [18, 30, 12], cashin: 18, bigwin: [15, 30, 15, 30, 40], win: 18, cashout: 18, lose: 35, coins: [10, 20, 10], land: 10 }[name];
     if (hp) haptic(hp);
   },
 };

@@ -32,18 +32,17 @@ export function mount(root, meta) {
   const plot = h('div', { class: 'crash-plot' });
   const svg = el('svg', { viewBox: '0 0 100 60', preserveAspectRatio: 'none' });
   const grid = el('g', {});
-  const fill = el('path', { d: '', class: 'fill' });
-  const line = el('path', { d: '', class: 'line', fill: 'none', 'stroke-width': 3.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke' });
-  svg.append(grid, fill, line);
+  const line = el('path', { d: '', class: 'line', fill: 'none', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke' });
+  svg.append(grid, line);
   // the tip rides the curve: the painted rocket sprite when the art exists, a plain dot otherwise
   const tip = h('div', { class: 'crash-tip' });
   tip.append(h('img', { src: 'art/crash-rocket.webp', alt: '', decoding: 'async', onError: (e) => { e.target.remove(); tip.classList.add('dot'); } }));
   const readout = h('div', { class: 'readout num' }, '1.00x', h('small', {}, 'waiting'));
-  const ticksX = h('div', { class: 'ticks-x' }), ticksY = h('div', { class: 'ticks-y' });
+  const ticksY = h('div', { class: 'ticks-y' });
   const wait = h('div', { class: 'crash-wait' }, h('div', { class: 'cw-num num' }, '—'), h('div', { class: 't-label' }, 'next launch'));
   const cashMarks = h('div', { class: 'cash-marks' });
   plot.append(svg, cashMarks, tip);
-  area.append(plot, ticksX, ticksY, readout, wait);
+  area.append(plot, ticksY, readout, wait);
   const players = playersPanel('All bets');
   const fair = fairLine('crash');
   L.stage.append(h('div', { class: 'stack live-stage' }, hist.el, bar.el, area, fair.el));
@@ -56,7 +55,6 @@ export function mount(root, meta) {
 
   /* ---- drawing ---- */
   let vT = 8000, vM = 2, tickKey = '';
-  const fmtS = (ms) => `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`;
   function drawFrame(elapsed, m, { snap = false } = {}) {
     // the head of the curve sits near the top-right of the plot; the axes stretch to keep it there
     const tT = Math.max(4000, elapsed / 0.9), tM = Math.max(1.5, 1 + (m - 1) / 0.8);
@@ -64,7 +62,7 @@ export function mount(root, meta) {
     const T = vT, M = vM, pts = [], N = 120;
     for (let i = 0; i <= N; i++) { const t = (elapsed * i) / N; pts.push([(t / T) * 100, 60 - ((curveAt(t) - 1) / (M - 1)) * 60]); }
     const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(3)},${p[1].toFixed(3)}`).join(' ');
-    line.setAttribute('d', d); fill.setAttribute('d', `${d} L${pts[N][0].toFixed(3)},60 L0,60 Z`);
+    line.setAttribute('d', d);
     const rect = plot.getBoundingClientRect();
     const tipX = (pts[N][0] / 100) * rect.width, tipY = (pts[N][1] / 60) * rect.height;
     const prevX = (pts[N - 4][0] / 100) * rect.width, prevY = (pts[N - 4][1] / 60) * rect.height;
@@ -72,9 +70,9 @@ export function mount(root, meta) {
     tip.classList.toggle('on', elapsed > 0); tip.style.left = `${tipX}px`; tip.style.top = `${tipY}px`; tip.style.transform = tip.classList.contains('dot') ? '' : `rotate(${ang + 45}deg)`;
     // cash-out markers of everyone who got out: a dot on the curve at their multiplier
     for (const mk of cashMarks.children) { const mm = Number(mk.dataset.m); const t = (Math.log(mm) / CRASH_K) * 1000; mk.style.left = `${(t / T) * rect.width}px`; mk.style.top = `${((60 - ((mm - 1) / (M - 1)) * 60) / 60) * rect.height}px`; mk.hidden = t > elapsed; }
-    const xs = [0, .25, .5, .75, 1].map((f) => fmtS(T * f)), ys = [1, 1 + (M - 1) * .25, 1 + (M - 1) * .5, 1 + (M - 1) * .75, M].map((v) => fmtMult(v));
-    const key = xs.join() + '|' + ys.join();
-    if (key !== tickKey) { tickKey = key; ticksX.replaceChildren(...xs.map((s) => h('span', {}, s))); ticksY.replaceChildren(...ys.map((s) => h('span', {}, s))); if (!grid.childElementCount) grid.replaceChildren(...[.25, .5, .75].map((f) => el('line', { x1: 0, x2: 100, y1: 60 - 60 * f, y2: 60 - 60 * f, class: 'gl', 'vector-effect': 'non-scaling-stroke' })), ...[.25, .5, .75].map((f) => el('line', { x1: 100 * f, x2: 100 * f, y1: 0, y2: 60, class: 'gl', 'vector-effect': 'non-scaling-stroke' }))); }
+    const ys = [1, 1 + (M - 1) * .25, 1 + (M - 1) * .5, 1 + (M - 1) * .75, M].map((v) => fmtMult(v));
+    const key = ys.join();
+    if (key !== tickKey) { tickKey = key; ticksY.replaceChildren(...ys.map((s) => h('span', {}, s))); if (!grid.childElementCount) grid.replaceChildren(...[.25, .5, .75].map((f) => el('line', { x1: 0, x2: 100, y1: 60 - 60 * f, y2: 60 - 60 * f, class: 'gl', 'vector-effect': 'non-scaling-stroke' }))); }
   }
   let lastPhase = '', lastRound = 0;
   function frame() {
@@ -106,14 +104,14 @@ export function mount(root, meta) {
     if (s.phase !== lastPhase) {
       lastPhase = s.phase;
       area.classList.toggle('betting', s.phase === 'betting');
-      if (s.phase === 'running') { sound.play('launch'); readout.lastChild.textContent = s.mine[0] ? (s.mine[0].auto ? `Auto cash out at ${fmtMult(s.mine[0].auto)}` : 'You are in') : 'Current payout'; }
+      if (s.phase === 'running') { sound.play('liftoff'); readout.lastChild.textContent = s.mine[0] ? (s.mine[0].auto ? `Auto cash out at ${fmtMult(s.mine[0].auto)}` : 'You are in') : 'Current payout'; }
       if (s.phase === 'ended') {
         const point = r.result, mine = s.mine[0];
         drawFrame((Math.log(point) / CRASH_K) * 1000, point, { snap: true });
         readout.firstChild.textContent = fmtMult(point);
         area.classList.add('crashed');
-        if (mine && mine.cashout === 0) { sound.play('crash'); flashRed(L.board); readout.lastChild.textContent = 'Crashed · you were still in'; }
-        else { sound.play(mine ? 'pop' : 'tick'); readout.lastChild.textContent = 'Crashed'; }
+        if (mine && mine.cashout === 0) { sound.play('bust'); flashRed(L.board); readout.lastChild.textContent = 'Crashed · you were still in'; }
+        else { sound.play('blip'); readout.lastChild.textContent = 'Crashed'; }
       }
     }
     // my settlements: announce once, then refresh stats quietly
@@ -123,11 +121,11 @@ export function mount(root, meta) {
       const win = b.payout > 0, net = b.payout - b.amount;
       banner.show(win ? `WIN ${fmtMult(b.cashout)} · +${fmt(net)} AGT` : `Crashed at ${fmtMult(r.result ?? 0)} · −${fmt(b.amount)} AGT`, win);
       strip.push(fmtMult(win ? b.cashout : 0), win);
-      if (win) { sound.play(b.cashout >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (b.cashout >= 5) winBurst(L.board); }
+      if (win) { sound.play(b.cashout >= 5 ? 'bigwin' : 'cashin'); flashGreen(L.board); if (b.cashout >= 5) winBurst(L.board); }
       api.refresh().catch(() => {});
     }
     // markers for everyone who cashed out
-    for (const b of s.bets) if (b.cashout > 0 && !cashMarks.querySelector(`[data-id="${b.id}"]`)) { const mk = h('span', { class: `cash-mark${b.mine ? ' me' : ''}`, 'data-id': String(b.id), 'data-m': String(b.cashout), title: `${b.username} ${fmtMult(b.cashout)}` }); cashMarks.append(mk); if (!b.mine && prev) sound.play('tick'); }
+    for (const b of s.bets) if (b.cashout > 0 && !cashMarks.querySelector(`[data-id="${b.id}"]`)) { const mk = h('span', { class: `cash-mark${b.mine ? ' me' : ''}`, 'data-id': String(b.id), 'data-m': String(b.cashout), title: `${b.username} ${fmtMult(b.cashout)}` }); cashMarks.append(mk); if (!b.mine && prev) sound.play('blip'); }
     players.paint(s.bets, (b) => [h('span', { class: 'num' }, fmt(b.amount)), h('span', { class: `num ${b.cashout > 0 ? 'good' : b.cashout === 0 ? 'bad' : ''}` }, b.cashout > 0 ? fmtMult(b.cashout) : b.cashout === 0 ? '✗' : b.auto ? `auto ${fmtMult(b.auto)}` : '—'), h('span', { class: `num ${b.payout > 0 ? 'good' : b.payout === 0 ? 'bad' : ''}` }, b.payout == null ? '' : b.payout > 0 ? `+${fmt(b.payout - b.amount)}` : `−${fmt(b.amount)}`)]);
     hist.paint(s.history, pointColour);
     fair.paint(r);
@@ -154,7 +152,7 @@ export function mount(root, meta) {
   async function cashout() {
     if (busy) return;
     busy = true; cash.disabled = true;
-    try { const r = await api.liveCashout(); if (state?.mine[0]) Object.assign(state.mine[0], r.bet); sound.play('cashout'); flashGreen(L.board); haptic(18); }
+    try { const r = await api.liveCashout(); if (state?.mine[0]) Object.assign(state.mine[0], r.bet); sound.play('cashin'); flashGreen(L.board); haptic(18); }
     catch (e) { toast(e.message, 'bad'); }
     busy = false; paintControls(); poller.kick();
   }

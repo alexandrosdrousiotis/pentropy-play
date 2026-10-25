@@ -2345,3 +2345,10 @@ body.side-collapsed .tierfoot .tier-badge{padding:0;height:auto}
 .dice-track .marker b::after{content:"";position:absolute;left:50%;bottom:-5px;width:12px;height:12px;margin-left:-6px;background:inherit;border-radius:2.5px;transform:rotate(45deg);z-index:-1}
 .dice-track .marker.win b::after{box-shadow:3px 3px 0 0 var(--up)}
 .dice-track .marker.loss b::after{box-shadow:3px 3px 0 0 var(--down)}
+
+/* crash: minimal chart */
+.crash-plot{bottom:20px}
+.crash-area .ticks-y{bottom:20px}
+.crash-area .ticks-x{display:none}
+.crash-area svg .gl{stroke:rgba(255,255,255,.05)}
+@media (max-width:860px){.crash-plot{bottom:16px}.crash-area .ticks-y{bottom:16px}}
