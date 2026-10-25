@@ -65,7 +65,7 @@ export function gameHeader(game) {
   use.setAttribute('href', `#${gameIcon(game.id)}`); svg.append(use);
   return h('div', { class: `game-head${ART.has(game.id) ? ' has-art' : ''}`, style: ART.has(game.id) ? { backgroundImage: `url(art/${game.id}.webp)` } : {} },
     h('div', { class: 'title' },
-      h('span', { class: `icon art ${game.id}` }, svg),
+      ART.has(game.id) ? h('img', { class: 'icon thumb', src: `art/${game.id}.webp`, alt: '', decoding: 'async' }) : h('span', { class: `icon art ${game.id}` }, svg),
       h('div', {}, h('h2', {}, game.name), h('div', { class: 'sub' }, game.blurb))),
     h('div', { class: 'row' },
       h('span', { class: 'tag' }, `RTP ${fmtPct(game.rtp, 2)}`),

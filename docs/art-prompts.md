@@ -98,12 +98,31 @@ Rows in lobby order, so you can check that neighbours differ:
 Generate Roulette, Crash and Chicken at 16:9 with the left third empty; the code darkens that
 third further for copy. Do not generate wide banners for the rest.
 
+## Category cards (lobby, 2:1)
+
+Two wide cards sit under the hero. They used to carry an icon; they now carry a painting, and the
+code masks the left 40% to the card surface so the title can sit on it. Keep the subject in the
+right two thirds.
+
+| Card | File | HUE / GLOW / SMOKE | Elements |
+|---|---|---|---|
+| Live tables | `cat-live` | scarlet #ff3b3b glow, maroon #3a0a12 smoke, the hero's warm palette | A roulette wheel and a crash curve drawn in light side by side on a dark table, five or six small player chips of different colours pushed toward the centre as if several hands just bet at once, one chip still mid-air |
+| Originals | `cat-originals` | electric blue #3b82f6 glow, navy #0b1a3a smoke | A loose cluster of the originals' own pieces: two dice, a mines gem, a plinko ball, a small rocket and a keno ball tumbling together, each catching a different accent colour, no single piece dominant |
+
+Until the real cards are delivered the build script derives them from the roulette banner and the
+Plinko tile, so the slots are never empty.
+
 ## Delivery
 
-For each game save `public/art/<id>.webp` at 600 by 800 and, for featured games,
-`public/art/<id>-banner.webp` at 1200 by 675, then add the id to the `ART` and `BANNERS` sets in
-`public/js/games/index.js`. Ids: limbo, mines, dice, crash, tower, plinko, keno, wheel, slide,
-diamonds, chicken, pump, hilo, flip, rps, blackjack, videopoker, baccarat, roulette.
+Drop masters in `docs/art/` as PNG and run `python3 scripts/art.py` (needs Pillow). It writes every
+`public/art/*.webp` at the right size, and always takes the newest revision of a master:
+`limbo-v2.png` wins over `limbo.png`, `limbo-v3.png` wins over both. So a recolour is a new file
+with a `-v2` suffix and nothing to delete or rename.
+
+Master names: `<id>.png` for tiles (limbo, mines, dice, crash, tower, plinko, keno, wheel, slide,
+diamonds, chicken, pump, hilo, flip, rps, blackjack, videopoker, baccarat, roulette),
+`<id>-banner.png` for the three featured banners, `lobby-hero.png`, `lobby-hero-mobile.png`,
+`cat-live.png`, `cat-originals.png`, `chest-open.png`, `chest-closed.png`.
 
 All nineteen tiles, the three banners, both chests and the lobby hero are delivered and wired in
 the old all-violet palette. Regenerate in this order, worst clash first: limbo, mines, dice,

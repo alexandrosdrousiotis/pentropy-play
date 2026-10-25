@@ -3,7 +3,7 @@
 // filter every casino pins to the top. Simulated players are always marked.
 import { api, user, DEMO } from './api.js';
 import { h, svgUse, button, fmt, fmtMult } from './ui.js';
-import { gameById } from './games/index.js';
+import { gameById, ART } from './games/index.js';
 import { gameIcon } from './games/common.js';
 import { sound } from './fx.js';
 
@@ -45,7 +45,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && ru
 /* ---------------- helpers ---------------- */
 const ago = (t) => { const s = Math.max(0, Math.round((Date.now() - t) / 1000)); return s < 5 ? 'now' : s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m` : `${Math.floor(s / 3600)}h`; };
 const who = (b) => h('span', { class: 'who' }, b.username, b.bot ? h('span', { class: 'sim', title: 'Simulated player' }, svgUse('ph-robot')) : null);
-const gameCell = (id) => { const g = gameById(id); return h('span', { class: 'gm' }, h('span', { class: 'gi' }, svgUse(gameIcon(id))), h('span', { class: 'gn' }, g?.name ?? id)); };
+const gameCell = (id) => { const g = gameById(id); return h('span', { class: 'gm' }, h('span', { class: 'gi' }, ART.has(id) ? h('img', { src: `art/${id}.webp`, alt: '', loading: 'lazy', decoding: 'async' }) : svgUse(gameIcon(id))), h('span', { class: 'gn' }, g?.name ?? id)); };
 
 /* ---------------- live bets panel ---------------- */
 export function liveBets() {
