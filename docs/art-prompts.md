@@ -116,8 +116,10 @@ Plinko tile, so the slots are never empty.
 
 Drop masters in `docs/art/` as PNG and run `python3 scripts/art.py` (needs Pillow). It writes every
 `public/art/*.webp` at the right size, and always takes the newest revision of a master:
-`limbo-v2.png` wins over `limbo.png`, `limbo-v3.png` wins over both. So a recolour is a new file
-with a `-v2` suffix and nothing to delete or rename.
+`limbo-v2.png` wins over `limbo.png`, `limbo-v3.png` wins over both, and a variant suffix like
+`videopoker-v2-1.png` is fine (highest variant wins). Files that fail to decode are skipped. So a
+recolour is a new file with a `-v2` suffix and nothing to delete or rename. Baccarat also answers
+to `poker`.
 
 Master names: `<id>.png` for tiles (limbo, mines, dice, crash, tower, plinko, keno, wheel, slide,
 diamonds, chicken, pump, hilo, flip, rps, blackjack, videopoker, baccarat, roulette),
