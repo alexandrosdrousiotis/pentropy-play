@@ -51,10 +51,10 @@ export function mount(root, meta) {
     busy = true; paint();
     const out = await tryAct('pump', {}, { defer: true });
     if (!out) { busy = false; paint(); return; }
-    sound.play('launch');
+    sound.play('inflate', { k: round.view?.pumps ?? 0 });
     if (out.round.status === 'settled' && !out.round.outcome.cleared) {
       balloon.classList.add('wobble'); await sleep(250);
-      balloon.classList.remove('wobble'); balloon.classList.add('pop'); sound.play('bomb'); shake(stage); flashRed(L.board);
+      balloon.classList.remove('wobble'); balloon.classList.add('pop'); sound.play('balloonpop'); shake(stage); flashRed(L.board);
       for (let i = 0; i < 14; i++) { const p = h('i'); const a = Math.random() * Math.PI * 2, d = 80 + Math.random() * 140; p.style.setProperty('--bx', `${Math.cos(a) * d}px`); p.style.setProperty('--by', `${Math.sin(a) * d}px`); shards.append(p); }
       await sleep(500);
       out.commit(); return finish(out.round);
