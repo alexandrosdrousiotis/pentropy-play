@@ -2340,3 +2340,8 @@ body.side-collapsed .tierfoot .tier-badge{padding:0;height:auto}
 .board .tower .cell .toy{filter:none}
 .board .tower .cell .egg3d .e-shadow{display:none}
 .board .tower .trow .mult{color:var(--fg-3)}
+/* dice result pill: small rounded pointer underneath */
+.dice-track .marker b{position:relative;z-index:0}
+.dice-track .marker b::after{content:"";position:absolute;left:50%;bottom:-5px;width:12px;height:12px;margin-left:-6px;background:inherit;border-radius:2.5px;transform:rotate(45deg);z-index:-1}
+.dice-track .marker.win b::after{box-shadow:3px 3px 0 0 var(--up)}
+.dice-track .marker.loss b::after{box-shadow:3px 3px 0 0 var(--down)}
