@@ -2046,3 +2046,9 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .grow .cards.ranked{overflow-y:clip;align-items:flex-end}
 .rk{overflow:visible}
 .rk-num{margin-bottom:0;line-height:.8;transform:translateY(6px)}
+/* Top 10 numerals: mostly visible, the card covers only their right edge, two digits stay two digits */
+.grow .cards.ranked{padding:0 0 6px 12px;gap:var(--s5)}
+.rk{align-items:flex-end}
+.rk-num{font-size:132px;font-weight:800;line-height:.82;letter-spacing:-.03em;width:auto;min-width:64px;margin-right:-18px;margin-bottom:0;transform:none;text-align:right;-webkit-text-stroke:1.5px rgba(255,255,255,.4);padding-bottom:2px}
+.rk:hover .rk-num{-webkit-text-stroke-color:rgba(255,255,255,.65)}
+@media (max-width:860px){.grow .cards.ranked{padding-left:8px;gap:var(--s4)}.rk-num{font-size:92px;min-width:44px;margin-right:-12px}}
