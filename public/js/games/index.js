@@ -30,6 +30,6 @@ export const GAME_ICON = { limbo: 'ph-rocket-launch', mines: 'ph-bomb', dice: 'p
 export const GAME_COLOR = { limbo: '#1d4ed8', mines: '#3f3f46', dice: '#4338ca', crash: '#be123c', tower: '#047857', hilo: '#9f1239', plinko: '#0369a1', keno: '#b45309', videopoker: '#0f766e', blackjack: '#a16207', chicken: '#c2410c', pump: '#db2777', flip: '#ca8a04', rps: '#7c3aed', slide: '#0e7490', wheel: '#9333ea', baccarat: '#166534', roulette: '#991b1b', diamonds: '#0891b2' };
 
 /** Game ids that have artwork at public/art/<id>.webp. Add an id here after dropping the file in. */
-export const ART = new Set(['roulette']);
+export const ART = new Set(['roulette', 'chicken', 'crash', 'diamonds', 'dice', 'keno', 'limbo', 'mines', 'plinko', 'slide', 'tower', 'wheel']);
 /** Wide 2:1 banners at public/art/<id>-banner.webp for the featured cards. */
-export const BANNERS = new Set(['roulette']);
+export const BANNERS = new Set(['roulette', 'chicken', 'crash']);
