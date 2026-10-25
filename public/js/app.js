@@ -90,8 +90,10 @@ function renderChrome() {
 function tierFoot(rw) {
   const t = tierById(rw.tier);
   return h('a', { class: 'foot tierfoot', href: '#/rebates' },
-    h('span', { class: 'tier-badge', style: { color: t.colour } }, svgUse('ph-medal'), t.name),
-    rw.next ? h('div', { class: 'tier-prog' }, h('div', { class: 'progress' }, h('i', { style: { width: `${rw.next.progress * 100}%` } })), h('span', {}, `${fmt(rw.next.remaining, 0)} to ${rw.next.name}`)) : h('span', {}, 'Top tier'),
+    h('div', { class: 'tf-row' },
+      h('span', { class: 'tier-badge', style: { color: t.colour } }, svgUse('ph-medal'), t.name),
+      h('span', { class: 'tf-next' }, rw.next ? `${fmt(rw.next.remaining, 0)} to ${rw.next.name}` : 'Top tier')),
+    rw.next ? h('div', { class: 'progress' }, h('i', { style: { width: `${rw.next.progress * 100}%` } })) : null,
     rw.rebatePending >= 1 ? h('span', { class: 'tag green' }, `${fmt(rw.rebatePending)} to claim`) : null);
 }
 function soundToggle() {
