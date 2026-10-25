@@ -37,7 +37,7 @@ export function mount(root, meta) {
   const zones = [0, 1, 2].map(() => h('div', { class: 'zone' }));
   const handles = [0, 1].map((i) => h('div', { class: 'handle', role: 'slider', tabindex: '0', 'aria-label': i ? 'Upper edge' : 'Lower edge' }));
   const markerNum = h('b', { class: 'num' }, '—');
-  const marker = h('div', { class: 'marker', style: { left: '50%' } }, markerNum);
+  const marker = h('div', { class: 'marker', style: { left: '50%' }, hidden: true }, markerNum); // shown from the first roll
   const rail = h('div', { class: 'rail' }, ...zones, ...handles, marker);
   const track = h('div', { class: 'dice-track' }, rail);
   const scale = h('div', { class: 'scale' }, ...[0, 25, 50, 75, 100].map((n) => h('span', {}, n)));
@@ -100,7 +100,7 @@ export function mount(root, meta) {
     const { round } = out;
     const roll = round.outcome.roll;
     const win = round.multiplier > 0;
-    marker.className = 'marker';
+    marker.className = 'marker'; marker.hidden = false;
     const from = parseFloat(marker.style.left) || 50;
     const over1 = clamp(roll + (roll >= from ? 7 : -7), 0, 100);
     const sweep = tween(560, (e) => { marker.style.left = `${clamp(from + (over1 - from) * e, 0, 100)}%`; }, ease.outCubic)
