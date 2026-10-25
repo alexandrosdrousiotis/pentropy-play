@@ -51,7 +51,7 @@ the bet (within ±0.03% of 99%), not an asserted figure. `npm test` proves every
 * **Tiers**: Bronze → Silver (1,000 wagered) → Gold (5,000) → Platinum (25,000) → Diamond
   (100,000), earned by lifetime wager. Each level-up credits a bonus.
 * **Rakeback**: a share of the house edge on every settled bet (5% at Silver up to 15% at
-  Diamond) accrues and can be claimed from 1 AGT. The Rewards page shows the edge taken, the slice
+  Diamond) accrues and can be claimed from 1 AGT. The Rebates page shows the edge taken, the slice
   returned, and the net cost side by side, because that arithmetic is the lesson.
 
 ## The room: live bets, chat, leaders
@@ -63,7 +63,8 @@ Real casinos sell the crowd as hard as the games, so Pentropy has one too, built
 - **Leaders** ranks by wager, the way real boards do, and says how many of the top ten are down.
 - **Chat** is a drawer off the top bar. Messages are 1 to 200 printable characters, one per 1.5 s per user, six per 10 s per IP, kept to the last 500 rows. Rendering uses `textContent`, never HTML.
 - **Ghost mode** (Account) replaces your name with "Hidden" in the feed and leaderboard. Chat always shows the name you post under.
-- **Bonus drips** (Rewards page): hourly reload, daily and weekly bonus, each a fixed fraction of what you wagered in that window, claimable once the window has passed. Use it or lose it, like the real ones; the page says in so many words that the timer is the product.
+- **The chest** (Rebates page and lobby): fills as you play and opens every six hours for a random 0.3% to 1.2% of what you wagered since it last opened. The expected value sits on the label; the random size and the timer are the hook.
+- **Bonus drips** (Rebates page): hourly reload, daily and weekly bonus, each a fixed fraction of what you wagered in that window, claimable once the window has passed. Use it or lose it, like the real ones; the page says in so many words that the timer is the product.
 - **Simulated players** keep the room from looking empty on a quiet server. They live in memory, never touch the database or any statistic, and every row and message they produce carries `bot: true` and a robot mark in the UI. Real sites fill their feeds the same way and never tell you; `SOCIAL_AMBIENT=0` turns them off.
 
 See `docs/third-party-slots.md` for what it would take to add provider slots behind a seamless wallet.

@@ -4,7 +4,8 @@ import { transaction } from './db.js';
 import { FairRng, randomHex, sha256Hex } from './fairness.js';
 import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { LESSON_IDS } from './lessons.js';
-import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount } from '../shared/tiers.js';
+import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount, CHEST, chestExpected, chestAmount } from '../shared/tiers.js';
+import { randomInt } from 'node:crypto';
 
 const cents = (agt) => Math.round(agt * 100);
 const agt = (c) => c / 100;
@@ -101,7 +102,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
     const tier = tierById(u.tier), next = nextTier(u.tier);
     const edgePaid = agt(q.stats.get(u.id).expectedLoss);
     return { tier: tier.id, rate: tier.rate, wagered, next: next ? { id: next.id, name: next.name, threshold: next.threshold, remaining: Math.max(0, next.threshold - wagered), progress: Math.min(1, (wagered - tier.threshold) / (next.threshold - tier.threshold)) } : null,
-      rebatePending: Math.floor(u.rebate_pending) / 100, rebateClaimed: agt(u.rebate_claimed), bonuses: agt(u.bonuses), edgePaid, tiers: TIERS, drips: dripsOf(u) };
+      rebatePending: Math.floor(u.rebate_pending) / 100, rebateClaimed: agt(u.rebate_claimed), bonuses: agt(u.bonuses), edgePaid, tiers: TIERS, drips: dripsOf(u), chest: chestOf(u) };
   }
   /** Timed bonuses: what each window would pay now, and when it unlocks. Claims are stored as {kind: lastClaimMs}. */
   function dripsOf(u) {
@@ -112,6 +113,26 @@ export function createApi({ db, config, auth, seedCipher, social }) {
       out[kind] = { label: d.label, blurb: d.blurb, rate: d.rate, min: d.min, max: d.max, windowMs: d.windowMs, wagered, available: ready ? dripAmount(kind, wagered) : 0, ready, nextAt: ready ? t : at + d.windowMs, claimedAt: at || null };
     }
     return out;
+  }
+  function chestOf(u) {
+    const last = JSON.parse(u.drips || '{}').chest || 0, t = now();
+    const ready = t - last >= CHEST.windowMs;
+    const wagered = agt(q.wageredSince.get(u.id, Math.max(last, t - CHEST.windowMs)).w);
+    return { ready, nextAt: ready ? t : last + CHEST.windowMs, wagered, fill: Math.min(1, wagered / CHEST.fillAt), expected: chestExpected(wagered), min: CHEST.min, max: CHEST.max, minRate: CHEST.minRate, maxRate: CHEST.maxRate, windowMs: CHEST.windowMs, openedAt: last || null };
+  }
+  function openChest(user) {
+    return transaction(db, () => {
+      const u = q.user.get(user.id);
+      const c = chestOf(u);
+      if (!c.ready) throw bad(`The chest opens in ${Math.ceil((c.nextAt - now()) / 60000)} min.`);
+      if (c.wagered <= 0) throw bad('The chest fills as you play. Nothing has been wagered since it last opened.');
+      const roll = randomInt(0, 1_000_000) / 1_000_000;
+      const amount = chestAmount(c.wagered, roll), cts = cents(amount), balance = u.balance + cts;
+      const last = JSON.parse(u.drips || '{}'); last.chest = now();
+      q.setDrips.run(JSON.stringify(last), u.bonuses + cts, balance, u.id);
+      q.insertEvent.run(u.id, 'bonus', cts, balance, now());
+      return { ...rewardsOf(q.user.get(u.id)), balance: agt(balance), amount, roll, kind: 'chest' };
+    });
   }
   function claimDrip(user, kind) {
     return transaction(db, () => {
@@ -367,6 +388,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
   route('GET', '/api/rewards', {}, (c) => ({ body: rewardsOf(q.user.get(c.user.id)) }));
   route('POST', '/api/rewards/claim', {}, (c) => ({ body: claimRebate(c.user) }));
   route('POST', '/api/rewards/drip', {}, (c) => ({ body: claimDrip(c.user, v.object(c.body, S.drip).kind) }));
+  route('POST', '/api/rewards/chest', {}, (c) => ({ body: openChest(c.user) }));
   route('POST', '/api/wallet/deposit', {}, (c) => { const b = v.object(c.body, S.deposit); return { body: deposit(c.user, b.amount, b.source) }; });
   route('POST', '/api/wallet/withdraw', {}, (c) => ({ body: withdraw(c.user, v.object(c.body, S.withdraw).amount) }));
 

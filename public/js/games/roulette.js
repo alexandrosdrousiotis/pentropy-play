@@ -64,6 +64,7 @@ export function mount(root, meta) {
       const tk = Math.floor(a / step); if (tk !== lastTick) { lastTick = tk; sound.play('tick'); }
     }, ease.outCubic);
     ball.setAttribute('cx', 0); ball.setAttribute('cy', -80); sound.play('land');
+    await tween(380, (e, k) => { const b = Math.abs(Math.sin(k * Math.PI * 3)) * 6 * (1 - k); ball.setAttribute('cy', (-80 - b).toFixed(2)); }, ease.linear);
     angle = to % 360;
     const win = round.multiplier > 0;
     readout.textContent = String(n); readout.style.color = n === 0 ? '#27ad75' : ROULETTE_RED.has(n) ? '#f0616d' : '#fff';

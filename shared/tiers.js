@@ -21,3 +21,9 @@ export const DRIPS = {
 export const DRIP_IDS = Object.keys(DRIPS);
 /** Bonus in AGT for `wageredAgt` inside the window; 0 when nothing was wagered. */
 export const dripAmount = (kind, wageredAgt) => { const d = DRIPS[kind]; if (!d || wageredAgt <= 0) return 0; return Math.round(Math.min(d.max, Math.max(d.min, wageredAgt * d.rate)) * 100) / 100; };
+
+// The chest: opens every six hours, pays a random slice of what you wagered since it last opened.
+// Random size and a timer are the two oldest hooks in the business; the expected value is printed next to it.
+export const CHEST = { windowMs: 6 * 3600e3, fillAt: 500, minRate: 0.003, maxRate: 0.012, min: 0.25, max: 150 };
+export const chestExpected = (wageredAgt) => (wageredAgt <= 0 ? 0 : Math.round(Math.min(CHEST.max, Math.max(CHEST.min, wageredAgt * (CHEST.minRate + CHEST.maxRate) / 2)) * 100) / 100);
+export const chestAmount = (wageredAgt, roll) => (wageredAgt <= 0 ? 0 : Math.round(Math.min(CHEST.max, Math.max(CHEST.min, wageredAgt * (CHEST.minRate + roll * (CHEST.maxRate - CHEST.minRate)))) * 100) / 100);

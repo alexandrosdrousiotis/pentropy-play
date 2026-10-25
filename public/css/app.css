@@ -1140,3 +1140,68 @@ body.chat-open .main{margin-right:340px}
 .drip-amt{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1}
 .drip-amt small{font-size:12px;color:var(--fg-3);font-weight:600;margin-left:5px}
 .drip .btn{justify-self:start}
+
+/* ============ chest ============ */
+.chest{position:relative;width:calc(160px * var(--sz,1));height:calc(130px * var(--sz,1));flex:none}
+.chest .glow{position:absolute;inset:-35%;border-radius:50%;background:radial-gradient(circle,rgba(230,182,85,.6),rgba(230,182,85,.15) 45%,transparent 65%);opacity:0;transition:opacity .4s;pointer-events:none}
+.chest.ready .glow{opacity:.45;animation:chestglow 1.6s ease-in-out infinite}
+.chest.open .glow{opacity:1}
+@keyframes chestglow{50%{opacity:.9}}
+.chest .box{position:absolute;left:0;right:0;bottom:0;height:62%;border-radius:8px 8px 14px 14px;background:linear-gradient(180deg,#8f4f22,#5a2e12);box-shadow:inset 0 -8px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.08),0 12px 28px rgba(0,0,0,.5)}
+.chest .lid{position:absolute;left:0;right:0;top:0;height:46%;border-radius:40% 40% 8px 8px/70% 70% 8px 8px;background:linear-gradient(180deg,#ad5f27,#703916);transform-origin:50% 100%;transition:transform .6s cubic-bezier(.34,1.25,.5,1);box-shadow:inset 0 6px 0 rgba(255,255,255,.12);z-index:2}
+.chest.open .lid{transform:perspective(420px) rotateX(-118deg)}
+.chest .band{position:absolute;top:0;bottom:0;width:12%;left:17%;background:linear-gradient(90deg,#c9952f,#f7d98a 50%,#c9952f);border-radius:2px}
+.chest .band.r{left:auto;right:17%}
+.chest .lock{position:absolute;left:50%;top:-14%;width:22%;height:40%;margin-left:-11%;border-radius:6px;background:linear-gradient(180deg,#f7d98a,#c9952f);box-shadow:0 2px 0 rgba(0,0,0,.3);z-index:3}
+.chest .coins{position:absolute;left:8%;right:8%;top:22%;height:36%;z-index:1;opacity:0;transition:opacity .3s .2s}
+.chest.open .coins{opacity:1}
+.chest .coins .c{position:absolute;bottom:0;width:17%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff1c4,#e6b655 55%,#b98a2a);box-shadow:0 2px 4px rgba(0,0,0,.4)}
+.chest .coins .c0{left:2%}.chest .coins .c1{left:16%;bottom:28%}.chest .coins .c2{left:31%;bottom:8%}.chest .coins .c3{left:44%;bottom:34%}.chest .coins .c4{left:58%;bottom:12%}.chest .coins .c5{left:70%;bottom:30%}.chest .coins .c6{left:82%;bottom:4%}
+.chest.shake{animation:chestshake .65s ease-in-out}
+@keyframes chestshake{0%,100%{transform:rotate(0)}15%{transform:rotate(-4deg) translateY(-3px)}30%{transform:rotate(4deg)}45%{transform:rotate(-5deg) translateY(-5px)}60%{transform:rotate(5deg)}75%{transform:rotate(-3deg) translateY(-2px)}90%{transform:rotate(2deg)}}
+.chest.open{animation:chestpop .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes chestpop{40%{transform:scale(1.08)}}
+.chest-card{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;align-items:center}
+.chest-stage{display:grid;place-items:center;min-height:210px}
+.chest-stage.big{min-height:270px;width:100%}
+.chest-info{display:grid;gap:10px}
+.chest-status{font-size:15px}
+.chest-meter i{background:linear-gradient(90deg,#c9952f,#f7d98a)}
+.chest-card .btn{justify-self:start}
+.chest-amt{font-size:52px;font-weight:700;color:var(--accent);letter-spacing:-.03em;line-height:1}
+.chest-modal{display:grid;justify-items:center;gap:6px;padding:24px 28px;border-radius:20px;background:var(--surface);border:1px solid var(--line-2);box-shadow:var(--shadow);position:relative;overflow:hidden;max-width:420px;width:100%;text-align:center}
+.chest-modal .btn{margin-top:10px}
+.chest-pill{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface-2);color:var(--fg-2);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.chest-pill svg{width:15px;height:15px;fill:currentColor}
+.chest-pill.ready{color:var(--accent-fg);background:var(--accent);border-color:transparent;animation:pillglow 1.5s ease-in-out infinite}
+@keyframes pillglow{50%{box-shadow:0 0 0 5px var(--accent-soft)}}
+@media (max-width:860px){.chest-card{grid-template-columns:1fr}.chest-stage{min-height:180px}.chest-amt{font-size:44px}.balance-row .chest-pill{order:1;margin-left:auto}.balance-row .tier-badge{order:1;margin-left:0}}
+
+/* ============ crash polish ============ */
+.crash-area svg path.line{filter:drop-shadow(0 0 5px rgba(230,182,85,.55))}
+.crash-area.crashed svg path.line{filter:drop-shadow(0 0 6px rgba(255,92,122,.6))}
+.crash-area .readout{transition:color .2s,transform .2s}
+@media (max-width:860px){.crash-area{height:min(44vh,320px)}}
+
+/* ============ touch and mobile play ============ */
+button,a,input,.cell,.rcell{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.btn:active:not(:disabled){transform:scale(.97)}
+.crumb-back{display:inline-flex;align-items:center;gap:2px;color:var(--fg-3)}
+.crumb-back svg{width:14px;height:14px;fill:currentColor}
+.crumb-back:hover{text-decoration:none;color:var(--fg)}
+@media (max-width:860px){
+  body.playing .tabbar{display:none}
+  body.playing .wrap{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+  body.playing .foot-note{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+  .game-grid .panel.controls .btn.lg{height:52px;font-size:16px}
+  .game-grid .board{padding:12px 10px 56px}
+  .bignum{font-size:48px}
+  .controls .field input{font-size:16px}
+}
+@media (max-width:860px){
+  .top>.row{gap:6px;flex-wrap:nowrap;flex:none}
+  .top .crumb{flex:1}
+  .wallet .go{display:none}
+  .wallet{padding:0 10px}
+  .icon-btn,.sound-toggle,.avatar{width:36px;height:36px;border-radius:9px}
+}

@@ -88,6 +88,7 @@ export const api = {
   socialBig: () => call('GET', '/api/social/big'),
   socialLeaders: () => call('GET', '/api/social/leaders'),
   chatSend: (text) => call('POST', '/api/social/chat', { text }).then((r) => r.message),
+  async openChest() { const r = await call('POST', '/api/rewards/chest'); const before = state.me?.user.balance ?? 0; if (state.me) { state.me.user.balance = r.balance; state.me.rewards = r; } emit('balance', { balance: r.balance, delta: r.balance - before }); emit('me'); return r; },
   async claimDrip(kind) { const r = await call('POST', '/api/rewards/drip', { kind }); const before = state.me?.user.balance ?? 0; if (state.me) { state.me.user.balance = r.balance; state.me.rewards = r; } emit('balance', { balance: r.balance, delta: r.balance - before }); emit('me'); return r; },
   async claimRebate() { const r = await call('POST', '/api/rewards/claim'); const before = state.me?.user.balance ?? 0; if (state.me) { state.me.user.balance = r.balance; state.me.rewards = r; } emit('balance', { balance: r.balance, delta: r.balance - before }); emit('me'); return r; },
   async deposit(amount, source = 'faucet') { const w = await call('POST', '/api/wallet/deposit', { amount, source }); const before = state.me?.user.balance ?? 0; if (state.me) { Object.assign(state.me.user, { balance: w.balance, vault: w.vault, deposited: w.deposited }); } emit('balance', { balance: w.balance, delta: w.balance - before }); emit('me'); return w; },

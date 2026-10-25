@@ -4,7 +4,7 @@
 import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { v, HttpError, bad } from '../shared/validate.js';
 import { sha256, hmacSha256, toHex } from '../shared/sha256.js';
-import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount } from '../shared/tiers.js';
+import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount, CHEST, chestExpected, chestAmount } from '../shared/tiers.js';
 import { botRound, BOT_HANDLES } from '../shared/social-bots.js';
 
 const KEY = 'pentropy.demo.v2';
@@ -85,8 +85,13 @@ const rewardsOf = (u) => {
   const wagered = u.rounds.filter((r) => r.status === 'settled').reduce((a, r) => a + r.amount, 0) / 100;
   const tier = tierById(u.tier), next = nextTier(u.tier);
   return { tier: tier.id, rate: tier.rate, wagered, next: next ? { id: next.id, name: next.name, threshold: next.threshold, remaining: Math.max(0, next.threshold - wagered), progress: Math.min(1, (wagered - tier.threshold) / (next.threshold - tier.threshold)) } : null,
-    rebatePending: Math.floor(u.rebatePending) / 100, rebateClaimed: agt(u.rebateClaimed || 0), bonuses: agt(u.bonuses || 0), edgePaid: statsOf(u).expectedLoss, tiers: TIERS, drips: dripsOf(u) };
+    rebatePending: Math.floor(u.rebatePending) / 100, rebateClaimed: agt(u.rebateClaimed || 0), bonuses: agt(u.bonuses || 0), edgePaid: statsOf(u).expectedLoss, tiers: TIERS, drips: dripsOf(u), chest: chestOf(u) };
 };
+function chestOf(u) {
+  const last = (u.drips || {}).chest || 0, t = now(), ready = t - last >= CHEST.windowMs, since = Math.max(last, t - CHEST.windowMs);
+  const wagered = u.rounds.filter((r) => r.status === 'settled' && r.settledAt > since).reduce((a, r) => a + r.amount, 0) / 100;
+  return { ready, nextAt: ready ? t : last + CHEST.windowMs, wagered, fill: Math.min(1, wagered / CHEST.fillAt), expected: chestExpected(wagered), min: CHEST.min, max: CHEST.max, minRate: CHEST.minRate, maxRate: CHEST.maxRate, windowMs: CHEST.windowMs, openedAt: last || null };
+}
 function dripsOf(u) {
   const last = u.drips || {}, t = now(), out = {};
   for (const kind of DRIP_IDS) {
@@ -128,6 +133,7 @@ const routes = {
   'GET /api/rewards': () => ({ body: rewardsOf(need()) }),
   'POST /api/rewards/claim': () => { const u = need(); const c = Math.floor(u.rebatePending || 0); if (c < 100) throw bad('Rebates can be claimed from 1.00 AGT.'); u.rebatePending -= c; u.rebateClaimed = (u.rebateClaimed || 0) + c; u.balance += c; u.events.push({ type: 'rebate', amount: c, balanceAfter: u.balance, at: now() }); save(); return { body: { ...rewardsOf(u), balance: agt(u.balance) } }; },
   'POST /api/rewards/drip': (b) => { const u = need(); const { kind } = v.object(b, { kind: v.oneOf(DRIP_IDS) }); const d = dripsOf(u)[kind]; if (!d.ready) throw bad(`${d.label} unlocks in ${Math.ceil((d.nextAt - now()) / 60000)} min.`); if (d.available <= 0) throw bad('Nothing wagered in the window, so there is nothing to give back.'); const c = cents(d.available); u.balance += c; u.bonuses = (u.bonuses || 0) + c; u.drips = { ...(u.drips || {}), [kind]: now() }; u.events.push({ type: 'bonus', amount: c, balanceAfter: u.balance, at: now() }); save(); return { body: { ...rewardsOf(u), balance: agt(u.balance), claimed: d.available, kind } }; },
+  'POST /api/rewards/chest': () => { const u = need(); const c = chestOf(u); if (!c.ready) throw bad(`The chest opens in ${Math.ceil((c.nextAt - now()) / 60000)} min.`); if (c.wagered <= 0) throw bad('The chest fills as you play. Nothing has been wagered since it last opened.'); const roll = crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32; const amount = chestAmount(c.wagered, roll), cts = cents(amount); u.balance += cts; u.bonuses = (u.bonuses || 0) + cts; u.drips = { ...(u.drips || {}), chest: now() }; u.events.push({ type: 'bonus', amount: cts, balanceAfter: u.balance, at: now() }); save(); return { body: { ...rewardsOf(u), balance: agt(u.balance), amount, roll, kind: 'chest' } }; },
   'GET /api/wallet': () => ({ body: walletOf(need()) }),
   'POST /api/wallet/deposit': (b) => {
     const u = need(); const { amount, source } = v.object(b, { amount: v.number({ min: 1, max: 1_000_000, decimals: 2 }), source: v.oneOf(['faucet', 'vault'], { optional: true, default: 'faucet' }) });

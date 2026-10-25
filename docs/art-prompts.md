@@ -115,3 +115,21 @@ Empty space [ The left third and the top 40% are free of objects but fully textu
 
 Aspect ratio [ 16:9 ]
 ```
+
+## Extra pieces
+
+### The chest (Rebates page and the opening modal, 1:1, transparent background)
+
+**Color combination:** Inferno base palette with GLOW = molten gold (#f7d98a core, #e6b655 mid, #c9952f shadow). The chest body is the reference's deep walnut brown (#5a2e12 to #8f4f22) with charcoal-navy shadows; gold bands and lock pick up the glow.
+**Elements:** A squat iron-banded treasure chest, three-quarter view from slightly above, lid open about 60 degrees, light pouring upward from inside; gold coins heaped to the rim, a few mid-air; the same chips and dice from the roulette reference scattered at the base; thin violet smoke curling off the back edge.
+**Detail density:** High on the chest and coins, soft and painterly on the smoke; no text.
+**Empty space:** 20% margin on all sides so the UI can scale it; nothing touches the edges.
+**Aspect ratio:** 1:1, deliver as PNG with alpha, 1024×1024. A second closed-lid variant for the "filling" state.
+
+### Lobby hero (replaces the roulette banner on the landing page, 16:9)
+
+**Color combination:** Inferno base; GLOW = coral flame (#ff6b5a) left blending to violet (#6d5bd0) right, so every featured tile colour sits comfortably on it.
+**Elements:** A low, wide casino floor seen from table height: roulette wheel left, a crash curve drawn in light across the middle, a Plinko board and a mines grid fading into the smoke on the right; chips and dice in the foreground; no people, no logos, no text.
+**Detail density:** Dense in the lower third, dissolving to near-empty smoke in the upper third where the headline sits.
+**Empty space:** Upper-left quarter kept clear for the headline and two buttons.
+**Aspect ratio:** 16:9 at 2400×1350, plus a 4:5 crop for phones with the clear area at the top.

@@ -10,6 +10,7 @@ import { countTo, sound } from './fx.js';
 import { openWallet } from './wallet.js';
 import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
 import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout } from './social.js';
+import { chestCard, chestPill } from './chest.js';
 
 const app = document.getElementById('app');
 const side = document.getElementById('side');
@@ -20,7 +21,7 @@ let activeGame = null; // { module, unmount }
 
 /* ---------------- shell ---------------- */
 const NAV = [
-  ['#/', 'Home', 'ph-house'], ['#/rewards', 'Rewards', 'ph-trophy'], ['#/stats', 'Stats', 'ph-chart-bar'], ['#/learn', 'Learn', 'ph-book-open'], ['#/fair', 'Fairness', 'ph-shield-check'],
+  ['#/', 'Home', 'ph-house'], ['#/rebates', 'Rebates', 'ph-gift'], ['#/stats', 'Stats', 'ph-chart-bar'], ['#/learn', 'Learn', 'ph-book-open'], ['#/fair', 'Fairness', 'ph-shield-check'],
 ];
 const isCurrent = (href, route) => route === href || (href !== '#/' && route.startsWith(href));
 
@@ -36,7 +37,7 @@ function renderChrome() {
   );
   const crumb = (() => {
     const g = route.match(/^#\/play\/([a-z]+)$/);
-    if (g) return [h('span', {}, 'Games'), h('span', {}, '/'), h('b', {}, gameById(g[1])?.name ?? '')];
+    if (g) return [h('a', { href: '#/', class: 'crumb-back' }, svgUse('ph-caret-left'), 'Games'), h('span', { class: 'crumb-sep' }, '/'), h('b', {}, gameById(g[1])?.name ?? '')];
     const found = NAV.find(([href]) => isCurrent(href, route));
     if (route === '#/signup') return [h('b', {}, 'Create account')];
     if (route === '#/login') return [h('b', {}, 'Log in')];
@@ -61,7 +62,7 @@ function renderChrome() {
 }
 function tierFoot(rw) {
   const t = tierById(rw.tier);
-  return h('a', { class: 'foot tierfoot', href: '#/rewards' },
+  return h('a', { class: 'foot tierfoot', href: '#/rebates' },
     h('span', { class: 'tier-badge', style: { color: t.colour } }, svgUse('ph-medal'), t.name),
     rw.next ? h('div', { class: 'tier-prog' }, h('div', { class: 'progress' }, h('i', { style: { width: `${rw.next.progress * 100}%` } })), h('span', {}, `${fmt(rw.next.remaining, 0)} to ${rw.next.name}`)) : h('span', {}, 'Top tier'),
     rw.rebatePending >= 1 ? h('span', { class: 'tag green' }, `${fmt(rw.rebatePending)} to claim`) : null);
@@ -89,15 +90,17 @@ const routes = [
   [/^#\/learn$/, learnPage],
   [/^#\/fair$/, fairPage],
   [/^#\/account$/, accountPage],
-  [/^#\/rewards$/, rewardsPage],
+  [/^#\/rebates$/, rewardsPage],
+  [/^#\/rewards$/, () => { location.hash = '#/rebates'; return null; }],
 ];
 async function render() {
   if (activeGame) { try { await activeGame.unmount?.(); } catch { /* ignore */ } activeGame = null; }
   const hash = location.hash || '#/';
   const found = routes.find(([re]) => re.test(hash));
+  document.body.classList.toggle('playing', /^#\/play\//.test(hash));
   renderChrome();
   if (!found) { location.hash = '#/'; return; }
-  const needsAuth = /^#\/(play|stats|fair|account|rewards)/.test(hash);
+  const needsAuth = /^#\/(play|stats|fair|account|rewards|rebates)/.test(hash);
   if (needsAuth && !user()) { app.replaceChildren(...[authPage('login', 'Sign in to continue.')].flat().filter(Boolean)); return; }
   const [re, page] = found;
   const out = await page(...hash.match(re).slice(1));
@@ -222,7 +225,8 @@ async function lobbyPage() {
       stat('Today', fmtSigned(sessNet), sessNet > 0 ? 'good' : sessNet < 0 ? 'bad' : ''),
       stat('Edge taken', '−' + fmt(s.expectedLoss), 'bad'),
       h('div', { class: 'spacer' }),
-      h('a', { class: 'tier-badge lg', href: '#/rewards', style: { color: tierById(m.rewards?.tier).colour } }, svgUse('ph-medal'), tierById(m.rewards?.tier).name),
+      m.rewards?.chest && chestPill(m.rewards.chest),
+      h('a', { class: 'tier-badge lg', href: '#/rebates', style: { color: tierById(m.rewards?.tier).colour } }, svgUse('ph-medal'), tierById(m.rewards?.tier).name),
       button('Deposit', { kind: 'primary', size: 'sm', onClick: () => openWallet('deposit') }),
       button('Withdraw', { kind: 'tertiary', size: 'sm', onClick: () => openWallet('withdraw') })),
     open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
@@ -506,14 +510,15 @@ async function rewardsPage() {
   dripTimer = setInterval(() => { if (!drips.isConnected) return clearInterval(dripTimer); paintDrips(); }, 1000);
   const given = rw.rebateClaimed + rw.rebatePending + rw.bonuses;
   return h('div', { class: 'stack', style: { gap: '20px' } },
-    h('div', { class: 'row between' }, h('h2', {}, 'Rewards'), h('span', { class: 'tier-badge lg', style: { color: t.colour } }, svgUse('ph-medal'), t.name)),
+    h('div', { class: 'row between' }, h('h2', {}, 'Rebates'), h('span', { class: 'tier-badge lg', style: { color: t.colour } }, svgUse('ph-medal'), t.name)),
+    chestCard(rw.chest),
     h('section', { class: 'plate' },
-      h('div', { class: 'row between' }, h('h3', {}, 'Bonuses'), h('span', { class: 't-desc' }, `${fmt(rw.bonuses)} AGT given so far`)),
+      h('div', { class: 'row between' }, h('h3', {}, 'Timed rebates'), h('span', { class: 't-desc' }, `${fmt(rw.bonuses)} AGT given so far`)),
       drips,
       h('p', { class: 'help' }, `Each drip returns a fraction of what you wagered in its window, and only if you come back in time. The edge took ${fmtPct(1 - 0.99, 0)} of every bet on the way; the hourly one gives back 0.5%. The timer is the product, not the money.`)),
     h('section', { class: 'rw-hero' },
       h('div', { class: 'rw-main' },
-        h('div', { class: 't-label' }, 'Rakeback available'),
+        h('div', { class: 't-label' }, 'Rakeback to claim'),
         h('div', { class: 'rw-big num' }, fmt(rw.rebatePending), h('small', {}, 'AGT')),
         h('p', { class: 'help' }, `${(t.rate * 100).toFixed(1)}% of the house edge on every bet comes back to you as ${t.name}.`),
         claim),

@@ -1,7 +1,8 @@
 import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { api } from '../api.js';
-import { crashMultiplierAt, limboWinChance, LIMBO_MAX } from '../../shared/math.js';
+import { crashMultiplierAt, limboWinChance, LIMBO_MAX, CRASH_K } from '../../shared/math.js';
+const curveAt = (ms) => Math.exp(CRASH_K * (ms / 1000)); // continuous curve for drawing; settlement uses the floored value
 import { sound, flashGreen, flashRed, shake, winBurst, sparkle, shockwave } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
 
@@ -40,12 +41,16 @@ export function mount(root, meta) {
   L.reality.append(reality);
 
   const fmtS = (ms) => `${(ms / 1000).toFixed(0)}s`;
-  function drawFrame(elapsed, m) {
-    const T = Math.max(8000, elapsed * 1.08), M = Math.max(2, m * 1.15);
+  // The axes chase the curve with an exponential lag so the view never jumps; tick labels only re-render when they change.
+  let vT = 8000, vM = 2, tickKey = '';
+  function drawFrame(elapsed, m, { snap = false } = {}) {
+    const tT = Math.max(8000, elapsed * 1.12), tM = Math.max(2, m * 1.22);
+    if (snap || elapsed === 0) { vT = tT; vM = tM; } else { vT += (tT - vT) * 0.1; vM += (tM - vM) * 0.1; }
+    const T = vT, M = vM;
     const pts = [];
-    const N = 80;
-    for (let i = 0; i <= N; i++) { const t = (elapsed * i) / N; pts.push([(t / T) * 100, 60 - ((crashMultiplierAt(t) - 1) / (M - 1)) * 54]); }
-    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ');
+    const N = 120;
+    for (let i = 0; i <= N; i++) { const t = (elapsed * i) / N; pts.push([(t / T) * 100, 60 - ((curveAt(t) - 1) / (M - 1)) * 54]); }
+    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(3)},${p[1].toFixed(3)}`).join(' ');
     line.setAttribute('d', d);
     fill.setAttribute('d', `${d} L${pts[N][0].toFixed(2)},60 L0,60 Z`);
     const rect = area.getBoundingClientRect();
@@ -54,10 +59,14 @@ export function mount(root, meta) {
     const ang = elapsed > 0 ? Math.atan2(tipY - prevY, tipX - prevX) * 180 / Math.PI : -20;
     dot.classList.add('on'); dot.style.left = `${tipX}px`; dot.style.top = `${tipY}px`; dot.style.transform = `translate(-50%,-50%) rotate(${ang + 45}deg)`;
     // axes
-    ticksX.replaceChildren(...[0, .25, .5, .75, 1].map((f) => h('span', {}, fmtS(T * f))));
-    const ys = [1, 1 + (M - 1) * .25, 1 + (M - 1) * .5, 1 + (M - 1) * .75, M];
-    ticksY.replaceChildren(...ys.map((v) => h('span', {}, fmtMult(v))));
-    grid.replaceChildren(...[.25, .5, .75].map((f) => el('line', { x1: 0, x2: 100, y1: 60 - 54 * f, y2: 60 - 54 * f, stroke: 'rgba(255,255,255,.06)', 'stroke-width': .3 })));
+    const xs = [0, .25, .5, .75, 1].map((f) => fmtS(T * f)), ys = [1, 1 + (M - 1) * .25, 1 + (M - 1) * .5, 1 + (M - 1) * .75, M].map((v) => fmtMult(v));
+    const key = xs.join() + '|' + ys.join();
+    if (key !== tickKey) {
+      tickKey = key;
+      ticksX.replaceChildren(...xs.map((s) => h('span', {}, s)));
+      ticksY.replaceChildren(...ys.map((s) => h('span', {}, s)));
+      if (!grid.childElementCount) grid.replaceChildren(...[.25, .5, .75].map((f) => el('line', { x1: 0, x2: 100, y1: 60 - 54 * f, y2: 60 - 54 * f, stroke: 'rgba(255,255,255,.06)', 'stroke-width': .3 })));
+    }
   }
   function frame() {
     if (done) return;
@@ -111,7 +120,7 @@ export function mount(root, meta) {
     const win = r.multiplier > 0;
     const point = r.outcome.point;
     const elapsedAtPoint = (Math.log(point) / 0.12) * 1000;
-    drawFrame(elapsedAtPoint, point);
+    drawFrame(elapsedAtPoint, point, { snap: true });
     readout.firstChild.textContent = fmtMult(win ? r.multiplier : point);
     readout.lastChild.textContent = win ? `cashed out${r.outcome.auto ? ' (auto)' : ''} · crashed at ${fmtMult(point)}` : `crashed at ${fmtMult(point)}`;
     if (!win) { sparkle(dot, L.board, { color: '#ff5c7a', count: 24, spread: 90 }); shockwave(dot, L.board); dot.classList.add('boom'); area.classList.add('crashed'); sound.play('crash'); shake(area); flashRed(L.board); }
@@ -121,7 +130,7 @@ export function mount(root, meta) {
     setLive(false);
     if (resolveRound) { const rr = resolveRound; resolveRound = null; rr(r); }
   }
-  drawFrame(0, 1);
+  drawFrame(0, 1, { snap: true });
   attachAuto({ panel: L.controls, amount, manual: [play, cash], playRound: (a) => start(a), canStart: () => (auto > 0 ? null : 'Set an auto cash out multiplier to run auto bet.'), rtp: () => 0.99 });
   const existing = openRoundFor('crash');
   if (existing) { auto = existing.params.autoCashout || 0; autoField.set(auto); amount.set(existing.amount); begin(existing); }

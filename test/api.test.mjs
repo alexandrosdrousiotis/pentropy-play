@@ -311,3 +311,26 @@ test('bonus drips: hourly reload pays a slice of the window wager once per hour;
   const bad = await c('POST', '/api/rewards/drip', { kind: 'monthly' });
   assert.equal(bad.status, 400);
 });
+
+test('chest: fills with wager, opens once per six hours for a random slice inside the published bounds', async () => {
+  const c = client('chest');
+  await c('POST', '/api/auth/signup', { username: 'chester', password: 'a very fine passphrase' });
+  const empty = await c('POST', '/api/rewards/chest');
+  assert.equal(empty.status, 400);
+  for (let i = 0; i < 8; i++) await c('POST', '/api/rounds', { game: 'dice', amount: 50, params: { chance: 50, over: true } });
+  let rw = await c('GET', '/api/rewards');
+  assert.equal(rw.json.chest.wagered, 400);
+  assert.equal(rw.json.chest.fill, 0.8);
+  assert.equal(rw.json.chest.ready, true);
+  const before = (await c('GET', '/api/me')).json.user.balance;
+  const open = await c('POST', '/api/rewards/chest');
+  assert.equal(open.status, 200);
+  assert.ok(open.json.amount >= 1.2 && open.json.amount <= 4.8, `amount ${open.json.amount} within 0.3%..1.2% of 400`);
+  assert.equal(open.json.balance, Math.round((before + open.json.amount) * 100) / 100);
+  const again = await c('POST', '/api/rewards/chest');
+  assert.equal(again.status, 400);
+  assert.match(again.json.error, /opens in/);
+  rw = await c('GET', '/api/rewards');
+  assert.equal(rw.json.chest.ready, false);
+  assert.equal(rw.json.chest.wagered, 0);
+});
