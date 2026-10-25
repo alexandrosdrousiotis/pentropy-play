@@ -1422,3 +1422,64 @@ body.chat-open .tabbar .tab-chat{color:var(--accent)}
 @media (max-width:860px){.kball{width:28px;height:28px;font-size:11px}.keno-balls{gap:5px;min-height:28px;flex-wrap:nowrap}}
 .lane.crossed .veh{opacity:0;transition:opacity .35s}
 .lane.hit .veh:not(.crash){opacity:0}
+
+/* ============ v4: one spacing scale, fewer controls ============ */
+:root{--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--radius:12px}
+.stack.page{gap:var(--s6)}
+.stack.section{gap:var(--s3)}
+.wrap{gap:var(--s6);padding:var(--s4) var(--s5) 56px}
+.panel,.plate,.tile,.card,.island,.board,.cat-card,.hero-banner,.live-bar,.chest-card,.ref-link,.drip,.players,.live-bets,.crash-area,.road-view,.slide-view,.ticker,.banner{border-radius:var(--radius)}
+.panel,.plate{padding:var(--s4);gap:var(--s3)}
+.cards,.islands,.cat-cards,.reality,.stat-grid,.drips,.ref-grid,.two{gap:var(--s3)}
+.grow .cards{gap:var(--s3)}
+.section-head{align-items:center;margin:0}
+.section-head h2{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.head-tools{display:flex;align-items:center;gap:var(--s2)}
+.view-all{display:inline-flex;align-items:center;height:28px;padding:0 var(--s3);border-radius:999px;background:var(--surface-2);color:var(--fg-2);font-size:12px;font-weight:600}
+.view-all:hover{background:var(--surface-3);color:var(--fg);text-decoration:none}
+.row-arrows{gap:var(--s1)}
+.row-arrows button{width:28px;height:28px}
+/* hero promo */
+.hero-banner.promo{min-height:260px;align-items:center}
+.hero-banner.promo .hero-copy{padding:var(--s5) var(--s6);gap:var(--s2)}
+.hero-banner.promo h1{font-size:clamp(24px,2.6vw,34px)}
+.hero-banner.promo .lead{font-size:14px;max-width:52ch}
+.hero-banner.promo .row{margin-top:var(--s2)}
+.hero-link{color:#fff;font-weight:600;font-size:14px;align-self:center;margin-left:var(--s3);text-decoration:underline;text-underline-offset:4px;text-decoration-color:rgba(255,255,255,.4)}
+/* category cards */
+.cat-cards{display:grid;grid-template-columns:1fr 1fr}
+.cat-card{position:relative;display:grid;align-content:end;gap:var(--s1);min-height:140px;padding:var(--s4) var(--s5);overflow:hidden;color:var(--fg);text-decoration:none;background:radial-gradient(120% 120% at 100% 0%,color-mix(in srgb,var(--c,#334) 38%,var(--surface)),var(--surface) 70%);border:1px solid var(--line);transition:transform var(--med) var(--ease),border-color var(--fast)}
+.cat-card:hover{transform:translateY(-2px);border-color:var(--line-3);text-decoration:none}
+.cat-card h3{font-size:20px;font-weight:700;text-transform:none;letter-spacing:-.01em;color:var(--fg)}
+.cat-card p{font-size:13px;color:var(--fg-2);max-width:40ch}
+.cc-art{position:absolute;right:var(--s4);top:var(--s3);width:96px;height:96px;opacity:.95}
+.cc-art svg{width:100%;height:100%;fill:color-mix(in srgb,var(--c,#fff) 55%,#fff);filter:drop-shadow(0 10px 24px color-mix(in srgb,var(--c,#000) 55%,transparent))}
+/* tiles: same radius, same gap, no extra chrome */
+.grow .card{flex-basis:168px}
+.card{border-radius:var(--radius)}
+.live-bets{padding:var(--s4)}
+.lb-body{gap:2px}
+/* top bar: balance pill and avatar only, plus chat on desktop */
+.wallet{height:38px;border-radius:10px}
+.wallet .go{height:30px;border-radius:7px;font-size:12px;padding:0 12px}
+@media (max-width:860px){
+  .stack.page{gap:var(--s4)}
+  .wrap{padding:var(--s3) var(--s3) calc(84px + env(safe-area-inset-bottom,0px));gap:var(--s4)}
+  .panel,.plate{padding:var(--s3)}
+  .hero-banner.promo{min-height:200px}
+  .hero-banner.promo .hero-copy{padding:var(--s4)}
+  .hero-banner.promo h1{font-size:22px}
+  .hero-banner.promo .lead{font-size:13px}
+  .cat-cards{grid-template-columns:1fr 1fr;gap:var(--s2)}
+  .cat-card{min-height:104px;padding:var(--s3)}
+  .cat-card h3{font-size:15px}.cat-card p{font-size:11px}
+  .cc-art{width:56px;height:56px;right:var(--s2);top:var(--s2)}
+  .section-head h2{font-size:16px}
+  .view-all{height:26px;font-size:11px}
+}
+@media (max-width:860px){
+  .grow .card,.landing .grow .card{flex-basis:calc((100% - 16px) / 3)}
+  .hero-banner.promo .btn,.hero-banner .btn{width:auto;align-self:flex-start}
+  .cat-card{padding-right:72px}
+  .cat-card .cc-art{width:48px;height:48px;right:var(--s3);top:50%;transform:translateY(-50%)}
+}
