@@ -823,7 +823,7 @@ a.card:hover .art img{transform:scale(1.04)}
   .hero-copy h1{font-size:30px}
   .hero-copy .lead{font-size:14px}
   .hero-copy .row{gap:8px}
-  .hero-copy .row .btn{flex:1}
+  .hero-copy .row .btn{flex:0 0 auto}
   .landing .reality{grid-template-columns:1fr 1fr}
   .landing .grow .card{flex-basis:124px}
   .cta-card{padding:18px}
