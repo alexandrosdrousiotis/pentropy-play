@@ -3,6 +3,7 @@ import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js
 import { DIAMOND_HANDS, DIAMOND_PAYTABLE, DIAMOND_PROBS, diamondsRtp } from '../../shared/math.js';
 import { sound, sleep, popIn, flashGreen, winBurst, sparkle } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
+import { gem3d } from '../solid.js';
 
 const COLOURS = ['#ff5c7a', '#f0a040', '#f5d35e', '#3ccf8f', '#38bdf8', '#8b9cff', '#c084fc'];
 export function mount(root, meta) {
@@ -21,7 +22,8 @@ export function mount(root, meta) {
   const reality = realityPanel(meta, () => amount.get(), () => ({ rtp: diamondsRtp(), winChance: DIAMOND_HANDS.filter((n) => DIAMOND_PAYTABLE[n] > 1).reduce((a, n) => a + DIAMOND_PROBS[n], 0) }));
   L.reality.append(reality);
   function table(hit = null) { payEl.replaceChildren(h('thead', {}, h('tr', {}, h('th', {}, 'Hand'), h('th', {}, 'Pays'), h('th', {}, 'Chance'))), h('tbody', {}, ...DIAMOND_HANDS.map((n) => h('tr', { class: n === hit ? 'hit' : '' }, h('td', {}, n), h('td', {}, fmtMult(DIAMOND_PAYTABLE[n])), h('td', {}, fmtPct(DIAMOND_PROBS[n], 2)))))); }
-  const gem = (c, blank = false) => h('div', { class: 'gem', style: { color: blank ? 'var(--surface-3)' : COLOURS[c] } }, svgUse('ph-diamond'));
+  const gem = (c, blank = false) => { const g = gem3d(blank ? '#3a4150' : COLOURS[c], 88); if (blank) g.classList.add('blank'); return g; };
+  const tint = (g, colour) => { g.style.setProperty('--g', colour); g.classList.remove('blank'); };
   function idle() { row.replaceChildren(...Array.from({ length: 5 }, () => gem(0, true))); }
   async function go(amt = amount.get()) {
     if (busy) return null;
@@ -33,8 +35,8 @@ export function mount(root, meta) {
     const cols = round.outcome.colours;
     for (let i = 0; i < 5; i++) {
       const g = row.children[i]; g.classList.add('spin');
-      for (let s = 0; s < 5 + i * 2; s++) { g.style.color = COLOURS[Math.floor(Math.random() * COLOURS.length)]; sound.play('tick'); await sleep(55); }
-      g.classList.remove('spin'); g.style.color = COLOURS[cols[i]]; popIn(g); sound.play('reveal'); await sleep(80);
+      for (let s = 0; s < 5 + i * 2; s++) { tint(g, COLOURS[Math.floor(Math.random() * COLOURS.length)]); sound.play('tick'); await sleep(55); }
+      g.classList.remove('spin'); tint(g, COLOURS[cols[i]]); popIn(g); sound.play('reveal'); await sleep(80);
     }
     const counts = cols.reduce((a, c) => { a[c] = (a[c] || 0) + 1; return a; }, {});
     const matched = [...row.children].filter((g, i) => counts[cols[i]] >= 2);

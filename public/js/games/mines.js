@@ -3,6 +3,7 @@ import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundF
 import { minesMultiplier, minesNextSafeChance, round2, MINES_CELLS } from '../../shared/math.js';
 import { sleep, sound, shake, flashRed, flashGreen, winBurst, pulse, sparkle, shockwave } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
+import { gem3d } from '../solid.js';
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -29,7 +30,7 @@ export function mount(root, meta) {
 
   const setCell = (c, kind, { dim = false, hit = false } = {}) => {
     c.className = `cell flip ${kind}${dim ? ' dim' : ''}${hit ? ' hitcell' : ''}`;
-    c.replaceChildren(toy(kind === 'gem' ? 'gem' : 'bomb', kind === 'gem' ? 26 : 28));
+    c.replaceChildren(kind === 'gem' ? gem3d('#3ccf8f', 40) : toy('bomb', 28));
     c.disabled = true;
   };
   function resetGrid(enabled) {

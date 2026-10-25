@@ -2,6 +2,7 @@ import { h, button, fmtMult, outcomeBanner, resultsStrip, fmt, svgUse } from '..
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { CHAIN_STEP, round2 } from '../../shared/math.js';
 import { sound, sleep, flashRed, flashGreen, winBurst, pulse } from '../fx.js';
+import { coin3d } from '../solid.js';
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -10,18 +11,17 @@ export function mount(root, meta) {
   const play = button('Start', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const cash = button('Cash out', { kind: 'orange', size: 'lg block', disabled: true, onClick: () => cashout() });
   L.controls.append(amount, play, cash);
-  const inner = h('div', { class: 'inner' }, h('div', { class: 'face heads' }, svgUse('ph-crown')), h('div', { class: 'face tails' }, svgUse('ph-lightning')));
-  const coin = h('div', { class: 'coin3d' }, inner);
+  const coin = coin3d({ size: 150, thick: 13 });
   const mult = h('div', { class: 'bignum num', style: { fontSize: '56px' } }, '1.00x');
   const btns = h('div', { class: 'chain-choices' }, ...['heads', 'tails'].map((c) => button([svgUse(c === 'heads' ? 'ph-crown' : 'ph-lightning'), h('span', {}, c)], { kind: 'tertiary', size: 'lg', disabled: true, onClick: () => flip(c) })));
   const trail = h('div', { class: 'results' });
-  L.stage.append(h('div', { class: 'stack', style: { width: '100%', justifyItems: 'center', gap: '18px' } }, mult, coin, btns, trail));
+  L.stage.append(h('div', { class: 'stack', style: { width: '100%', justifyItems: 'center', gap: '18px' } }, mult, coin.el, btns, trail));
   const banner = outcomeBanner(L.board);
   const strip = resultsStrip();
   L.results.append(h('h3', {}, 'Recent streaks'), strip.el);
   const reality = realityPanel(meta, () => amount.get(), () => ({ winChance: 0.5, multiplier: round2((round?.view?.multiplier ?? 1) * CHAIN_STEP) }));
   L.reality.append(reality);
-  const setFace = (side, extraTurns) => { turns += extraTurns; inner.style.transform = `rotateY(${turns * 360 + (side === 'tails' ? 180 : 0)}deg) rotateX(10deg)`; };
+  const setFace = (side, extraTurns) => coin.set(side, extraTurns, extraTurns > 0);
   function paint() {
     const v = round?.view; const live = Boolean(round);
     play.disabled = live; amount.setDisabled(live);
@@ -43,14 +43,14 @@ export function mount(root, meta) {
   async function flip(choice) {
     if (busy || !round) return;
     busy = true; paint(); sound.play('flip');
-    coin.classList.add('spin');
+    coin.spin(true);
     const out = await tryAct('flip', { choice }, { defer: true });
-    await sleep(700);
-    coin.classList.remove('spin');
+    await sleep(500);
+    coin.spin(false);
     if (!out) { busy = false; paint(); return; }
     const flips = out.round.status === 'settled' ? out.round.outcome.flips : out.round.view.flips;
     const last = flips[flips.length - 1];
-    setFace(last.result, 3); sound.play('tick');
+    setFace(last.result, 2); sound.play('tick');
     await sleep(1500);
     if (last.ok) { sound.play('reveal'); flashGreen(L.board); pulse(mult); } else { sound.play('lose'); flashRed(L.board); }
     busy = false;
