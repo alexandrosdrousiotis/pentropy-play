@@ -23,7 +23,7 @@ export function createServer(overrides = {}) {
   const auth = createAuth(db, cfg, seedCipher);
   const social = createSocial(db, cfg);
   const api = createApi({ db, config: cfg, auth, seedCipher, social });
-  const limiters = { general: new RateLimiter(cfg.rateLimit.general), auth: new RateLimiter(cfg.rateLimit.auth), play: new RateLimiter(cfg.rateLimit.play), chat: new RateLimiter(cfg.rateLimit.chat || { windowMs: 10e3, max: 6 }) };
+  const limiters = { general: new RateLimiter(cfg.rateLimit.general), auth: new RateLimiter(cfg.rateLimit.auth), play: new RateLimiter(cfg.rateLimit.play), chat: new RateLimiter(cfg.rateLimit.chat || { windowMs: 10e3, max: 6 }), live: new RateLimiter(cfg.rateLimit.live || { windowMs: 60e3, max: 900 }) };
   const https_ = Boolean(cfg.tlsCert && cfg.tlsKey);
 
   async function serveStatic(pathname, res) {
@@ -81,7 +81,7 @@ export function createServer(overrides = {}) {
   server.keepAliveTimeout = 5_000;
   server.maxHeadersCount = 60;
   server.on('clientError', (err, socket) => { if (!socket.destroyed) socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'); });
-  return { server, db, close: () => new Promise((r) => server.close(() => { social.close(); db.close(); r(); })) };
+  return { server, db, api, close: () => new Promise((r) => server.close(() => { api.close?.(); social.close(); db.close(); r(); })) };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -43,7 +43,10 @@ export const api = {
   async boot() {
     try { applyMe(await call('GET', '/api/me')); } catch { state.me = null; state.loading = false; emit('me'); }
   },
-  async signUp(username, password) { applyMe(await call('POST', '/api/auth/signup', { username, password })); emit('auth'); },
+  async signUp(username, password, ref) { const out = await call('POST', '/api/auth/signup', ref ? { username, password, ref } : { username, password }); applyMe(out); emit('auth'); return out; },
+  pulse: () => call('GET', '/api/pulse'),
+  referrals: () => call('GET', '/api/referrals'),
+  async claimReferral() { const r = await call('POST', '/api/referrals/claim'); applyBalance(r.balance, r.balance - (state.me?.user.balance ?? r.balance)); return r; },
   async logIn(username, password) { applyMe(await call('POST', '/api/auth/login', { username, password })); emit('auth'); },
   async logOut() { await call('POST', '/api/auth/logout').catch(() => {}); state.me = null; emit('auth'); emit('me'); },
   async deleteAccount(password) { await call('DELETE', '/api/me', { password }); state.me = null; emit('auth'); emit('me'); },
@@ -84,6 +87,11 @@ export const api = {
   async readLesson(id) { const out = await call('POST', '/api/lessons/read', { id }); if (state.me) state.me.user.lessonsRead = out.lessonsRead; emit('me'); return out; },
   wallet: () => call('GET', '/api/wallet'),
   rewards: () => call('GET', '/api/rewards'),
+  /* shared live tables: state polls carry the balance so settlements land without a refresh */
+  async live(game) { const s = await call('GET', `/api/live/${game}`); if (state.me && typeof s.balance === 'number' && s.balance !== state.me.user.balance) { const before = state.me.user.balance; state.me.user.balance = s.balance; emit('balance', { balance: s.balance, delta: s.balance - before }); } return s; },
+  async liveBet(game, body) { const r = await call('POST', `/api/live/${game}/bet`, body); applyBalance(r.balance, r.balance - (state.me?.user.balance ?? r.balance)); return r; },
+  async liveCashout() { const r = await call('POST', '/api/live/crash/cashout'); applyBalance(r.balance, r.balance - (state.me?.user.balance ?? r.balance)); return r; },
+  async liveClear() { const r = await call('POST', '/api/live/roulette/clear'); applyBalance(r.balance, r.balance - (state.me?.user.balance ?? r.balance)); return r; },
   social: (after = 0, chat = 0) => call('GET', `/api/social?after=${after}&chat=${chat}`),
   socialBig: () => call('GET', '/api/social/big'),
   socialLeaders: () => call('GET', '/api/social/leaders'),

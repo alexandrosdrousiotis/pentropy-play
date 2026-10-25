@@ -90,6 +90,26 @@ export function openDatabase(path) {
     );
     CREATE INDEX IF NOT EXISTS events_user ON events(user_id, id);
     CREATE INDEX IF NOT EXISTS rounds_settled ON rounds(status, settled_at);
+    CREATE TABLE IF NOT EXISTS live_rounds (
+      id INTEGER PRIMARY KEY,
+      game TEXT NOT NULL,
+      seed_hash TEXT NOT NULL,
+      seed TEXT,
+      result REAL,
+      opened_at INTEGER NOT NULL,
+      ended_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS live_bets (
+      id INTEGER PRIMARY KEY,
+      game TEXT NOT NULL,
+      round_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      amount INTEGER NOT NULL,
+      params TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('open','settled','refunded')),
+      at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS live_bets_open ON live_bets(status, user_id);
     CREATE TABLE IF NOT EXISTS chat (
       id INTEGER PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -103,6 +123,11 @@ export function openDatabase(path) {
   if (!cols.has('vault')) db.exec('ALTER TABLE users ADD COLUMN vault INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('ghost')) db.exec('ALTER TABLE users ADD COLUMN ghost INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('drips')) db.exec("ALTER TABLE users ADD COLUMN drips TEXT NOT NULL DEFAULT '{}'");
+  if (!cols.has('ref_code')) db.exec('ALTER TABLE users ADD COLUMN ref_code TEXT');
+  if (!cols.has('referred_by')) db.exec('ALTER TABLE users ADD COLUMN referred_by INTEGER');
+  if (!cols.has('ref_pending')) db.exec('ALTER TABLE users ADD COLUMN ref_pending REAL NOT NULL DEFAULT 0');
+  if (!cols.has('ref_claimed')) db.exec('ALTER TABLE users ADD COLUMN ref_claimed INTEGER NOT NULL DEFAULT 0');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_ref_code ON users(ref_code)');
   if (!cols.has('deposited')) db.exec('ALTER TABLE users ADD COLUMN deposited INTEGER NOT NULL DEFAULT 0');
   if (!cols.has('tier')) db.exec("ALTER TABLE users ADD COLUMN tier TEXT NOT NULL DEFAULT 'bronze'");
   if (!cols.has('rebate_pending')) db.exec('ALTER TABLE users ADD COLUMN rebate_pending REAL NOT NULL DEFAULT 0');

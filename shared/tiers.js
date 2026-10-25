@@ -27,3 +27,6 @@ export const dripAmount = (kind, wageredAgt) => { const d = DRIPS[kind]; if (!d 
 export const CHEST = { windowMs: 6 * 3600e3, fillAt: 500, minRate: 0.003, maxRate: 0.012, min: 0.25, max: 150 };
 export const chestExpected = (wageredAgt) => (wageredAgt <= 0 ? 0 : Math.round(Math.min(CHEST.max, Math.max(CHEST.min, wageredAgt * (CHEST.minRate + CHEST.maxRate) / 2)) * 100) / 100);
 export const chestAmount = (wageredAgt, roll) => (wageredAgt <= 0 ? 0 : Math.round(Math.min(CHEST.max, Math.max(CHEST.min, wageredAgt * (CHEST.minRate + roll * (CHEST.maxRate - CHEST.minRate)))) * 100) / 100);
+
+// Referrals: the friend gets a welcome boost, the referrer gets a cut of the edge the friend pays. Affiliate maths, labelled.
+export const REFERRAL = { bonus: 50, rate: 0.10, minClaim: 1 };

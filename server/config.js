@@ -40,7 +40,7 @@ export const config = Object.freeze({
   sessionIdleMs: 7 * 24 * 3600e3,
   sessionAbsoluteMs: 30 * 24 * 3600e3,
   bodyLimit: 8 * 1024,
-  rateLimit: { general: { windowMs: 60e3, max: 240 }, auth: { windowMs: 60e3, max: 12 }, play: { windowMs: 10e3, max: 60 }, chat: { windowMs: 10e3, max: 6 } },
+  rateLimit: { general: { windowMs: 60e3, max: 240 }, auth: { windowMs: 60e3, max: 12 }, play: { windowMs: 10e3, max: 60 }, chat: { windowMs: 10e3, max: 6 }, live: { windowMs: 60e3, max: 900 } },
   social: { ambient: env.SOCIAL_AMBIENT !== '0', chatKeep: 500 },
   lockout: { threshold: 5, baseMs: 60e3, maxMs: 6 * 3600e3 },
   tokens: { start: 1000_00, refill: 1000_00, minBet: 10, maxBet: 1_000_000_00, faucetPerDay: 1000_00 }, // integer cents

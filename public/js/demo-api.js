@@ -4,8 +4,9 @@
 import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { v, HttpError, bad } from '../shared/validate.js';
 import { sha256, hmacSha256, toHex } from '../shared/sha256.js';
-import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount, CHEST, chestExpected, chestAmount } from '../shared/tiers.js';
+import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount, CHEST, chestExpected, chestAmount, REFERRAL } from '../shared/tiers.js';
 import { botRound, BOT_HANDLES } from '../shared/social-bots.js';
+import { LiveTable } from '../shared/live.js';
 
 const KEY = 'pentropy.demo.v2';
 const START = 1000_00, REFILL = 1000_00, MIN_BET = 10, MAX_BET = 1_000_000_00;
@@ -73,6 +74,7 @@ const walletOf = (u) => {
 function accrue(u, amountCents, rtp) {
   u.tier ||= 'bronze'; u.rebatePending ||= 0; u.rebateClaimed ||= 0; u.bonuses ||= 0;
   u.rebatePending += amountCents * (1 - rtp) * tierById(u.tier).rate;
+  if (u.referredBy && db.users[u.referredBy]) db.users[u.referredBy].refPending = (db.users[u.referredBy].refPending || 0) + amountCents * (1 - rtp) * REFERRAL.rate;
   const wagered = u.rounds.filter((r) => r.status === 'settled').reduce((a, r) => a + r.amount, 0) / 100;
   const earned = tierFor(wagered);
   if (TIERS.findIndex((t) => t.id === earned.id) > TIERS.findIndex((t) => t.id === u.tier)) {
@@ -107,7 +109,47 @@ const LINES = ['gg', 'crash did 1.01x three times in a row lol', 'anyone else do
 function tickBots() { while (botClock < now()) { botClock += 700 + Math.random() * 2200; bots.push(botRound(Math.random, botClock)); } while (bots.length > 200) bots.shift(); }
 function botChat() { if (now() - botChatAt < 9000 || Math.random() > 0.5) return; botChatAt = now(); db.chat ||= []; db.chat.push({ id: ++chatSeq, username: BOT_HANDLES[Math.floor(Math.random() * BOT_HANDLES.length)], text: LINES[Math.floor(Math.random() * LINES.length)], at: now(), bot: true }); if (db.chat.length > 150) db.chat.splice(0, db.chat.length - 150); save(); }
 const realBets = (after) => Object.values(db.users).flatMap((u) => u.rounds.filter((r) => r.status === 'settled' && r.settledAt > after).map((r) => ({ id: `r${u.username}${r.id}`, at: r.settledAt, username: u.ghost ? 'Hidden' : u.username, bot: false, game: r.game, amount: agt(r.amount), multiplier: r.multiplier, payout: agt(r.payout), net: agt(r.payout - r.amount) })));
+/* ---- live tables: the same engine the server runs, with the local account as the only real player ---- */
+const liveHooks = (game) => ({
+  now, bots: true,
+  seed: () => randomHex(32),
+  nextId: () => { db.liveSeq = (db.liveSeq || 0) + 1; save(); return db.liveSeq; },
+  debit: (ctx, c, meta) => {
+    const u = need(); checkLimits(u);
+    if (c < MIN_BET) throw bad('Minimum bet is 0.10 AGT.'); if (c > MAX_BET) throw bad('Maximum bet is 1,000,000 AGT.'); if (c > u.balance) throw bad('Not enough tokens.');
+    u.balance -= c; save(); return { balance: u.balance, ref: meta.round.id };
+  },
+  settle: (bet, round, payout, outcome) => {
+    const u = Object.values(db.users).find((x) => x.username === bet.username); if (!u) return 0;
+    const rtp = game === 'crash' ? 0.99 : 36 / 37, t = now(); u.balance += payout;
+    u.rounds.push({ id: u.nextId++, game, base: bet.amount, amount: bet.amount, rtp, params: { ...bet.params, live: round.id }, nonce: 0, serverSeedHash: round.seedHash, clientSeed: `live:${round.id}`, status: 'settled', state: null, multiplier: payout / bet.amount, payout, outcome: { ...outcome, round: round.id }, floatsUsed: 0, balanceAfter: u.balance, openedAt: bet.placedAt, settledAt: t });
+    if (u.rounds.length > 400) u.rounds.splice(0, u.rounds.length - 400);
+    accrue(u, bet.amount, rtp); save(); return u.balance;
+  },
+  refund: (bet) => { const u = Object.values(db.users).find((x) => x.username === bet.username); if (!u) return 0; u.balance += bet.amount; save(); return u.balance; },
+});
+const live = { crash: new LiveTable('crash', liveHooks('crash')), roulette: new LiveTable('roulette', liveHooks('roulette')) };
+setInterval(() => { for (const t of Object.values(live)) { try { t.tick(); } catch { /* keep ticking */ } } }, 250);
+const liveCall = (fn) => { try { return fn(); } catch (e) { if (e instanceof HttpError) throw e; throw bad(e.message); } };
+const liveUser = () => { const u = need(); return { id: u.username, username: u.username }; };
+const REF_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const refCode = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (x) => REF_ALPHABET[x % REF_ALPHABET.length]).join('');
+const referralsOf = (u) => {
+  u.refCode ||= refCode(); u.refPending ||= 0; u.refClaimed ||= 0;
+  const key = Object.keys(db.users).find((k) => db.users[k] === u);
+  const referred = Object.values(db.users).filter((x) => x.referredBy === key).map((x) => { const s = x.rounds.filter((r) => r.status === 'settled'); return { username: x.username, joinedAt: x.createdAt, wagered: s.reduce((a, r) => a + r.amount, 0) / 100, edge: s.reduce((a, r) => a + r.amount * (1 - r.rtp), 0) / 100 }; });
+  return { code: u.refCode, rate: REFERRAL.rate, bonus: REFERRAL.bonus, minClaim: REFERRAL.minClaim, count: referred.length, pending: Math.floor(u.refPending) / 100, claimed: agt(u.refClaimed), referred };
+};
 const routes = {
+  'GET /api/pulse': () => { tickBots(); return { body: { online: 14 + (Math.floor(now() / 60e3) % 7), bets: bots.filter((x) => x.at > now() - 3600e3).length + 180, wins: [...bots].filter((x) => x.payout > x.amount).sort((x, y) => y.payout - x.payout).slice(0, 6).map((b) => ({ username: b.username, bot: true, game: b.game, multiplier: b.multiplier, net: b.net })) } }; },
+  'GET /api/referrals': () => { const u = need(); const out = referralsOf(u); save(); return { body: out }; },
+  'POST /api/referrals/claim': () => { const u = need(); const c = Math.floor(u.refPending || 0); if (c < cents(REFERRAL.minClaim)) throw bad(`Referral earnings can be claimed from ${REFERRAL.minClaim} AGT.`); u.refPending -= c; u.refClaimed = (u.refClaimed || 0) + c; u.balance += c; u.events.push({ type: 'referral', amount: c, balanceAfter: u.balance, at: now() }); save(); return { body: { ...referralsOf(u), balance: agt(u.balance) } }; },
+  'GET /api/live/crash': () => { const u = liveUser(); return { body: { ...live.crash.state(u.id), balance: agt(need().balance) } }; },
+  'GET /api/live/roulette': () => { const u = liveUser(); return { body: { ...live.roulette.state(u.id), balance: agt(need().balance) } }; },
+  'POST /api/live/crash/bet': (b) => { const u = liveUser(); const p = v.object(b, { amount: v.number({ min: 0.1, max: 1_000_000, decimals: 2 }), auto: v.number({ min: 0, max: 1_000_000, decimals: 2, optional: true, default: 0 }) }); const out = liveCall(() => live.crash.bet({}, u, cents(p.amount), { auto: p.auto })); return { status: 201, body: { ...out, balance: agt(out.balance) } }; },
+  'POST /api/live/crash/cashout': () => { const u = liveUser(); const out = liveCall(() => live.crash.cashout(u)); return { body: { ...out, balance: agt(out.balance) } }; },
+  'POST /api/live/roulette/bet': (b) => { const u = liveUser(); const p = v.object(b, { amount: v.number({ min: 0.1, max: 1_000_000, decimals: 2 }), type: v.string({ min: 1, max: 12, pattern: /^[a-z]+$/ }), value: v.number({ min: 0, max: 36, integer: true, optional: true, default: 0 }) }); const out = liveCall(() => live.roulette.bet({}, u, cents(p.amount), { type: p.type, value: p.value })); return { status: 201, body: { ...out, balance: agt(out.balance) } }; },
+  'POST /api/live/roulette/clear': () => { const u = liveUser(); const out = liveCall(() => live.roulette.clear(u)); return { body: { balance: agt(out.balance) } }; },
   'GET /api/social': (b, qs) => {
     need(); tickBots(); botChat();
     const after = Number(qs.get('after')) || 0, chatAfter = Number(qs.get('chat')) || 0;
@@ -157,9 +199,12 @@ const routes = {
     const key = username.toLowerCase();
     if (db.users[key]) throw new HttpError(409, 'That username is unavailable.');
     const salt = randomHex(8), serverSeed = randomHex(32);
-    db.users[key] = { username, salt, hash: hashPassword(password, salt), balance: START, vault: 0, deposited: 0, notionalCents: 100, limits: { lossLimit: 0, sessionMinutes: 0, realityEvery: 25 }, lessons: [], refills: 0, createdAt: now(), seeds: { serverSeed, serverSeedHash: sha256Hex(serverSeed), clientSeed: randomHex(8), nonce: 0 }, seedHistory: [], rounds: [], events: [], nextId: 1, playMs: 0 };
-    db.session = key; db.sessionStart = now(); db.startBalance = START; save();
-    return { status: 201, body: me(db.users[key]) };
+    db.users[key] = { username, salt, hash: hashPassword(password, salt), balance: START, vault: 0, deposited: 0, notionalCents: 100, limits: { lossLimit: 0, sessionMinutes: 0, realityEvery: 25 }, lessons: [], refills: 0, createdAt: now(), seeds: { serverSeed, serverSeedHash: sha256Hex(serverSeed), clientSeed: randomHex(8), nonce: 0 }, seedHistory: [], rounds: [], events: [], nextId: 1, playMs: 0, refCode: refCode(), refPending: 0, refClaimed: 0 };
+    let referrer = null;
+    const ref = typeof b.ref === 'string' ? b.ref.toUpperCase() : '';
+    if (ref) { const host = Object.entries(db.users).find(([k, x]) => x.refCode === ref && k !== key); if (host) { const boost = cents(REFERRAL.bonus); db.users[key].referredBy = host[0]; db.users[key].balance += boost; db.users[key].bonuses = boost; db.users[key].events.push({ type: 'bonus', amount: boost, balanceAfter: db.users[key].balance, at: now() }); referrer = host[1].username; } }
+    db.session = key; db.sessionStart = now(); db.startBalance = db.users[key].balance; save();
+    return { status: 201, body: { ...me(db.users[key]), welcome: { tokens: agt(START), referralBonus: referrer ? REFERRAL.bonus : 0, referrer } } };
   },
   'POST /api/auth/login': (b) => {
     const { username, password } = v.object(b, S.credentials);

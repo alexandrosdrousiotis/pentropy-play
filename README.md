@@ -54,6 +54,18 @@ the bet (within ±0.03% of 99%), not an asserted figure. `npm test` proves every
   Diamond) accrues and can be claimed from 1 AGT. The Rebates page shows the edge taken, the slice
   returned, and the net cost side by side, because that arithmetic is the lesson.
 
+## Live tables: one round for everyone
+
+Crash and Roulette are shared tables, the way they are on the real sites. The server runs one round at a time per game (`shared/live.js`, the same state machine the browser demo runs): bets open for 7 s (Crash) or 15 s (Roulette), lock, the flight or spin plays out, and every player at the table is settled against the same result. Players see each other's bets and cash-outs as they happen, and the cash-out markers sit on the curve.
+
+- **Fairness** is commit-reveal per round: the SHA-256 of the round seed is published while bets are open, the seed is revealed when the round ends, and the game page verifies `HMAC-SHA256(seed, "game:roundId")` in the browser.
+- **Wallet integrity**: bets debit immediately into `live_bets`; settlement writes a normal `rounds` row (so stats, rakeback, drips, limits and the live feed all keep working) and marks the bet settled. A server restart refunds anything still riding.
+- **Simulated players** join each round when ambient mode is on, flagged as always.
+
+## Sign-up and referrals
+
+The sign-up page is built like an acquisition page on purpose: welcome package, live counter, recent wins, a referral field, one big button, and a paragraph saying that this is the playbook. Referral codes (`#/signup?ref=CODE`) give the friend +50 AGT and the referrer 10% of the house edge the friend pays, forever, claimable from the Rebates page, which prints the per-friend table so the affiliate maths is visible.
+
 ## The room: live bets, chat, leaders
 
 Real casinos sell the crowd as hard as the games, so Pentropy has one too, built to teach rather than to hook.

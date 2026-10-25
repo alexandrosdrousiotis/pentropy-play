@@ -4,8 +4,9 @@ import { transaction } from './db.js';
 import { FairRng, randomHex, sha256Hex } from './fairness.js';
 import { GAMES, GAME_IDS } from '../shared/engine.js';
 import { LESSON_IDS } from './lessons.js';
-import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount, CHEST, chestExpected, chestAmount } from '../shared/tiers.js';
+import { TIERS, tierFor, tierById, nextTier, DRIPS, DRIP_IDS, dripAmount, CHEST, chestExpected, chestAmount, REFERRAL } from '../shared/tiers.js';
 import { randomInt } from 'node:crypto';
+import { LiveTable } from '../shared/live.js';
 
 const cents = (agt) => Math.round(agt * 100);
 const agt = (c) => c / 100;
@@ -29,6 +30,18 @@ export function createApi({ db, config, auth, seedCipher, social }) {
                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
     updateOpen: db.prepare("UPDATE rounds SET state = ?, amount = ?, floats_used = ? WHERE id = ? AND status = 'open'"),
     settleRound: db.prepare("UPDATE rounds SET status = 'settled', state = NULL, amount = ?, multiplier = ?, payout = ?, outcome = ?, floats_used = ?, balance_after = ?, settled_at = ? WHERE id = ? AND status = 'open'"),
+    liveRoundInsert: db.prepare('INSERT INTO live_rounds (game, seed_hash, opened_at) VALUES (?, ?, ?)'),
+    liveRoundEnd: db.prepare('UPDATE live_rounds SET seed = ?, result = ?, ended_at = ? WHERE id = ?'),
+    liveBetInsert: db.prepare("INSERT INTO live_bets (game, round_id, user_id, amount, params, status, at) VALUES (?, ?, ?, ?, ?, 'open', ?)"),
+    liveBetSet: db.prepare('UPDATE live_bets SET status = ? WHERE id = ?'),
+    liveOpenBets: db.prepare("SELECT * FROM live_bets WHERE status = 'open'"),
+    userByRef: db.prepare('SELECT * FROM users WHERE ref_code = ? COLLATE NOCASE'),
+    setRefCode: db.prepare('UPDATE users SET ref_code = ? WHERE id = ? AND ref_code IS NULL'),
+    setReferredBy: db.prepare('UPDATE users SET referred_by = ?, balance = ?, bonuses = bonuses + ? WHERE id = ?'),
+    addRefPending: db.prepare('UPDATE users SET ref_pending = ref_pending + ? WHERE id = ?'),
+    claimRef: db.prepare('UPDATE users SET ref_pending = ref_pending - ?, ref_claimed = ref_claimed + ?, balance = ? WHERE id = ?'),
+    referrals: db.prepare(`SELECT u.id, u.username, u.created_at, COALESCE(SUM(r.amount),0) AS wagered, COALESCE(SUM(r.amount * (1 - r.rtp)),0) AS edge
+      FROM users u LEFT JOIN rounds r ON r.user_id = u.id AND r.status = 'settled' WHERE u.referred_by = ? GROUP BY u.id ORDER BY u.created_at DESC LIMIT 100`),
     history: db.prepare("SELECT id, game, base, amount, rtp, params, nonce, server_seed_hash, client_seed, status, multiplier, payout, outcome, floats_used, balance_after, opened_at, settled_at FROM rounds WHERE user_id = ? AND status = 'settled' ORDER BY id DESC LIMIT ?"),
     stats: db.prepare(`SELECT COUNT(*) AS bets, COALESCE(SUM(amount),0) AS wagered, COALESCE(SUM(payout),0) AS returned,
                        COALESCE(SUM(CASE WHEN payout > amount THEN 1 ELSE 0 END),0) AS wins, COALESCE(MAX(payout - amount),0) AS biggestWin,
@@ -41,7 +54,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
     playTime: db.prepare('SELECT COALESCE(SUM(last_seen - created_at),0) AS ms FROM sessions WHERE user_id = ?'),
     faucetToday: db.prepare("SELECT COALESCE(SUM(amount),0) AS c FROM events WHERE user_id = ? AND type = 'deposit' AND at > ?"),
     setWallet: db.prepare('UPDATE users SET balance = ?, vault = ?, deposited = ? WHERE id = ?'),
-    walletEvents: db.prepare("SELECT id, type, amount, balance_after, at FROM events WHERE user_id = ? AND type IN ('deposit','withdraw','vault_in','refill','rebate','bonus') ORDER BY id DESC LIMIT 50"),
+    walletEvents: db.prepare("SELECT id, type, amount, balance_after, at FROM events WHERE user_id = ? AND type IN ('deposit','withdraw','vault_in','refill','rebate','bonus','referral') ORDER BY id DESC LIMIT 50"),
     wageredOf: db.prepare("SELECT COALESCE(SUM(amount),0) AS w FROM rounds WHERE user_id = ? AND status = 'settled'"),
     wageredSince: db.prepare("SELECT COALESCE(SUM(amount),0) AS w FROM rounds WHERE user_id = ? AND status = 'settled' AND settled_at > ?"),
     setDrips: db.prepare('UPDATE users SET drips = ?, bonuses = ?, balance = ? WHERE id = ?'),
@@ -95,6 +108,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
       tier = earned.id;
     }
     q.setRewards.run(tier, pending, u.rebate_claimed, bonuses, bal, userId);
+    if (u.referred_by) q.addRefPending.run(edge * REFERRAL.rate, u.referred_by); // the affiliate's cut comes out of the edge, not the win
     return bal;
   }
   function rewardsOf(u) {
@@ -113,6 +127,42 @@ export function createApi({ db, config, auth, seedCipher, social }) {
       out[kind] = { label: d.label, blurb: d.blurb, rate: d.rate, min: d.min, max: d.max, windowMs: d.windowMs, wagered, available: ready ? dripAmount(kind, wagered) : 0, ready, nextAt: ready ? t : at + d.windowMs, claimedAt: at || null };
     }
     return out;
+  }
+  /* ---------------- referrals ---------------- */
+  const REF_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  function refCodeOf(u) {
+    if (u.ref_code) return u.ref_code;
+    for (let i = 0; i < 20; i++) {
+      const code = Array.from({ length: 8 }, () => REF_ALPHABET[randomInt(0, REF_ALPHABET.length)]).join('');
+      try { q.setRefCode.run(code, u.id); return q.user.get(u.id).ref_code; } catch { /* collision, try again */ }
+    }
+    throw new HttpError(500, 'Could not issue a referral code.');
+  }
+  function referralsOf(u) {
+    const referred = q.referrals.all(u.id).map((r) => ({ username: r.username, joinedAt: r.created_at, wagered: agt(r.wagered), edge: agt(r.edge) }));
+    return { code: refCodeOf(u), rate: REFERRAL.rate, bonus: REFERRAL.bonus, minClaim: REFERRAL.minClaim, count: referred.length, pending: Math.floor(u.ref_pending) / 100, claimed: agt(u.ref_claimed), referred };
+  }
+  function attachReferral(user, code) {
+    const ref = q.userByRef.get(code);
+    if (!ref || ref.id === user.id) return null;
+    return transaction(db, () => {
+      const u = q.user.get(user.id);
+      const boost = cents(REFERRAL.bonus), balance = u.balance + boost;
+      q.setReferredBy.run(ref.id, balance, boost, u.id);
+      q.insertEvent.run(u.id, 'bonus', boost, balance, now());
+      return ref.username;
+    });
+  }
+  function claimReferral(user) {
+    return transaction(db, () => {
+      const u = q.user.get(user.id);
+      const c = Math.floor(u.ref_pending);
+      if (c < cents(REFERRAL.minClaim)) throw bad(`Referral earnings can be claimed from ${REFERRAL.minClaim} AGT.`);
+      const balance = u.balance + c;
+      q.claimRef.run(c, c, balance, u.id);
+      q.insertEvent.run(u.id, 'referral', c, balance, now());
+      return { ...referralsOf(q.user.get(u.id)), balance: agt(balance) };
+    });
   }
   function chestOf(u) {
     const last = JSON.parse(u.drips || '{}').chest || 0, t = now();
@@ -158,6 +208,43 @@ export function createApi({ db, config, auth, seedCipher, social }) {
       return { ...rewardsOf(q.user.get(u.id)), balance: agt(balance) };
     });
   }
+
+  /* ---------------- shared live rounds (crash, roulette) ---------------- */
+  // A server restart refunds whatever was riding on a round that no longer exists.
+  for (const b of q.liveOpenBets.all()) { transaction(db, () => { const u = q.user.get(b.user_id); if (u) q.setBalance.run(u.balance + b.amount, u.id); q.liveBetSet.run('refunded', b.id); }); }
+  const liveHooks = (game) => ({
+    now, bots: config.social?.ambient !== false,
+    seed: () => randomHex(32),
+    nextId: (seed, hash) => Number(q.liveRoundInsert.run(game, hash, now()).lastInsertRowid),
+    ended: (r) => q.liveRoundEnd.run(r.seed, r.result, now(), r.id),
+    debit: (ctx, cents, meta) => transaction(db, () => {
+      const u = q.user.get(ctx.user.id);
+      checkLimits(u, ctx.session);
+      if (cents < config.tokens.minBet) throw bad(`Minimum bet is ${agt(config.tokens.minBet)} AGT.`);
+      if (cents > config.tokens.maxBet) throw bad(`Maximum bet is ${agt(config.tokens.maxBet).toLocaleString()} AGT.`);
+      if (cents > u.balance) throw bad('Not enough tokens.');
+      const balance = u.balance - cents;
+      q.setBalance.run(balance, u.id);
+      const ref = Number(q.liveBetInsert.run(game, meta.round.id, u.id, cents, JSON.stringify({ ...meta.params, auto: meta.auto }), now()).lastInsertRowid);
+      return { balance, ref };
+    }),
+    settle: (bet, round, payout, outcome) => transaction(db, () => {
+      const u = q.user.get(bet.userId); if (!u) return 0;
+      const rtp = game === 'crash' ? 0.99 : 36 / 37, t = now();
+      let balance = u.balance + payout;
+      q.setBalance.run(balance, u.id);
+      q.insertRound.run(u.id, game, bet.amount, bet.amount, rtp, JSON.stringify({ ...bet.params, live: round.id }), 0, round.seedHash, `live:${round.id}`, 'settled', null, payout / bet.amount, payout, JSON.stringify({ ...outcome, round: round.id }), 0, balance, bet.placedAt, t);
+      q.liveBetSet.run('settled', bet.ref);
+      balance = accrueRewards(u.id, bet.amount, rtp, balance);
+      return balance;
+    }),
+    refund: (bet) => transaction(db, () => { const u = q.user.get(bet.userId); const balance = u.balance + bet.amount; q.setBalance.run(balance, u.id); q.liveBetSet.run('refunded', bet.ref); return balance; }),
+  });
+  const live = { crash: new LiveTable('crash', liveHooks('crash')), roulette: new LiveTable('roulette', liveHooks('roulette')) };
+  const liveTimer = setInterval(() => { for (const t of Object.values(live)) { try { t.tick(); } catch (e) { console.error('live tick', e); } } }, 250);
+  liveTimer.unref?.();
+  const liveCall = (fn) => { try { return fn(); } catch (e) { if (e instanceof HttpError) throw e; throw bad(e.message); } };
+  const liveState = (game, user) => { const s = live[game].state(user.id); return { ...s, balance: agt(q.user.get(user.id).balance) }; };
 
   /* ---------------- round lifecycle ---------------- */
   function openRound(user, session, { game, amount, params }) {
@@ -299,6 +386,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
   /* ---------------- schemas ---------------- */
   const S = {
     credentials: { username: v.string({ min: 3, max: 20, pattern: /^[a-zA-Z0-9_]+$/ }), password: v.string({ min: 1, max: 128 }) },
+    signup: { username: v.string({ min: 3, max: 20, pattern: /^[a-zA-Z0-9_]+$/ }), password: v.string({ min: 1, max: 128 }), ref: v.string({ min: 8, max: 8, pattern: /^[A-Za-z0-9]+$/, optional: true }) },
     bet: { game: v.oneOf(GAME_IDS), amount: v.number({ min: 0.1, max: 1_000_000, decimals: 2 }), params: v.obj({}, { optional: true, default: {} }) },
     action: { action: v.string({ min: 1, max: 20, pattern: /^[a-z]+$/ }), payload: v.obj({}, { optional: true, default: {} }) },
     profile: {
@@ -308,6 +396,8 @@ export function createApi({ db, config, auth, seedCipher, social }) {
     },
     chat: { text: v.string({ min: 1, max: 200, pattern: /^[^\x00-\x1F\x7F]+$/ }) },
     drip: { kind: v.oneOf(DRIP_IDS) },
+    liveCrash: { amount: v.number({ min: 0.1, max: 1_000_000, decimals: 2 }), auto: v.number({ min: 0, max: 1_000_000, decimals: 2, optional: true, default: 0 }) },
+    liveRoulette: { amount: v.number({ min: 0.1, max: 1_000_000, decimals: 2 }), type: v.string({ min: 1, max: 12, pattern: /^[a-z]+$/ }), value: v.number({ min: 0, max: 36, integer: true, optional: true, default: 0 }) },
     lesson: { id: v.oneOf(LESSON_IDS) },
     rotate: { clientSeed: v.string({ min: 1, max: 64, pattern: /^[a-zA-Z0-9_-]+$/, optional: true }) },
     password: { password: v.string({ min: 1, max: 128 }) },
@@ -322,11 +412,13 @@ export function createApi({ db, config, auth, seedCipher, social }) {
   const route = (method, path, opts, handler) => routes.push({ method, path, auth: opts.auth !== false, limiter: opts.limiter || 'general', handler });
 
   route('POST', '/api/auth/signup', { auth: false, limiter: 'auth' }, (c) => {
-    const { username, password } = v.object(c.body, S.credentials);
-    const user = auth.signUp(username, password);
+    const { username, password, ref } = v.object(c.body, S.signup);
+    let user = auth.signUp(username, password);
+    const referrer = ref ? attachReferral(user, ref.toUpperCase()) : null;
+    if (referrer) user = q.user.get(user.id);
     const token = auth.startSession(user);
     c.setCookie(token);
-    return { status: 201, body: me(user, { created_at: now(), start_balance: user.balance }) };
+    return { status: 201, body: { ...me(user, { created_at: now(), start_balance: user.balance }), welcome: { tokens: agt(config.tokens.start), referralBonus: referrer ? REFERRAL.bonus : 0, referrer } } };
   });
   route('POST', '/api/auth/login', { auth: false, limiter: 'auth' }, (c) => {
     const { username, password } = v.object(c.body, S.credentials);
@@ -389,6 +481,18 @@ export function createApi({ db, config, auth, seedCipher, social }) {
   route('POST', '/api/rewards/claim', {}, (c) => ({ body: claimRebate(c.user) }));
   route('POST', '/api/rewards/drip', {}, (c) => ({ body: claimDrip(c.user, v.object(c.body, S.drip).kind) }));
   route('POST', '/api/rewards/chest', {}, (c) => ({ body: openChest(c.user) }));
+  route('GET', '/api/referrals', {}, (c) => ({ body: referralsOf(q.user.get(c.user.id)) }));
+  route('POST', '/api/referrals/claim', {}, (c) => ({ body: claimReferral(c.user) }));
+  // public pulse for the sign-up page: nothing personal, nothing enumerable
+  route('GET', '/api/pulse', { auth: false }, () => ({ body: { online: social.online(), bets: social.feed(now() - 3600e3, 40).length, wins: social.big(6).map((b) => ({ username: b.username, bot: b.bot, game: b.game, multiplier: b.multiplier, net: b.net })) } }));
+
+  /* ---------------- live tables ---------------- */
+  route('GET', '/api/live/crash', { limiter: 'live' }, (c) => ({ body: liveState('crash', c.user) }));
+  route('GET', '/api/live/roulette', { limiter: 'live' }, (c) => ({ body: liveState('roulette', c.user) }));
+  route('POST', '/api/live/crash/bet', { limiter: 'play' }, (c) => { const b = v.object(c.body, S.liveCrash); const out = liveCall(() => live.crash.bet({ user: c.user, session: c.session }, c.user, cents(b.amount), { auto: b.auto })); return { status: 201, body: { ...out, balance: agt(out.balance) } }; });
+  route('POST', '/api/live/crash/cashout', { limiter: 'play' }, (c) => { const out = liveCall(() => live.crash.cashout(c.user)); return { body: { ...out, balance: agt(out.balance) } }; });
+  route('POST', '/api/live/roulette/bet', { limiter: 'play' }, (c) => { const b = v.object(c.body, S.liveRoulette); const out = liveCall(() => live.roulette.bet({ user: c.user, session: c.session }, c.user, cents(b.amount), { type: b.type, value: b.value })); return { status: 201, body: { ...out, balance: agt(out.balance) } }; });
+  route('POST', '/api/live/roulette/clear', { limiter: 'play' }, (c) => { const out = liveCall(() => live.roulette.clear(c.user)); return { body: { balance: agt(out.balance) } }; });
   route('POST', '/api/wallet/deposit', {}, (c) => { const b = v.object(c.body, S.deposit); return { body: deposit(c.user, b.amount, b.source) }; });
   route('POST', '/api/wallet/withdraw', {}, (c) => ({ body: withdraw(c.user, v.object(c.body, S.withdraw).amount) }));
 
@@ -400,7 +504,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
   route('POST', '/api/social/chat', { limiter: 'chat' }, (c) => ({ status: 201, body: { message: social.say(c.user, v.object(c.body, S.chat).text) } }));
 
   /* ---------------- dispatcher ---------------- */
-  return async function handleApi(req, res, { body, ip, limiters, url }) {
+  const handleApi = async function handleApi(req, res, { body, ip, limiters, url }) {
     // Unknown path and wrong method are indistinguishable (both 404): nothing to enumerate.
     const match = routes.find((r) => r.path === url.pathname && r.method === req.method);
     if (!match) throw new HttpError(404, 'Not found');
@@ -421,4 +525,7 @@ export function createApi({ db, config, auth, seedCipher, social }) {
     const out = await match.handler(ctx);
     return { status: out.status || 200, body: out.body };
   };
+  handleApi.close = () => clearInterval(liveTimer);
+  handleApi.live = live;
+  return handleApi;
 }

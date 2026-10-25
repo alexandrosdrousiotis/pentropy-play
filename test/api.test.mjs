@@ -26,7 +26,7 @@ function client(name = 'default') {
 
 before(async () => {
   srv = createServer({ dbPath: ':memory:', secret: 't'.repeat(40), cookieSecure: false, isProd: false,
-    rateLimit: { general: { windowMs: 60e3, max: 100000 }, auth: { windowMs: 60e3, max: 100000 }, play: { windowMs: 60e3, max: 100000 }, chat: { windowMs: 60e3, max: 100000 } }, social: { ambient: false, chatKeep: 500 } });
+    rateLimit: { general: { windowMs: 60e3, max: 100000 }, auth: { windowMs: 60e3, max: 100000 }, play: { windowMs: 60e3, max: 100000 }, chat: { windowMs: 60e3, max: 100000 }, live: { windowMs: 60e3, max: 100000 } }, social: { ambient: false, chatKeep: 500 } });
   await new Promise((r) => srv.server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${srv.server.address().port}`;
 });
@@ -333,4 +333,113 @@ test('chest: fills with wager, opens once per six hours for a random slice insid
   rw = await c('GET', '/api/rewards');
   assert.equal(rw.json.chest.ready, false);
   assert.equal(rw.json.chest.wagered, 0);
+});
+
+test('live crash: one shared round, bets lock, auto cash out and manual cash out settle against the same point, seed verifies', async () => {
+  const { liveCrashPoint, crashMultAt, crashTimeFor } = await import('../shared/live.js');
+  const a = client('live-a'), b = client('live-b');
+  await a('POST', '/api/auth/signup', { username: 'liveA', password: 'a very fine passphrase' });
+  await b('POST', '/api/auth/signup', { username: 'liveB', password: 'a very fine passphrase' });
+  const table = srv.api.live.crash;
+  let offset = 0; table.h.now = () => Date.now() + offset;
+  table.newRound();
+  let s = (await a('GET', '/api/live/crash')).json;
+  assert.equal(s.phase, 'betting'); assert.ok(s.round.seedHash.length === 64 && s.round.seed === null);
+  const r1 = await a('POST', '/api/live/crash/bet', { amount: 20, auto: 1.5 });
+  assert.equal(r1.status, 201); assert.equal(r1.json.balance, 980);
+  assert.equal((await a('POST', '/api/live/crash/bet', { amount: 20, auto: 1.5 })).status, 400); // one bet per round
+  const r2 = await b('POST', '/api/live/crash/bet', { amount: 10, auto: 0 });
+  assert.equal(r2.status, 201);
+  s = (await b('GET', '/api/live/crash')).json;
+  assert.ok(s.bets.some((x) => x.username === 'liveA' && x.amount === 20) && s.mine.length === 1);
+  // bets close, the flight starts
+  offset = table.cfg.betting + 10; table.tick();
+  assert.equal(table.round.phase, 'running');
+  assert.equal((await a('POST', '/api/live/crash/bet', { amount: 5 })).status, 400);
+  const point = table.round.result;
+  // B cashes out by hand at 1.2x if the point allows it
+  if (point > 1.21) {
+    offset = table.cfg.betting + 10 + crashTimeFor(1.2) + 5; table.tick();
+    const co = await b('POST', '/api/live/crash/cashout');
+    assert.equal(co.status, 200);
+    assert.equal(co.json.bet.cashout, crashMultAt(table.h.now() - table.round.startedAt));
+    assert.equal((await b('POST', '/api/live/crash/cashout')).status, 400);
+  }
+  // the crash
+  offset = table.cfg.betting + 10 + crashTimeFor(point) + 50; table.tick();
+  assert.equal(table.round.phase, 'ended');
+  s = (await a('GET', '/api/live/crash')).json;
+  assert.equal(s.round.result, point);
+  assert.equal(liveCrashPoint(s.round.seed, s.round.id), point);
+  const mineA = s.mine[0];
+  assert.equal(mineA.payout, point > 1.5 ? 30 : 0);
+  assert.equal(s.balance, point > 1.5 ? 1010 : 980);
+  const hist = (await a('GET', '/api/rounds')).json.rounds;
+  assert.ok(hist.some((r) => r.game === 'crash' && r.outcome.round === s.round.id && r.multiplier === (point > 1.5 ? 1.5 : 0)));
+  // next round opens after the pause
+  offset += table.cfg.ending + 10; table.tick();
+  assert.equal(table.round.phase, 'betting'); assert.ok(table.round.id > s.round.id);
+  table.h.now = Date.now;
+});
+
+test('live roulette: many bets per spin, clear refunds them, everyone is paid off the same number', async () => {
+  const { liveRouletteNumber } = await import('../shared/live.js');
+  const { roulettePayout } = await import('../shared/math.js');
+  const a = client('live-a');
+  const table = srv.api.live.roulette;
+  let offset = 0; table.h.now = () => Date.now() + offset;
+  table.newRound();
+  assert.equal((await a('POST', '/api/live/roulette/bet', { amount: 10, type: 'red' })).status, 201);
+  assert.equal((await a('POST', '/api/live/roulette/bet', { amount: 5, type: 'straight', value: 7 })).status, 201);
+  assert.equal((await a('POST', '/api/live/roulette/bet', { amount: 5, type: 'straight', value: 99 })).status, 400);
+  const before = (await a('GET', '/api/me')).json.user.balance;
+  const cleared = await a('POST', '/api/live/roulette/clear');
+  assert.equal(cleared.status, 200); assert.equal(cleared.json.balance, before + 15);
+  assert.equal((await a('POST', '/api/live/roulette/bet', { amount: 10, type: 'black' })).status, 201);
+  assert.equal((await a('POST', '/api/live/roulette/bet', { amount: 5, type: 'dozen', value: 2 })).status, 201);
+  const start = (await a('GET', '/api/me')).json.user.balance;
+  offset = table.cfg.betting + 10; table.tick();
+  assert.equal(table.round.phase, 'running');
+  offset += table.cfg.spin + 10; table.tick();
+  assert.equal(table.round.phase, 'ended');
+  const s = (await a('GET', '/api/live/roulette')).json;
+  const n = s.round.result;
+  assert.equal(liveRouletteNumber(s.round.seed, s.round.id), n);
+  const expected = 10 * roulettePayout('black', 0, n) + 5 * roulettePayout('dozen', 2, n);
+  assert.equal(s.balance, Math.round((start + expected) * 100) / 100);
+  assert.equal(s.mine.length, 2);
+  table.h.now = Date.now;
+});
+
+test('referrals: a code on sign-up boosts the friend, the referrer earns a cut of the edge the friend pays, and the pulse is public', async () => {
+  const r1 = client('ref-1'), r2 = client('ref-2');
+  await r1('POST', '/api/auth/signup', { username: 'refhost', password: 'a very fine passphrase' });
+  const mine = await r1('GET', '/api/referrals');
+  assert.equal(mine.status, 200); assert.match(mine.json.code, /^[A-Z2-9]{8}$/); assert.equal(mine.json.count, 0);
+  const bad = await r2('POST', '/api/auth/signup', { username: 'reffriend', password: 'a very fine passphrase', ref: 'NOPE' });
+  assert.equal(bad.status, 400);
+  const ok = await r2('POST', '/api/auth/signup', { username: 'reffriend', password: 'a very fine passphrase', ref: mine.json.code.toLowerCase() });
+  assert.equal(ok.status, 201);
+  assert.equal(ok.json.user.balance, 1050);
+  assert.deepEqual(ok.json.welcome, { tokens: 1000, referralBonus: 50, referrer: 'refhost' });
+  for (let i = 0; i < 4; i++) await r2('POST', '/api/rounds', { game: 'dice', amount: 100, params: { chance: 50, over: true } });
+  const after = await r1('GET', '/api/referrals');
+  assert.equal(after.json.count, 1);
+  assert.equal(after.json.referred[0].username, 'reffriend');
+  assert.equal(after.json.referred[0].wagered, 400);
+  assert.equal(after.json.pending, 0.4); // 10% of the 1% edge on 400
+  const early = await r1('POST', '/api/referrals/claim');
+  assert.equal(early.status, 400);
+  for (let i = 0; i < 6; i++) await r2('POST', '/api/rounds', { game: 'dice', amount: 100, params: { chance: 50, over: true } });
+  const before = (await r1('GET', '/api/me')).json.user.balance;
+  const claim = await r1('POST', '/api/referrals/claim');
+  assert.equal(claim.status, 200);
+  assert.equal(claim.json.balance, before + 1);
+  assert.equal(claim.json.claimed, 1);
+  const self = await r1('POST', '/api/auth/signup', { username: 'refhost2', password: 'a very fine passphrase', ref: mine.json.code });
+  assert.equal(self.status, 201);
+  const pulse = await fetch(base + '/api/pulse');
+  assert.equal(pulse.status, 200);
+  const p = await pulse.json();
+  assert.ok(typeof p.online === 'number' && Array.isArray(p.wins));
 });

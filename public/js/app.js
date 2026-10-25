@@ -11,6 +11,8 @@ import { openWallet } from './wallet.js';
 import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
 import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout } from './social.js';
 import { chestCard, chestPill } from './chest.js';
+import { authPage, rememberRef } from './signup.js';
+import { REFERRAL } from '../shared/tiers.js';
 
 const app = document.getElementById('app');
 const side = document.getElementById('side');
@@ -27,7 +29,7 @@ const isCurrent = (href, route) => route === href || (href !== '#/' && route.sta
 
 function renderChrome() {
   const u = user();
-  const route = location.hash || '#/';
+  const route = (location.hash || '#/').split('?')[0];
   const navItem = (href, label, icon) => h('a', { class: 'nav-item', href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label);
   side.replaceChildren(
     h('a', { class: 'logo', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning')), h('span', {}, h('b', {}, 'Pentropy'), h('small', {}, 'Play money casino'))),
@@ -95,7 +97,10 @@ const routes = [
 ];
 async function render() {
   if (activeGame) { try { await activeGame.unmount?.(); } catch { /* ignore */ } activeGame = null; }
-  const hash = location.hash || '#/';
+  const full = location.hash || '#/';
+  const hash = full.split('?')[0];
+  const qs = new URLSearchParams(full.split('?')[1] || '');
+  if (qs.get('ref')) rememberRef(qs.get('ref'));
   const found = routes.find(([re]) => re.test(hash));
   document.body.classList.toggle('playing', /^#\/play\//.test(hash));
   renderChrome();
@@ -104,7 +109,7 @@ async function render() {
   if (needsAuth && !user()) { app.replaceChildren(...[authPage('login', 'Sign in to continue.')].flat().filter(Boolean)); return; }
   const [re, page] = found;
   const out = await page(...hash.match(re).slice(1));
-  if ((location.hash || '#/') !== hash) return; // navigated away while loading
+  if ((location.hash || '#/').split('?')[0] !== hash) return; // navigated away while loading
   app.replaceChildren(...[out].flat().filter(Boolean));
   window.scrollTo({ top: 0 });
 }
@@ -236,32 +241,24 @@ async function lobbyPage() {
 }
 
 /* ---------------- auth ---------------- */
-function authPage(mode, note) {
-  const isSignup = mode === 'signup';
-  const userIn = h('input', { type: 'text', autocomplete: 'username', placeholder: 'username', maxlength: '20', pattern: '[A-Za-z0-9_]{3,20}', required: true, autocapitalize: 'off', spellcheck: 'false' });
-  const passIn = h('input', { type: 'password', autocomplete: isSignup ? 'new-password' : 'current-password', placeholder: isSignup ? 'at least 10 characters' : 'password', minlength: isSignup ? '10' : '1', required: true });
-  const err = h('p', { class: 'help bad', role: 'alert' });
-  const agree = isSignup && h('label', { class: 'check-row' }, h('input', { type: 'checkbox', required: true }), h('span', {}, 'I understand the tokens are play money with no cash value.'));
-  const submit = button(isSignup ? 'Sign up' : 'Log in', { kind: 'primary', size: 'lg block', attrs: { type: 'submit' } });
-  const form = h('form', { class: 'panel auth', novalidate: false, onSubmit: async (e) => {
-    e.preventDefault();
-    if (!form.reportValidity()) return;
-    submit.disabled = true; err.textContent = '';
-    try {
-      if (isSignup) await api.signUp(userIn.value, passIn.value); else await api.logIn(userIn.value, passIn.value);
-      edu.resetRealityClock();
-      location.hash = '#/';
-    } catch (ex) { err.textContent = ex.message; submit.disabled = false; }
-  } },
-    note && h('p', { class: 'help warn' }, note),
-    h('div', { class: 'field' }, h('label', {}, 'Username'), h('div', { class: 'input' }, userIn)),
-    h('div', { class: 'field' }, h('label', {}, 'Password'), h('div', { class: 'input' }, passIn)),
-    agree, err, submit,
-    h('p', { class: 'help' }, isSignup ? ['Already have an account? ', h('a', { href: '#/login' }, 'Log in')] : ['New here? ', h('a', { href: '#/signup' }, 'Create an account')]),
-    isSignup && h('p', { class: 'help muted' }, 'No email needed.'));
-  return h('div', { class: 'stack', style: { gap: '24px' } },
-    h('div', { class: 'hero', style: { textAlign: 'center', justifyItems: 'center', padding: '8px 0' } }, h('h1', {}, isSignup ? 'Create account' : 'Log in')),
-    form);
+/* ---------------- referrals ---------------- */
+function referralPanel(rf) {
+  const link = `${location.origin}${location.pathname}#/signup?ref=${rf.code}`;
+  const copy = button('Copy link', { kind: 'primary', size: 'sm', onClick: async () => { try { await navigator.clipboard.writeText(link); toast('Link copied.', 'good'); } catch { toast(link); } } });
+  const claim = button(rf.pending >= rf.minClaim ? `Claim ${fmt(rf.pending)} AGT` : 'Nothing to claim yet', { kind: rf.pending >= rf.minClaim ? 'primary' : 'tertiary', size: 'sm', disabled: rf.pending < rf.minClaim, onClick: async () => { try { await api.claimReferral(); toast('Referral earnings claimed.', 'good'); render(); } catch (e) { toast(e.message, 'bad'); } } });
+  return h('section', { class: 'plate ref-panel' },
+    h('div', { class: 'row between' }, h('h3', {}, 'Refer a friend'), h('span', { class: 't-desc' }, `${rf.count} friend${rf.count === 1 ? '' : 's'} joined`)),
+    h('div', { class: 'ref-grid' },
+      h('div', { class: 'ref-link' },
+        h('div', { class: 't-label' }, 'Your link'),
+        h('div', { class: 'ref-code' }, h('span', { class: 'mono' }, link), copy),
+        h('p', { class: 'help' }, `They get +${rf.bonus} AGT on sign-up. You get ${(rf.rate * 100).toFixed(0)}% of the house edge on every bet they ever place, paid into your balance.`)),
+      h('div', { class: 'tile' }, h('div', { class: 'v num good' }, `+${fmt(rf.pending)}`), h('div', { class: 'l' }, 'To claim'), claim),
+      h('div', { class: 'tile' }, h('div', { class: 'v num' }, fmt(rf.claimed)), h('div', { class: 'l' }, 'Claimed so far'), h('div', { class: 'd' }, 'your cut of their losses'))),
+    rf.referred.length ? h('div', { class: 'tscroll' }, h('table', { class: 'data' },
+      h('thead', {}, h('tr', {}, h('th', {}, 'Friend'), h('th', {}, 'Joined'), h('th', {}, 'Wagered'), h('th', {}, 'Edge they paid'), h('th', {}, 'Your cut'))),
+      h('tbody', {}, ...rf.referred.map((r) => h('tr', {}, h('td', {}, r.username), h('td', {}, new Date(r.joinedAt).toLocaleDateString()), h('td', { class: 'num' }, fmt(r.wagered)), h('td', { class: 'num bad' }, `−${fmt(r.edge)}`), h('td', { class: 'num good' }, `+${fmt(r.edge * rf.rate)}`)))))) : null,
+    h('p', { class: 'help' }, 'This is affiliate marketing with the label left on. Every "join with my code" you have ever seen pays the person who posted it a share of what you lose. Here the share is printed in the table.'));
 }
 
 /* ---------------- game page ---------------- */
@@ -436,6 +433,7 @@ async function fairPage() {
   return h('div', { class: 'stack', style: { gap: '24px' } },
     h('h2', { class: 'gt' }, 'Provably fair'),
     h('p', { class: 'lead' }, 'Every result comes from HMAC-SHA256 of a server seed, your client seed and a nonce. Rotate to reveal the server seed and verify any round below.'),
+    h('section', { class: 'plate' }, h('h3', {}, 'Live tables: Crash and Roulette'), h('p', { class: 't-body' }, 'Shared rounds use commit-reveal per round instead of your personal seeds. The SHA-256 hash of the round seed is shown while bets are open; the seed itself is revealed the moment the round ends, and the game page checks in your browser that HMAC-SHA256(seed, "game:roundId") reproduces the crash point or the number. Nobody, including the server, can change a result after the hash is published, and nobody can know it before the seed is revealed.')),
     h('div', { class: 'two' },
       h('div', { class: 'panel' },
         h('h3', {}, 'Active seed pair'),
@@ -479,7 +477,7 @@ blackjack  one float per card from an infinite shoe, dealt player, dealer, playe
 
 /* ---------------- rewards ---------------- */
 async function rewardsPage() {
-  const rw = await api.rewards();
+  const [rw, rf] = await Promise.all([api.rewards(), api.referrals().catch(() => null)]);
   const m = me();
   const t = tierById(rw.tier);
   const netCost = rw.edgePaid - rw.rebateClaimed - rw.rebatePending - rw.bonuses;
@@ -539,7 +537,8 @@ async function rewardsPage() {
         h('div', { class: 'flow-step' }, h('div', { class: 'l' }, 'Net cost of playing'), h('div', { class: `v num ${netCost > 0 ? 'bad' : ''}` }, '−' + fmt(Math.max(0, netCost))))),
       h('p', { class: 'help' }, rw.edgePaid > 0 ? `Rebates and bonuses returned ${fmtPct((rw.rebateClaimed + rw.rebatePending + rw.bonuses) / rw.edgePaid, 1)} of what the edge took. The rest is the price of the loyalty programme.` : 'Place bets to see the edge, and the slice of it that comes back.')),
     h('section', { class: 'plate' }, h('h3', {}, 'Tiers'), ladder,
-      h('p', { class: 'help' }, 'Tiers are earned by lifetime wager, not by winning. The faster you climb, the more the edge has already taken.')));
+      h('p', { class: 'help' }, 'Tiers are earned by lifetime wager, not by winning. The faster you climb, the more the edge has already taken.')),
+    rf && referralPanel(rf));
 }
 
 /* ---------------- account & limits ---------------- */
