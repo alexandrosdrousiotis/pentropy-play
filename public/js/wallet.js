@@ -35,41 +35,38 @@ export async function openWallet(initialTab = 'deposit') {
     return svg;
   };
   const paintBalances = () => {
-    const m = me(), t = tierById(m?.rewards?.tier), net = w.balance + w.vault - w.deposited - 1000;
+    const m = me(), t = tierById(m?.rewards?.tier);
+    const delta = curve && curve.length > 1 ? curve[curve.length - 1] - curve[0] : null;
     balances.replaceChildren(
-      h('div', { class: 'wshow' },
-        h('div', { class: 'wshow-main' },
+      h('div', { class: 'wstrip' },
+        h('div', {},
           h('div', { class: 'l' }, 'Balance'),
-          h('div', { class: 'wbig num' }, svgUse('ph-coins'), fmt(w.balance), h('small', {}, 'AGT')),
-          h('div', { class: 'wchips' },
-            h('span', { class: 'tag', style: { color: t.colour } }, svgUse('ph-medal'), t.name),
-            h('span', { class: `tag ${net > 0 ? 'green' : net < 0 ? 'red' : ''}` }, `${fmtSigned(net)} all time`),
-            curve && curve.length > 1 ? h('span', { class: `tag ${curve[curve.length - 1] - curve[0] >= 0 ? 'green' : 'red'}` }, `${fmtSigned(curve[curve.length - 1] - curve[0])} last ${curve.length - 1} bets`) : null)),
-        h('div', { class: 'wshow-side' }, sparkline(), h('span', { class: 't-desc' }, curve && curve.length > 1 ? 'balance over your last bets' : 'place a bet to draw the curve'))),
-      h('div', { class: 'wmini' },
-        h('div', {}, h('div', { class: 'l' }, 'Vault'), h('div', { class: 'v num' }, fmt(w.vault))),
-        h('div', {}, h('div', { class: 'l' }, 'Deposited'), h('div', { class: 'v num' }, fmt(w.deposited))),
-        h('div', {}, h('div', { class: 'l' }, 'Allowance left'), h('div', { class: 'v num' }, fmt(w.faucetAvailable, 0))),
-        h('div', {}, h('div', { class: 'l' }, 'Net of deposits'), h('div', { class: `v num ${net > 0 ? 'good' : net < 0 ? 'bad' : ''}` }, fmtSigned(net)))));
+          h('div', { class: 'wbig num' }, fmt(w.balance), h('small', {}, 'AGT')),
+          h('div', { class: 'wsub' }, h('span', { style: { color: t.colour } }, svgUse('ph-medal'), t.name), h('i'), `Vault ${fmt(w.vault)}`, h('i'), `Deposited ${fmt(w.deposited)}`)),
+        h('div', { class: 'wshow-side' }, sparkline(), h('span', { class: `wdelta num ${delta > 0 ? 'good' : delta < 0 ? 'bad' : ''}` }, delta == null ? 'no bets yet' : `${fmtSigned(delta)} last ${curve.length - 1} bets`))));
   };
   // the curve: walk back from the current balance through the last rounds' nets
   api.rounds(40).then((r) => { const nets = r.rounds.map((x) => x.net ?? ((x.payout ?? 0) - x.amount)); let b = w.balance; const pts = [b]; for (const n of nets) { b -= n; pts.push(b); } curve = pts.reverse(); paintBalances(); }).catch(() => {});
 
   const paintTabs = () => tabs.replaceChildren(...['deposit', 'withdraw', 'history'].map((t) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(tab === t), onClick: () => { if (busy) return; tab = t; sound.play('tick'); paintTabs(); paintBody(); } }, t[0].toUpperCase() + t.slice(1))));
 
-  /** Big-amount input in the Base style: large number, asset chip, quick amounts. */
-  function amountBox({ max, quick, onChange }) {
-    const input = h('input', { type: 'number', inputmode: 'decimal', min: '1', step: '1', placeholder: '0', 'aria-label': 'Amount' });
-    const row = h('div', { class: 'wamount' }, input, h('span', { class: 'wasset' }, svgUse('ph-coins'), 'AGT'));
-    const quicks = h('div', { class: 'wquick' }, ...quick.map((q) => button(q === 'max' ? 'Max' : String(q), { kind: 'tertiary', size: 'sm', onClick: () => { input.value = String(q === 'max' ? Math.floor(max * 100) / 100 : Math.min(q, max)); onChange(Number(input.value)); } })));
-    input.addEventListener('input', () => onChange(Number(input.value)));
-    return { el: h('div', { class: 'stack', style: { gap: '10px' } }, row, quicks), input };
+  /** One huge centred amount, the way every wallet app draws it. */
+  function amountHero({ max, onChange }) {
+    const input = h('input', { type: 'number', inputmode: 'decimal', min: '1', step: '1', placeholder: '0', 'aria-label': 'Amount', autocomplete: 'off' });
+    const fit = () => { const n = (input.value || '0').length; input.style.fontSize = `${n > 7 ? 40 : n > 5 ? 48 : 60}px`; };
+    input.addEventListener('input', () => { fit(); onChange(Number(input.value)); });
+    const quick = h('div', { class: 'wquick' }, ...[100, 250, 500, 'max'].map((q) => h('button', { type: 'button', class: 'wchip', onClick: () => { input.value = String(q === 'max' ? Math.floor(max() * 100) / 100 : Math.min(q, max())); fit(); onChange(Number(input.value)); sound.play('tick'); } }, q === 'max' ? 'Max' : String(q))));
+    const el = h('div', { class: 'whero' }, h('div', { class: 'wfield' }, input, h('span', { class: 'wunit' }, 'AGT')), h('div', { class: 'wreal' }, 'play money · worth €0.00'), quick);
+    fit();
+    return { el, input, reset() { input.value = ''; fit(); } };
   }
-  function addressBox(address, label) {
-    const code = h('code', { class: 'waddr' }, address);
-    const copy = button('Copy', { kind: 'tertiary', size: 'sm', onClick: async () => { try { await navigator.clipboard.writeText(address); toast('Address copied.', 'good'); } catch { const r = document.createRange(); r.selectNodeContents(code); getSelection().removeAllRanges(); getSelection().addRange(r); } } });
-    return h('div', { class: 'field' }, h('label', {}, label), h('div', { class: 'waddr-row' }, code, copy));
-  }
+  /** A list row with a chevron: icon, title, subtitle. `onClick` makes it a button. */
+  const row = ({ icon, title, sub, right = null, onClick = null }) => h(onClick ? 'button' : 'div', { type: onClick ? 'button' : null, class: 'wlrow', onClick },
+    h('span', { class: 'wlicon' }, svgUse(icon)), h('span', { class: 'wltext' }, h('b', {}, title), h('small', {}, sub)), right ?? (onClick ? svgUse('ph-caret-right', 'wlchev') : null));
+  const addressRow = (address, label) => {
+    const copy = button('Copy', { kind: 'tertiary', size: 'sm', onClick: async () => { try { await navigator.clipboard.writeText(address); toast('Address copied.', 'good'); } catch { toast(address); } } });
+    return h('details', { class: 'wdetails' }, h('summary', {}, svgUse('ph-link'), label, svgUse('ph-caret-right', 'wlchev')), h('div', { class: 'waddr-row' }, h('code', { class: 'waddr' }, address), copy));
+  };
   async function processing(stage, lines) {
     busy = true;
     const steps = lines.map((t) => h('div', { class: 'wstep' }, h('span', { class: 'dot' }), t));
@@ -91,12 +88,9 @@ export async function openWallet(initialTab = 'deposit') {
     body.replaceChildren();
     if (tab === 'deposit') {
       let amt = 0, source = w.vault > 0 ? 'vault' : 'faucet';
-      const stage = h('div', { class: 'stack' });
-      const sourceSeg = h('div', { class: 'seg block' });
-      const paintSource = () => sourceSeg.replaceChildren(
-        h('button', { type: 'button', 'aria-pressed': String(source === 'faucet'), onClick: () => { source = 'faucet'; paintSource(); render(); } }, `Allowance · ${fmt(w.faucetAvailable, 0)}`),
-        h('button', { type: 'button', 'aria-pressed': String(source === 'vault'), disabled: w.vault <= 0, onClick: () => { source = 'vault'; paintSource(); render(); } }, `Vault · ${fmt(w.vault, 0)}`));
-      const box = amountBox({ max: source === 'vault' ? w.vault : w.faucetAvailable, quick: [100, 250, 500, 'max'], onChange: (v) => { amt = v; update(); } });
+      const stage = h('div', { class: 'wstage' });
+      const max = () => (source === 'vault' ? w.vault : w.faucetAvailable);
+      const hero = amountHero({ max, onChange: (v) => { amt = v; update(); } });
       const go = button('Deposit', { kind: 'primary', size: 'lg block', disabled: true, onClick: async () => {
         if (busy) return; sound.play('click');
         try {
@@ -105,13 +99,14 @@ export async function openWallet(initialTab = 'deposit') {
           receipt(stage, { title: 'Deposit complete', amount: amt, txid: res.history[0]?.txid || '', note: source === 'faucet' ? `Lifetime deposited: ${fmt(w.deposited)} AGT. This number only ever goes up.` : null, cta: 'Play' });
         } catch (e) { toast(e.message, 'bad'); render(); }
       } });
-      const update = () => { const max = source === 'vault' ? w.vault : w.faucetAvailable; go.disabled = !(amt >= 1 && amt <= max); go.querySelector('span').textContent = amt >= 1 ? `Deposit ${fmt(amt)} AGT` : 'Deposit'; };
-      const render = () => { amt = 0; box.input.value = ''; update(); stage.replaceChildren(sourceSeg, box.el, addressBox(w.address, 'Your deposit address'), h('div', { class: 'kv' }, h('span', {}, 'Network fee'), h('b', {}, '0.00 AGT')), h('div', { class: 'kv' }, h('span', {}, 'Arrives'), h('b', {}, 'instantly')), go, h('p', { class: 'help' }, 'Play money. Deposits are capped at 1,000 AGT a day and have no cash value.')); };
-      paintSource(); render(); body.append(stage);
+      const update = () => { go.disabled = !(amt >= 1 && amt <= max()); go.querySelector('span').textContent = amt >= 1 ? `Deposit ${fmt(amt)} AGT` : 'Deposit'; };
+      const sourceRow = () => row({ icon: source === 'vault' ? 'ph-lock' : 'ph-hand-coins', title: source === 'vault' ? 'From your vault' : 'From the daily allowance', sub: source === 'vault' ? `${fmt(w.vault)} AGT in the vault` : `${fmt(w.faucetAvailable, 0)} of ${fmt(w.faucetPerDay, 0)} left today`, onClick: w.vault > 0 ? () => { source = source === 'vault' ? 'faucet' : 'vault'; amt = 0; hero.reset(); update(); render(); sound.play('tick'); } : null });
+      const render = () => { stage.replaceChildren(hero.el, sourceRow(), go, h('p', { class: 'wfine' }, 'No fee · arrives instantly · 1,000 AGT a day · no cash value'), addressRow(w.address, 'Deposit address')); update(); };
+      render(); body.append(stage);
     } else if (tab === 'withdraw') {
       let amt = 0;
-      const stage = h('div', { class: 'stack' });
-      const box = amountBox({ max: w.balance, quick: [100, 250, 500, 'max'], onChange: (v) => { amt = v; update(); } });
+      const stage = h('div', { class: 'wstage' });
+      const hero = amountHero({ max: () => w.balance, onChange: (v) => { amt = v; update(); } });
       const go = button('Withdraw', { kind: 'primary', size: 'lg block', disabled: true, onClick: async () => {
         if (busy) return; sound.play('click');
         try {
@@ -121,14 +116,14 @@ export async function openWallet(initialTab = 'deposit') {
         } catch (e) { toast(e.message, 'bad'); render(); }
       } });
       const update = () => { go.disabled = !(amt >= 1 && amt <= w.balance); go.querySelector('span').textContent = amt >= 1 ? `Withdraw ${fmt(amt)} AGT` : 'Withdraw'; };
-      const render = () => { amt = 0; box.input.value = ''; update(); stage.replaceChildren(box.el, addressBox(w.address, 'Destination · your vault'), h('div', { class: 'kv' }, h('span', {}, 'Available'), h('b', {}, `${fmt(w.balance)} AGT`)), h('div', { class: 'kv' }, h('span', {}, 'Network fee'), h('b', {}, '0.00 AGT')), go, h('p', { class: 'help' }, 'Moving tokens out of play is the one move the house never promotes. Try it when you are ahead.')); };
+      const render = () => { stage.replaceChildren(hero.el, row({ icon: 'ph-lock', title: 'To your vault', sub: `${fmt(w.vault)} AGT there now · ${fmt(w.balance)} available` }), go, h('p', { class: 'wfine' }, 'Tokens in the vault cannot be bet. Moving them out of play is the one move the house never promotes.'), addressRow(w.address, 'Vault address')); update(); };
       render(); body.append(stage);
     } else {
       body.append(w.history.length ? h('div', { class: 'whist' }, ...w.history.map((e) => h('div', { class: 'wrow' },
-        h('span', { class: `wicon ${e.type}` }, svgUse(e.type === 'withdraw' ? 'ph-arrow-up-right' : 'ph-arrow-down-right')),
+        h('span', { class: `wicon ${e.type}` }, svgUse(e.type === 'withdraw' ? 'ph-arrow-up' : 'ph-arrow-down')),
         h('div', { class: 'wmeta' }, h('b', {}, TYPE_LABEL[e.type] || e.type), h('span', {}, new Date(e.at).toLocaleString(), ' · ', h('code', {}, e.txid.slice(0, 10)))),
         h('span', { class: `wamt2 num ${e.type === 'withdraw' ? '' : 'good'}` }, `${e.type === 'withdraw' ? '−' : '+'}${fmt(e.amount)}`))))
-        : h('p', { class: 'help', style: { padding: '20px 0', textAlign: 'center' } }, 'No transactions yet.'));
+        : h('div', { class: 'wempty' }, svgUse('ph-receipt'), h('b', {}, 'No transactions yet'), h('span', {}, 'Deposits and withdrawals show up here.')));
     }
   }
   paintBalances(); paintTabs(); paintBody();
