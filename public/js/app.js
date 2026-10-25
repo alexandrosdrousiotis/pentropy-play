@@ -12,7 +12,7 @@ import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
 import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout, toggleChat } from './social.js';
 import { chestCard, chestPill } from './chest.js';
 import { heroCarousel, liveSlide, gameOfDaySlide, topTen, liveChip } from './lobby.js';
-import { authPage, rememberRef } from './signup.js';
+import { authPage, authModal, rememberRef } from './signup.js';
 import { userMenu, accountBody } from './menu.js';
 import { REFERRAL } from '../shared/tiers.js';
 
@@ -74,12 +74,11 @@ function renderChrome() {
     h('div', { class: 'spacer' }),
     u ? h('div', { class: 'row', style: { gap: '10px' } },
       h('div', { class: 'wallet', id: 'balance', 'data-tip': 'Play money balance. Tap to open the wallet.', role: 'button', tabindex: '0', onClick: (e) => { if (!e.target.closest('.go')) openWallet('history'); } },
-        svgUse('ph-coins', 'ic'), h('span', { class: 'amt num' }, fmt(u.balance)),
-        h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta', 'data-tip': 'Net this session' }, fmtSigned(sessNet)),
-        h('button', { type: 'button', class: 'go', 'data-tip': 'Deposit or withdraw', onClick: () => openWallet('deposit') }, 'Wallet')),
+        h('span', { class: 'coin' }, svgUse('ph-coins', 'ic')), h('span', { class: 'bal' }, h('span', { class: 'amt num' }, fmt(u.balance)), h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta', 'data-tip': 'Net this session' }, fmtSigned(sessNet))),
+        h('button', { type: 'button', class: 'go', 'data-tip': 'Deposit or withdraw', onClick: () => openWallet('deposit') }, svgUse('ph-wallet'), h('span', {}, 'Wallet'))),
       h('span', { class: 'top-tools row' }, chatButton()),
       h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': u.username, onClick: (e) => userMenu(e.currentTarget) }, u.username.slice(0, 2)))
-      : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Sign up'))),
+      : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login', onClick: (e) => { e.preventDefault(); authModal('login'); } }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup', onClick: (e) => { e.preventDefault(); authModal('signup'); } }, h('span', {}, 'Sign up'))),
   );
   tabbar.hidden = !u;
   // phone tab bar: the four places a player actually goes, plus chat. Learn and Fairness live under Account.
@@ -111,8 +110,8 @@ function renderFooter() {
 /* ---------------- router ---------------- */
 const routes = [
   [/^#\/$/, () => (user() ? lobbyPage() : landingPage())],
-  [/^#\/signup$/, () => authPage('signup')],
-  [/^#\/login$/, () => authPage('login')],
+  [/^#\/signup$/, () => { if (user()) { location.hash = '#/'; return null; } queueMicrotask(() => authModal('signup')); return landingPage(); }],
+  [/^#\/login$/, () => { if (user()) { location.hash = '#/'; return null; } queueMicrotask(() => authModal('login')); return landingPage(); }],
   [/^#\/play\/([a-z]+)$/, (id) => gamePage(id)],
   [/^#\/stats$/, statsPage],
   [/^#\/learn$/, learnPage],
@@ -133,7 +132,7 @@ async function render() {
   renderChrome();
   if (!found) { location.hash = '#/'; return; }
   const needsAuth = /^#\/(play|stats|fair|account|rewards|rebates)/.test(hash);
-  if (needsAuth && !user()) { app.replaceChildren(...[authPage('login', 'Sign in to continue.')].flat().filter(Boolean)); return; }
+  if (needsAuth && !user()) { app.replaceChildren(landingPage()); authModal('login', 'Sign in to continue.'); return; }
   const [re, page] = found;
   const out = await page(...hash.match(re).slice(1));
   if ((location.hash || '#/').split('?')[0] !== hash) return; // navigated away while loading
@@ -320,7 +319,7 @@ async function gamePage(id) {
   const root = h('div', { class: 'stack page' },
     gameHeader(meta),
     foreign && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(foreign.game)?.name} · ${fmtAgt(foreign.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${foreign.game}` }, h('span', {}, 'Resume'))));
-  const mountPoint = h('div');
+  const mountPoint = h('div', { 'data-game': id });
   root.append(mountPoint);
   const mod = await meta.load();
   activeGame = mod.mount(mountPoint, meta) || {};

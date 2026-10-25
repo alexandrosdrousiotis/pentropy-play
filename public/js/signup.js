@@ -32,7 +32,7 @@ function promo(isSignup, pulseEl, winsEl) {
       h('p', { class: 'promo-fine' }, 'Everything on this page is the real playbook: the package, the counter, the friend code. The tokens are free because they are worth nothing, and the maths inside is the same as on the sites that charge.')));
 }
 
-export function authPage(mode, note) {
+export function authPage(mode, note, { onSwitch = null, onDone = null } = {}) {
   const isSignup = mode === 'signup';
   const userIn = h('input', { type: 'text', autocomplete: 'username', placeholder: 'Pick a username', maxlength: '20', pattern: '[A-Za-z0-9_]{3,20}', required: true, autocapitalize: 'off', spellcheck: 'false' });
   const passIn = h('input', { type: 'password', autocomplete: isSignup ? 'new-password' : 'current-password', placeholder: isSignup ? 'At least 10 characters' : 'Password', minlength: isSignup ? '10' : '1', required: true });
@@ -54,9 +54,9 @@ export function authPage(mode, note) {
         const out = await api.signUp(userIn.value, passIn.value, ref || undefined);
         rememberRef(''); try { localStorage.removeItem(REF_KEY); } catch { /* ignore */ }
         sound.play('coins'); haptic([10, 30, 10]);
-        location.hash = '#/';
+        onDone?.(); location.hash = '#/';
         welcome(out?.welcome || { tokens: 1000, referralBonus: 0 });
-      } else { await api.logIn(userIn.value, passIn.value); location.hash = '#/'; }
+      } else { await api.logIn(userIn.value, passIn.value); onDone?.(); location.hash = '#/'; }
     } catch (ex) { err.textContent = ex.message; submit.disabled = false; }
   } },
     h('div', { class: 'auth-head' }, h('h2', {}, isSignup ? 'Create your account' : 'Log in'), isSignup ? h('span', { class: 'tag green' }, svgUse('ph-lightning'), '10 seconds · no email') : null),
@@ -66,7 +66,7 @@ export function authPage(mode, note) {
     isSignup ? refToggle : null, isSignup ? refWrap : null,
     agree, err, submit,
     isSignup ? h('div', { class: 'auth-trust' }, h('span', {}, svgUse('ph-shield-check'), 'Provably fair'), h('span', {}, svgUse('ph-lock'), 'Nothing to pay, ever'), h('span', {}, svgUse('ph-eye'), 'No email, no tracking')) : null,
-    h('p', { class: 'help' }, isSignup ? ['Already have an account? ', h('a', { href: '#/login' }, 'Log in')] : ['New here? ', h('a', { href: '#/signup' }, 'Claim 1,000 free tokens')]));
+    h('p', { class: 'help' }, isSignup ? ['Already have an account? ', h('a', { href: '#/login', onClick: (e) => { if (onSwitch) { e.preventDefault(); onSwitch('login'); } } }, 'Log in')] : ['New here? ', h('a', { href: '#/signup', onClick: (e) => { if (onSwitch) { e.preventDefault(); onSwitch('signup'); } } }, 'Claim 1,000 free tokens')]));
   const pulseEl = h('div', { class: 'promo-pulse' }, h('i', { class: 'dot' }), h('span', {}, 'Loading the room…'));
   const winsEl = h('div', { class: 'promo-wins' });
   api.pulse().then((p) => {
@@ -74,6 +74,30 @@ export function authPage(mode, note) {
     winsEl.replaceChildren(...p.wins.slice(0, 4).map((w) => h('span', { class: 'tchip' }, h('b', {}, w.username), ` ${fmtMult(w.multiplier)} on ${gameById(w.game)?.name ?? w.game} `, h('span', { class: 'good' }, `+${fmt(w.net, 0)}`))));
   }).catch(() => { pulseEl.replaceChildren(); });
   return h('div', { class: 'auth-wrap' }, promo(isSignup, pulseEl, winsEl), form);
+}
+
+/** The sign-up and log-in sheet: opens over whatever page you are on, switches mode in place. */
+let openSheet = null;
+export function authModal(mode = 'signup', note = null) {
+  if (openSheet) { openSheet.set(mode); return; }
+  let current = mode;
+  const close = () => { bg.remove(); document.removeEventListener('keydown', onKey); openSheet = null; if (/^#\/(signup|login)/.test(location.hash)) history.replaceState(null, '', location.pathname + '#/'); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const body = h('div', { class: 'auth-body' });
+  const tabs = h('div', { class: 'tabs auth-tabs', role: 'tablist' });
+  const set = (m) => {
+    current = m;
+    tabs.replaceChildren(...[['signup', 'Register'], ['login', 'Log in']].map(([k, label]) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(k === current), onClick: () => { if (k !== current) { sound.play('tick'); set(k); } } }, label)));
+    body.replaceChildren(authPage(current, current === mode ? note : null, { onSwitch: set, onDone: close }));
+    body.querySelector('input')?.focus();
+  };
+  const sheet = h('div', { class: 'auth-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Account' },
+    h('div', { class: 'auth-sheet-head' }, h('span', { class: 'logo' }, h('span', { class: 'mark' }, svgUse('ph-lightning')), h('b', {}, 'Pentropy')), tabs, h('button', { type: 'button', class: 'wclose', 'aria-label': 'Close', onClick: close }, svgUse('ph-x'))),
+    body);
+  const bg = h('div', { class: 'modal-bg auth-bg', onClick: (e) => { if (e.target === bg) close(); } }, sheet);
+  set(mode);
+  document.body.append(bg); document.addEventListener('keydown', onKey);
+  openSheet = { set, close };
 }
 
 function welcome(w) {

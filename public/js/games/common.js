@@ -57,7 +57,7 @@ export function controlsPanel(...children) {
   return h('div', { class: 'panel' }, ...children);
 }
 
-import { GAME_ICON, ART } from './index.js';
+import { GAME_ICON, ART, GAME_COLOR } from './index.js';
 export const gameIcon = (id) => GAME_ICON[id] || 'ph-sparkle';
 export function gameHeader(game) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -88,6 +88,8 @@ export function layout(root) {
   const controls = h('div', { class: 'panel controls' });
   const stage = h('div', { class: 'stage' });
   const board = h('div', { class: 'board' }, stage);
+  const id = root.dataset?.game;
+  if (id) { board.style.setProperty('--c', GAME_COLOR[id] || '#334'); if (ART.has(id)) { board.classList.add('has-art'); board.style.setProperty('--art', `url(art/${id}.webp)`); } }
   const reality = h('div');
   const results = h('div');
   root.replaceChildren(...[h('div', { class: 'game-grid' }, controls, board), reality, results].flat().filter(Boolean));

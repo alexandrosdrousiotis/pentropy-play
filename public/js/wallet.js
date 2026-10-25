@@ -2,6 +2,7 @@
 import { api, user, me } from './api.js';
 import { h, button, svgUse, fmt, fmtSigned, toast } from './ui.js';
 import { sound, sleep, countTo } from './fx.js';
+import { tierById } from '../shared/tiers.js';
 
 const TYPE_LABEL = { deposit: 'Deposit', withdraw: 'Withdraw', vault_in: 'From vault', refill: 'Refill' };
 
@@ -20,11 +21,39 @@ export async function openWallet(initialTab = 'deposit') {
   const sheet = h('div', { class: 'wsheet', role: 'dialog', 'aria-modal': 'true' }, head, balances, tabs, body);
   const bg = h('div', { class: 'modal-bg', onClick: (e) => { if (e.target === bg && !busy) close(); } }, sheet);
 
-  const paintBalances = () => balances.replaceChildren(
-    h('div', {}, h('div', { class: 'l' }, 'Balance'), h('div', { class: 'v num' }, fmt(w.balance))),
-    h('div', {}, h('div', { class: 'l' }, 'Vault'), h('div', { class: 'v num' }, fmt(w.vault))),
-    h('div', {}, h('div', { class: 'l' }, 'Deposited'), h('div', { class: 'v num' }, fmt(w.deposited))),
-    h('div', {}, h('div', { class: 'l' }, 'Net of deposits'), h('div', { class: `v num ${w.balance + w.vault - w.deposited - 1000 >= 0 ? 'good' : 'bad'}` }, fmtSigned(w.balance + w.vault - w.deposited - 1000))));
+  let curve = null; // balance after each of the last rounds, oldest first
+  const sparkline = () => {
+    const pts = curve && curve.length > 1 ? curve : [w.balance, w.balance];
+    const lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+    const W = 160, H = 44;
+    const xy = pts.map((v, i) => [(i / (pts.length - 1)) * W, H - 4 - ((v - lo) / span) * (H - 8)]);
+    const d = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+    const up = pts[pts.length - 1] >= pts[0];
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('class', `wspark ${up ? 'up' : 'down'}`); svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = `<defs><linearGradient id="wsg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".35"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><path class="fill" d="${d} L${W} ${H} L0 ${H} Z" fill="url(#wsg)"/><path class="line" d="${d}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${xy[xy.length - 1][0]}" cy="${xy[xy.length - 1][1]}" r="3" fill="currentColor"/>`;
+    return svg;
+  };
+  const paintBalances = () => {
+    const m = me(), t = tierById(m?.rewards?.tier), net = w.balance + w.vault - w.deposited - 1000;
+    balances.replaceChildren(
+      h('div', { class: 'wshow' },
+        h('div', { class: 'wshow-main' },
+          h('div', { class: 'l' }, 'Balance'),
+          h('div', { class: 'wbig num' }, svgUse('ph-coins'), fmt(w.balance), h('small', {}, 'AGT')),
+          h('div', { class: 'wchips' },
+            h('span', { class: 'tag', style: { color: t.colour } }, svgUse('ph-medal'), t.name),
+            h('span', { class: `tag ${net > 0 ? 'green' : net < 0 ? 'red' : ''}` }, `${fmtSigned(net)} all time`),
+            curve && curve.length > 1 ? h('span', { class: `tag ${curve[curve.length - 1] - curve[0] >= 0 ? 'green' : 'red'}` }, `${fmtSigned(curve[curve.length - 1] - curve[0])} last ${curve.length - 1} bets`) : null)),
+        h('div', { class: 'wshow-side' }, sparkline(), h('span', { class: 't-desc' }, curve && curve.length > 1 ? 'balance over your last bets' : 'place a bet to draw the curve'))),
+      h('div', { class: 'wmini' },
+        h('div', {}, h('div', { class: 'l' }, 'Vault'), h('div', { class: 'v num' }, fmt(w.vault))),
+        h('div', {}, h('div', { class: 'l' }, 'Deposited'), h('div', { class: 'v num' }, fmt(w.deposited))),
+        h('div', {}, h('div', { class: 'l' }, 'Allowance left'), h('div', { class: 'v num' }, fmt(w.faucetAvailable, 0))),
+        h('div', {}, h('div', { class: 'l' }, 'Net of deposits'), h('div', { class: `v num ${net > 0 ? 'good' : net < 0 ? 'bad' : ''}` }, fmtSigned(net)))));
+  };
+  // the curve: walk back from the current balance through the last rounds' nets
+  api.rounds(40).then((r) => { const nets = r.rounds.map((x) => x.net ?? ((x.payout ?? 0) - x.amount)); let b = w.balance; const pts = [b]; for (const n of nets) { b -= n; pts.push(b); } curve = pts.reverse(); paintBalances(); }).catch(() => {});
 
   const paintTabs = () => tabs.replaceChildren(...['deposit', 'withdraw', 'history'].map((t) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(tab === t), onClick: () => { if (busy) return; tab = t; sound.play('tick'); paintTabs(); paintBody(); } }, t[0].toUpperCase() + t.slice(1))));
 
@@ -65,7 +94,7 @@ export async function openWallet(initialTab = 'deposit') {
       const stage = h('div', { class: 'stack' });
       const sourceSeg = h('div', { class: 'seg block' });
       const paintSource = () => sourceSeg.replaceChildren(
-        h('button', { type: 'button', 'aria-pressed': String(source === 'faucet'), onClick: () => { source = 'faucet'; paintSource(); render(); } }, `Daily allowance · ${fmt(w.faucetAvailable, 0)} left`),
+        h('button', { type: 'button', 'aria-pressed': String(source === 'faucet'), onClick: () => { source = 'faucet'; paintSource(); render(); } }, `Allowance · ${fmt(w.faucetAvailable, 0)}`),
         h('button', { type: 'button', 'aria-pressed': String(source === 'vault'), disabled: w.vault <= 0, onClick: () => { source = 'vault'; paintSource(); render(); } }, `Vault · ${fmt(w.vault, 0)}`));
       const box = amountBox({ max: source === 'vault' ? w.vault : w.faucetAvailable, quick: [100, 250, 500, 'max'], onChange: (v) => { amt = v; update(); } });
       const go = button('Deposit', { kind: 'primary', size: 'lg block', disabled: true, onClick: async () => {

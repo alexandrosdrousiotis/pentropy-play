@@ -22,7 +22,8 @@ export function mount(root, meta) {
   const play = button('Place bet', { kind: 'primary', size: 'lg block', onClick: () => bet() });
   const cash = button('Cash out', { kind: 'orange', size: 'xl block', disabled: true, onClick: () => cashout() });
   const hint = h('p', { class: 'help live-hint' });
-  L.controls.append(amount, autoField, play, cash, hint);
+  const liveHead = h('div', { class: 'ctl-head' }, h('i', { class: 'live-dot' }), h('b', {}, 'Live round'), h('span', { class: 'ctl-sub' }, 'one seed, everyone in'));
+  L.controls.append(liveHead, amount, autoField, play, cash, hint);
 
   const bar = phaseBar();
   const hist = historyStrip('crash');
