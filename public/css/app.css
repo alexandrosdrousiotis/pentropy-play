@@ -2174,3 +2174,8 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .cat-cards{min-height:280px}
 .cat-card{min-height:280px}
 @media (max-width:860px){.cat-cards{min-height:auto}.cat-card{min-height:170px}}
+/* no hover zoom on cards; a hover is a brighter border and a cursor, nothing moves */
+.cat-card:hover,.cat-card:hover .cc-img,.card:hover,.card:hover img,.card:hover .art,.card:hover .art img,.island:hover,.gotd-card:hover,.rk:hover .card{transform:none}
+.cat-card:hover{border-color:var(--line-3)}
+.card:hover{border-color:var(--line-3)}
+a.card:hover .art img,a.island:hover,a.card:hover{transform:none}
