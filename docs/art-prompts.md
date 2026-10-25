@@ -105,9 +105,10 @@ For each game save `public/art/<id>.webp` at 600 by 800 and, for featured games,
 `public/js/games/index.js`. Ids: limbo, mines, dice, crash, tower, plinko, keno, wheel, slide,
 diamonds, chicken, pump, hilo, flip, rps, blackjack, videopoker, baccarat, roulette.
 
-Already delivered in the old all-violet palette and worth regenerating first, in order of how
-much they clash in the lobby: limbo, mines, dice, tower, plinko, keno, wheel, slide, diamonds.
-Crash and Chicken are warm already and can wait.
+All nineteen tiles, the three banners, both chests and the lobby hero are delivered and wired in
+the old all-violet palette. Regenerate in this order, worst clash first: limbo, mines, dice,
+tower, plinko, keno, wheel, slide, diamonds, rps, pump, hilo, videopoker, baccarat, blackjack,
+flip. Crash, Chicken and Roulette are warm already and can wait.
 
 ## One worked example
 

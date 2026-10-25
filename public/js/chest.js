@@ -1,4 +1,4 @@
-// The chest: a CSS-drawn treasure chest that fills as you play and opens every six hours.
+// The chest: a painted treasure chest that fills as you play and opens every six hours.
 // It is the oldest retention hook in the business, so the expected value sits right next to it.
 import { api, me } from './api.js';
 import { h, svgUse, button, fmt, toast } from './ui.js';
@@ -7,13 +7,13 @@ import { sound, sleep, countTo, winBurst, ease, haptic } from './fx.js';
 const countdown = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60; return hh ? `${hh}h ${String(mm).padStart(2, '0')}m` : `${mm}:${String(ss).padStart(2, '0')}`; };
 const isReady = (c) => c.ready || Date.now() >= c.nextAt;
 
-/** The drawn chest. `size` scales it; the lid opens with the `.open` class. */
+/** The painted chest: closed and open frames cross-fade with the `.open` class. `size` scales it. */
 export function chestEl(size = 1) {
   const el = h('div', { class: 'chest', 'aria-hidden': 'true' },
     h('div', { class: 'glow' }),
-    h('div', { class: 'lid' }, h('i', { class: 'band' }), h('i', { class: 'band r' })),
-    h('div', { class: 'box' }, h('i', { class: 'band' }), h('i', { class: 'band r' }), h('i', { class: 'lock' })),
-    h('div', { class: 'coins' }, ...Array.from({ length: 7 }, (_, i) => h('i', { class: `c c${i}` }))));
+    h('img', { class: 'frame closed', src: 'art/chest-closed.webp', alt: '', decoding: 'async' }),
+    h('img', { class: 'frame opened', src: 'art/chest-open.webp', alt: '', decoding: 'async' }),
+    h('div', { class: 'coins' }, ...Array.from({ length: 9 }, (_, i) => h('i', { class: `c c${i}` }))));
   el.style.setProperty('--sz', String(size));
   return el;
 }

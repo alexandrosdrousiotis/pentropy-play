@@ -128,7 +128,7 @@ function landingPage() {
   };
   return h('div', { class: 'stack page landing' },
     h('section', { class: 'hero-banner' },
-      h('img', { class: 'hero-img', src: 'art/roulette-banner.webp', alt: '', decoding: 'async', fetchpriority: 'high' }),
+      heroPicture(true),
       h('div', { class: 'hero-copy' },
         h('div', { class: 'eyebrow' }, '19 games · play money · real odds'),
         h('h1', {}, 'The casino, with the price tag showing'),
@@ -175,6 +175,12 @@ function catCard({ title, text, href, icon, colour }) {
   el.style.setProperty('--c', colour);
   return el;
 }
+/** The painted casino floor behind the hero, with a taller crop for phones. */
+function heroPicture(eager = false) {
+  return h('picture', { class: 'hero-pic' },
+    h('source', { media: '(max-width: 860px)', srcset: 'art/lobby-hero-mobile.webp' }),
+    h('img', { class: 'hero-img', src: 'art/lobby-hero.webp', alt: '', decoding: 'async', fetchpriority: eager ? 'high' : null }));
+}
 /** The lobby hero: whichever reward is live right now, with one call to action. */
 function promoHero(m) {
   const c = m.rewards?.chest, d = m.rewards?.drips || {};
@@ -186,7 +192,7 @@ function promoHero(m) {
   else if (drip) { eyebrow = `${drip[1].label} unlocked`; title = `${fmt(drip[1].available)} AGT to claim`; text = drip[1].blurb; cta = button(`Claim ${fmt(drip[1].available)} AGT`, { kind: 'primary', size: 'lg', onClick: async () => { try { await api.claimDrip(drip[0]); toast('Claimed.', 'good'); render(); } catch (e) { toast(e.message, 'bad'); } } }); }
   else { const t = tierById(m.rewards?.tier); eyebrow = `Welcome back, ${m.user.username}`; title = c && c.wagered > 0 ? `Chest opens in ${until(c.nextAt - Date.now())}` : 'Play to fill the chest'; text = `${t.name} · ${(t.rate * 100).toFixed(1)}% rakeback · hourly, daily and weekly rebates on what you wager.`; cta = h('a', { class: 'btn primary lg', href: '#/rebates' }, h('span', {}, 'Rebates')); }
   return h('section', { class: 'hero-banner promo' },
-    h('img', { class: 'hero-img', src: 'art/roulette-banner.webp', alt: '', decoding: 'async' }),
+    heroPicture(),
     h('div', { class: 'hero-copy' }, h('div', { class: 'eyebrow' }, eyebrow), h('h1', {}, title), h('p', { class: 'lead' }, text), h('div', { class: 'row' }, cta)));
 }
 const FEATURED = [
