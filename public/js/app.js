@@ -77,7 +77,7 @@ function renderChrome() {
         h('span', { class: 'coin' }, svgUse('ph-coins', 'ic')), h('span', { class: 'bal' }, h('span', { class: 'amt num' }, fmt(u.balance)), h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta', 'data-tip': 'Net this session' }, fmtSigned(sessNet))),
         h('button', { type: 'button', class: 'go', 'data-tip': 'Open the wallet', onClick: () => openWallet('home') }, svgUse('ph-wallet'), h('span', {}, 'Wallet'))),
       h('span', { class: 'top-tools row' }, chatButton()),
-      h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': u.username, onClick: (e) => userMenu(e.currentTarget) }, h('span', { class: 'av' }, u.username.slice(0, 2)), svgUse('ph-caret-down', 'caret')))
+      h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': 'Account', onClick: (e) => userMenu(e.currentTarget) }, h('span', { class: 'av' }, u.username.slice(0, 2)), h('span', { class: 'av-text' }, h('b', {}, u.username), h('small', { style: { color: tierById(me()?.rewards?.tier).colour } }, tierById(me()?.rewards?.tier).name)), svgUse('ph-caret-down', 'caret')))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login', onClick: (e) => { e.preventDefault(); authModal('login'); } }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup', onClick: (e) => { e.preventDefault(); authModal('signup'); } }, h('span', {}, 'Sign up'))),
   );
   tabbar.hidden = !u;

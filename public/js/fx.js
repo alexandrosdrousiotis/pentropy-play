@@ -4,6 +4,7 @@ const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').ma
 export const ease = {
   linear: (t) => t,
   outCubic: (t) => 1 - (1 - t) ** 3,
+  outQuint: (t) => 1 - (1 - t) ** 5,
   inCubic: (t) => t * t * t,
   inOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2),
   outExpo: (t) => (t === 1 ? 1 : 1 - 2 ** (-10 * t)),

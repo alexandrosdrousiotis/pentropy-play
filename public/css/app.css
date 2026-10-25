@@ -2280,3 +2280,47 @@ body.side-collapsed .tierfoot .tier-badge{padding:0;height:auto}
 .island .btn,.island .btn.white,.island .btn.sm{margin-top:0;flex:none}
 .island.has-img::before{background:linear-gradient(90deg,rgba(0,0,0,.6) 0%,rgba(0,0,0,.2) 45%,transparent 70%),linear-gradient(0deg,rgba(0,0,0,.55),transparent 55%)}
 .board:has(.crash-area){align-content:start}
+
+/* no colour haze behind any board */
+.board::before{display:none}
+/* dice: the track is the slider. uniform 18px inset all round, draggable edges, flat */
+.dice-stage{width:100%;justify-items:center;gap:14px}
+.dice-track{box-shadow:none;border:0;background:var(--surface-3);height:60px;width:100%;max-width:760px;margin:16px 0 0;padding:0;overflow:visible}
+.dice-track .rail{position:absolute;left:18px;right:18px;top:18px;bottom:18px;border-radius:999px;background:var(--surface-2);touch-action:none;cursor:pointer}
+.dice-track .rail.locked{cursor:default}
+.dice-track .zone{position:absolute;top:0;bottom:0;border-radius:999px;transition:none}
+.dice-track .zone.lose{background:var(--down);opacity:1}.dice-track .zone.win{background:var(--up);opacity:1}
+.dice-track .zone.win.lit,.dice-track .zone.lose.lit{box-shadow:none;filter:brightness(1.25)}
+.dice-track .handle{position:absolute;top:50%;width:22px;height:36px;margin:-18px 0 0 -11px;border-radius:8px;background:#fff;cursor:grab;z-index:3;display:grid;place-items:center;touch-action:none;transition:none}
+.dice-track .handle::before{content:"";width:2px;height:12px;border-radius:1px;background:#8d93a1;box-shadow:-4px 0 0 #8d93a1,4px 0 0 #8d93a1}
+.dice-track .handle.grab{cursor:grabbing;background:var(--accent)}
+.dice-track .handle.grab::before{background:#3a2a05;box-shadow:-4px 0 0 #3a2a05,4px 0 0 #3a2a05}
+.dice-track .handle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dice-track .rail.locked .handle{cursor:default}
+.dice-track .marker{position:absolute;top:-46px;width:64px;height:40px;margin-left:-32px;display:grid;place-items:center;transition:none;z-index:4;pointer-events:none}
+.dice-track .marker b{background:var(--fg);color:var(--bg);border-radius:10px;padding:7px 10px;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .2s}
+.dice-track .marker.win b{box-shadow:0 0 0 3px var(--up);transform:scale(1.12)}.dice-track .marker.loss b{box-shadow:0 0 0 3px var(--down);transform:scale(1.04)}
+.dice-stage .scale{position:relative;height:16px;width:100%;max-width:760px;padding:0 18px;display:block;box-sizing:border-box}
+.dice-stage .scale span{position:absolute;top:0;transform:translateX(-50%);font-size:11px;color:var(--fg-4);font-weight:600;font-variant-numeric:tabular-nums}
+.dice-stage .scale{padding:0}
+.dice-stage .scale span{left:calc(18px + (100% - 36px) * var(--f))}
+@media (max-width:860px){.dice-track{height:52px}.dice-track .rail{left:14px;right:14px;top:14px;bottom:14px}.dice-track .handle{width:20px;height:32px;margin:-16px 0 0 -10px}.dice-stage .scale span{left:calc(14px + (100% - 28px) * var(--f))}}
+/* limbo: just the number */
+.limbo-rocket{display:none}
+.limbo-stage{height:min(46vh,360px)}
+.bignum{text-shadow:none;transition:transform .9s cubic-bezier(.2,.7,.2,1),color .2s}
+.bignum.rolling{color:var(--fg);transform:scale(.94)}
+.bignum.win,.bignum.loss{transform:scale(1)}
+/* dragon tower fits the window */
+.board .tower{gap:4px;max-width:440px}
+.board .tower .cell{height:34px;border-radius:8px}
+.board .tower .trow .mult{font-size:10px;margin-top:-3px;line-height:1.2}
+@media (max-width:860px){.board .tower .cell{height:30px}}
+/* card turns: 320ms, eased out, no bounce */
+.pcard .inner{transition:transform .32s cubic-bezier(.3,.7,.3,1)}
+/* top bar: name and tier beside the avatar */
+.top .avatar .av-text{display:grid;gap:1px;text-align:left;line-height:1.1;margin:0 2px 0 2px}
+.top .avatar .av-text b{font-size:13px;font-weight:700;color:var(--fg);text-transform:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top .avatar .av-text small{font-size:11px;font-weight:600;text-transform:none;letter-spacing:0}
+@media (max-width:1100px){.top .avatar .av-text{display:none}}
+.dice-stage .scale span:nth-child(1){--f:0}.dice-stage .scale span:nth-child(2){--f:.25}.dice-stage .scale span:nth-child(3){--f:.5}.dice-stage .scale span:nth-child(4){--f:.75}.dice-stage .scale span:nth-child(5){--f:1}

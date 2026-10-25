@@ -21,11 +21,20 @@ const limbo = {
 /* ---------------- Dice ---------------- */
 const dice = {
   rtp: () => M.DICE_RTP,
-  params: (raw) => v.object(raw, { chance: v.number({ min: M.DICE_MIN_CHANCE, max: M.DICE_MAX_CHANCE, decimals: 2 }), over: v.boolean() }),
+  params: (raw) => {
+    if (raw && typeof raw === 'object' && (raw.mode === 'inside' || raw.mode === 'outside')) {
+      const p = v.object(raw, { mode: v.oneOf(['inside', 'outside']), lo: v.number({ min: 0, max: 99.99, decimals: 2 }), hi: v.number({ min: 0.01, max: 100, decimals: 2 }) });
+      const { chance } = M.diceZone(p);
+      if (p.hi <= p.lo || chance < M.DICE_MIN_CHANCE || chance > M.DICE_MAX_CHANCE) throw bad(`Zone must give a win chance between ${M.DICE_MIN_CHANCE}% and ${M.DICE_MAX_CHANCE}%`);
+      return p;
+    }
+    return v.object(raw, { chance: v.number({ min: M.DICE_MIN_CHANCE, max: M.DICE_MAX_CHANCE, decimals: 2 }), over: v.boolean() });
+  },
   start(p, rng) {
     const { roll } = replay.dice(rng.take(1));
-    const win = M.diceWins(roll, p.chance, p.over);
-    return settled(win ? M.diceMultiplier(p.chance) : 0, { roll, threshold: M.diceThreshold(p.chance, p.over), multiplier: M.diceMultiplier(p.chance) });
+    const z = M.diceZone(p);
+    const win = M.diceWinsZone(roll, p), mult = M.diceMultiplier(z.chance);
+    return settled(win ? mult : 0, { roll, threshold: z.mode === 'over' ? z.lo : z.mode === 'under' ? z.hi : null, mode: z.mode, lo: z.lo, hi: z.hi, multiplier: mult });
   },
 };
 

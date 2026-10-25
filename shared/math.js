@@ -48,6 +48,21 @@ export function diceWins(roll, chance, over) {
   const t = diceThreshold(chance, over);
   return over ? roll >= t - 1e-9 : roll < t - 1e-9;
 }
+/** Normalise dice params. Legacy {chance, over} or a zone {mode:'inside'|'outside', lo, hi}. Returns {mode, lo, hi, chance}. */
+export function diceZone(p) {
+  if (p.mode === 'inside' || p.mode === 'outside') {
+    const lo = round2(p.lo), hi = round2(p.hi), span = round2(hi - lo);
+    return { mode: p.mode, lo, hi, chance: p.mode === 'inside' ? span : round2(100 - span) };
+  }
+  const over = p.mode ? p.mode === 'over' : Boolean(p.over);
+  const t = diceThreshold(p.chance, over);
+  return over ? { mode: 'over', lo: t, hi: 100, chance: p.chance } : { mode: 'under', lo: 0, hi: t, chance: p.chance };
+}
+export function diceWinsZone(roll, p) {
+  const z = diceZone(p);
+  const inside = roll >= z.lo - 1e-9 && roll < z.hi - 1e-9;
+  return z.mode === 'outside' ? !inside : inside;
+}
 
 /* ---------------- Mines ---------------- */
 export const MINES_RTP = 0.99;
