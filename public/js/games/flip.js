@@ -1,4 +1,5 @@
-import { h, button, fmtMult, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
+import { h, button, numberInput, fmtMult, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
+import { attach as attachAuto } from './autobet.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { CHAIN_STEP, round2 } from '../../shared/math.js';
 import { sound, sleep, flashRed, flashGreen, winBurst, pulse } from '../fx.js';
@@ -6,7 +7,7 @@ import { coin3d } from '../solid.js';
 
 export function mount(root, meta) {
   const L = layout(root);
-  let round = null, busy = false, turns = 0;
+  let round = null, busy = false, turns = 0, lastSettled = null, autoFlips = 1;
   const amount = betAmount(10, () => reality.update());
   const play = button('Start', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const cash = button('Cash out', { kind: 'orange', size: 'lg block', disabled: true, onClick: () => cashout() });
@@ -62,9 +63,10 @@ export function mount(root, meta) {
     busy = true; paint();
     const out = await tryAct('cashout', {}, { defer: true });
     if (!out) { busy = false; paint(); return; }
-    out.commit(); finish(out.round);
+    out.commit(); return finish(out.round);
   }
   function finish(r) {
+    lastSettled = r;
     const win = r.multiplier > 0; round = null;
     if (win) { sound.play(r.multiplier >= 8 ? 'bigwin' : 'cashout'); if (r.multiplier >= 8) winBurst(L.board); }
     mult.textContent = fmtMult(win ? r.multiplier : 0); mult.className = `bignum num ${win ? 'win' : 'loss'}`; mult.style.fontSize = '56px';
@@ -73,6 +75,16 @@ export function mount(root, meta) {
     paint(); trail.replaceChildren(...r.outcome.flips.slice(-14).map((x) => h('span', { class: `chip ${x.ok ? 'win' : 'loss'}` }, `${x.choice[0].toUpperCase()}→${x.result[0].toUpperCase()}`)));
     reality.update();
   }
+  async function playAuto() {
+    if (busy || round) return null;
+    lastSettled = null;
+    await start(); if (!round) return null;
+    for (let i = 0; i < autoFlips && round; i++) await flip(Math.random() < 0.5 ? 'heads' : 'tails');
+    if (round) await cashout();
+    return lastSettled;
+  }
+  const flipsField = numberInput({ label: 'Wins in a row before cashing out', value: autoFlips, min: 1, max: 20, step: 1, unit: 'flips', onChange: (v) => { autoFlips = Math.max(1, Math.min(20, Math.round(v))); } });
+  attachAuto({ panel: L.controls, amount, manual: [play, cash], playRound: playAuto, canStart: () => (round ? 'Finish the current streak first.' : null), rtp: () => 0.99, extra: [flipsField], note: 'Auto calls a random side each flip and cashes out after the streak you set.' });
   const existing = openRoundFor('flip');
   if (existing) { round = existing; amount.set(existing.amount); }
   setFace('heads', 0); paint();

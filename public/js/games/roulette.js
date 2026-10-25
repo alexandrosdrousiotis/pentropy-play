@@ -1,7 +1,8 @@
 // Roulette, live: one wheel for the whole table. Bets open for fifteen seconds, lock, the wheel
 // spins once, and every player is paid off the same number.
 import { h, button, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt, toast } from '../ui.js';
-import { betAmount, realityPanel, layout } from './common.js';
+import { betAmount, realityPanel, layout, waitFor } from './common.js';
+import { attach as attachAuto } from './autobet.js';
 import { api } from '../api.js';
 import { ROULETTE_RED, ROULETTE_RTP, roulettePayout } from '../../shared/math.js';
 import { sound, tween, ease, flashGreen, flashRed, winBurst, haptic, sparkle } from '../fx.js';
@@ -37,13 +38,13 @@ export function mount(root, meta) {
     h('div', { class: 'routs' }, cellBtn('1–18', { type: 'low', value: 0 }, 'outside'), cellBtn('Even', { type: 'even', value: 0 }, 'outside'), cellBtn('Red', { type: 'red', value: 0 }, 'outside red'), cellBtn('Black', { type: 'black', value: 0 }, 'outside black'), cellBtn('Odd', { type: 'odd', value: 0 }, 'outside'), cellBtn('19–36', { type: 'high', value: 0 }, 'outside')));
   // wheel
   const wrap = h('div', { class: 'wheel-wrap small' });
-  const svg = el('svg', { viewBox: '-100 -100 200 200' }); const disc = el('g', {});
+  const svg = el('svg', { viewBox: '-110 -110 220 220' }); const disc = el('g', {});
   const step = 360 / 37;
   ORDER.forEach((n, i) => { const a0 = (i * step - 90) * Math.PI / 180, a1 = a0 + step * Math.PI / 180; const p = (a, r) => `${(Math.cos(a) * r).toFixed(2)},${(Math.sin(a) * r).toFixed(2)}`; disc.append(el('path', { d: `M${p(a0, 96)} A96,96 0 0 1 ${p(a1, 96)} L${p(a1, 66)} A66,66 0 0 0 ${p(a0, 66)} Z`, fill: colourOf(n), stroke: '#0a0b0d', 'stroke-width': .8 })); const am = (a0 + a1) / 2; const t = el('text', { x: (Math.cos(am) * 82).toFixed(2), y: (Math.sin(am) * 82).toFixed(2), 'text-anchor': 'middle', 'dominant-baseline': 'middle', fill: '#fff', 'font-size': 7, 'font-weight': 700, transform: `rotate(${(i * step + step / 2)} ${(Math.cos(am) * 82).toFixed(2)} ${(Math.sin(am) * 82).toFixed(2)})` }); t.textContent = String(n); disc.append(t); });
-  const ball = el('circle', { r: 4.5, cx: 0, cy: -80, fill: '#fff', class: 'rball' });
-  svg.append(disc, el('circle', { r: 62, fill: 'var(--surface)' }), ball);
-  const pointer = h('div', { class: 'wheel-pointer' }); const readout = h('div', { class: 'wheel-readout num' }, '—');
-  wrap.append(svg, pointer, readout);
+  const ballG = el('g', { class: 'ballg' }); const ball = el('circle', { r: 4.2, cx: 0, cy: -100, fill: '#f3f4f8', class: 'rball' }); ballG.append(ball);
+  svg.append(el('circle', { r: 108, fill: '#0e1117' }), el('circle', { r: 101, fill: 'none', stroke: '#1c212b', 'stroke-width': 9 }), el('circle', { r: 97, fill: '#2b313f' }), disc, el('circle', { r: 62, fill: 'var(--surface)' }), el('circle', { r: 62, fill: 'none', stroke: '#363d4c', 'stroke-width': 1 }), ballG);
+  const readout = h('div', { class: 'wheel-readout num' }, '—');
+  wrap.append(svg, readout);
   const bar = phaseBar();
   const hist = historyStrip('roulette');
   const fair = fairLine('roulette');
@@ -79,20 +80,24 @@ export function mount(root, meta) {
     catch (e) { toast(e.message, 'bad'); }
     busy = false; paintChips(); poller.kick();
   }
+  /** The wheel turns one way, the ball the other; the ball falls off the rim late and comes to rest in pocket `n`. */
   async function spinTo(n, ms) {
     const idx = ORDER.indexOf(n);
     const from = ((angle % 360) + 360) % 360;
-    const want = (360 - (idx * step + step / 2) + 360) % 360;
-    const to = from + 360 * 4 + ((want - from + 360) % 360); let lastTick = -1;
-    const ballTurns = -(360 * 6 + 90);
-    await tween(Math.max(1500, ms), (e, k) => {
+    const to = from + 360 * 3 + Math.floor(Math.random() * 360); // the disc rests anywhere; the ball decides the pocket
+    const thetaEnd = to + idx * step + step / 2; // where that pocket's centre ends up on screen
+    const turns = 360 * 7; let lastTick = -1;
+    disc.querySelectorAll('path.hit').forEach((p) => p.classList.remove('hit'));
+    await tween(Math.max(1800, ms), (e, k) => {
       const a = from + (to - from) * e; disc.style.transform = `rotate(${a}deg)`;
-      const ba = ballTurns * e; const r = 80 + 12 * (1 - Math.min(1, k * 1.25)) ** 2 + 10 * (k < 0.8 ? 1 : 0);
-      ball.setAttribute('cx', (Math.cos((ba - 90) * Math.PI / 180) * r).toFixed(2)); ball.setAttribute('cy', (Math.sin((ba - 90) * Math.PI / 180) * r).toFixed(2));
-      const tk = Math.floor(a / step); if (tk !== lastTick) { lastTick = tk; sound.play('tick'); }
+      const th = thetaEnd + (1 - e) * turns;
+      const drop = Math.max(0, (k - 0.7) / 0.3);
+      const r = 100 - drop * 19 + (drop > 0 && drop < 1 ? Math.abs(Math.sin(drop * Math.PI * 3)) * 5 * (1 - drop) : 0);
+      ballG.style.transform = `rotate(${th}deg)`; ball.setAttribute('cy', (-r).toFixed(2));
+      const tk = Math.floor(th / step); if (tk !== lastTick) { lastTick = tk; if (k < 0.92) sound.play('tick'); }
     }, ease.outCubic);
-    ball.setAttribute('cx', 0); ball.setAttribute('cy', -80); sound.play('land');
-    await tween(380, (e, k) => { const b = Math.abs(Math.sin(k * Math.PI * 3)) * 6 * (1 - k); ball.setAttribute('cy', (-80 - b).toFixed(2)); }, ease.linear);
+    ballG.style.transform = `rotate(${thetaEnd}deg)`; ball.setAttribute('cy', '-81'); sound.play('land');
+    disc.children[idx * 2]?.classList.add('hit');
     angle = to % 360;
     readout.textContent = String(n); readout.style.color = n === 0 ? '#3ccf8f' : ROULETTE_RED.has(n) ? '#ff5c7a' : '#fff';
   }
@@ -132,10 +137,26 @@ export function mount(root, meta) {
     players.paint(s.bets, (b) => [h('span', { class: 'rb' }, labelOf(b.params)), h('span', { class: 'num' }, fmt(b.amount)), h('span', { class: `num ${b.payout > 0 ? 'good' : b.payout === 0 ? 'bad' : ''}` }, b.payout == null ? '' : b.payout > 0 ? `+${fmt(b.payout - b.amount)}` : `−${fmt(b.amount)}`)]);
     hist.paint(s.history, chipColour);
     fair.paint(r);
-    amount.setDisabled(s.phase !== 'betting');
+    if (!autoCtl?.running) amount.setDisabled(s.phase !== 'betting');
     hint.textContent = s.phase === 'betting' ? (s.mine.length ? `${s.mine.length} bet${s.mine.length > 1 ? 's' : ''} on the table. Add more or clear until the timer ends.` : 'Tap a square to put the bet amount on it. Tap again to add more.') : s.phase === 'running' ? 'No more bets. The wheel is spinning for everyone.' : 'Paying out. The next spin opens in a moment.';
     paintChips();
   }
+  async function playAuto(amt) {
+    await waitFor(() => dead || (state && state.phase === 'betting' && !state.mine.length && !busy));
+    if (dead) return null;
+    busy = true; paintChips();
+    let bet;
+    try { const r = await api.liveBet('roulette', { amount: amt, type: picked.type, value: picked.value ?? 0 }); bet = r.bet; state.mine.push(bet); state.bets.unshift(bet); }
+    catch (e) { toast(e.message, 'bad'); busy = false; paintChips(); return null; }
+    busy = false; paintChips(); poller.kick();
+    const roundId = state.round.id;
+    await waitFor(() => dead || state.round.id !== roundId || state.mine.some((b) => b.id === bet.id && b.payout != null));
+    if (dead) return null;
+    const m = state.mine.find((b) => b.id === bet.id);
+    if (!m || m.payout == null) return { net: 0, amount: amt, multiplier: 0 };
+    return { net: m.payout - m.amount, amount: m.amount, multiplier: m.payout / m.amount };
+  }
+  const autoCtl = attachAuto({ panel: L.controls, amount, manual: [clear, hint], playRound: playAuto, rtp: () => ROULETTE_RTP, note: 'Repeats the last square you tapped on every spin.' });
   const poller = livePoller('roulette', onState, { fast: 900, slow: 1000 });
   requestAnimationFrame(frame);
   return { unmount() { dead = true; poller.stop(); } };

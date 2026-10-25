@@ -2,10 +2,11 @@ import { h, button, cardEl, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, openRoundFor } from './common.js';
 import { bjTotal } from '../../shared/math.js';
 import { dealFrom, sleep, sound, shake, flashGreen, flashRed, winBurst } from '../fx.js';
+import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
   const L = layout(root);
-  let round = null, busy = false, dead = false;
+  let round = null, busy = false, dead = false, lastSettled = null;
   const amount = betAmount(10, () => reality.update());
   const deal = button('Deal', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const actions = h('div', { class: 'stack' });
@@ -142,6 +143,7 @@ export function mount(root, meta) {
     return { phase: 'settled', dealer: o.dealer, dealerTotal: bjTotal(o.dealer).total, hands: o.hands.map((hd) => ({ ...hd })), active: -1, insurance: o.insurance, can: [] };
   }
   function finish(r) {
+    lastSettled = r;
     const reason = { blackjack: 'Blackjack · pays 3:2', dealer_blackjack: 'Dealer blackjack', push: 'Push', showdown: null }[r.outcome.result.reason];
     const net = r.net;
     const text = reason || (net > 0 ? 'You win' : net < 0 ? 'Dealer wins' : 'Push');
@@ -151,6 +153,31 @@ export function mount(root, meta) {
     strip.push(net > 0 ? `+${fmt(net, 0)}` : net < 0 ? `−${fmt(-net, 0)}` : 'push', net > 0);
     round = null; deal.disabled = false; amount.setDisabled(false); actions.replaceChildren();
   }
+  /** Basic strategy, the short table: splits of aces and eights, doubles on 10 and 11, stand on stiff hands against a weak dealer. */
+  function basic(v) {
+    const hd = v.hands[v.active]; const t = bjTotal(hd.cards); const up = bjTotal([v.dealer[0]]).total; const can = v.can;
+    const r1 = hd.cards[0]?.rank, r2 = hd.cards[1]?.rank;
+    if (can.includes('split') && hd.cards.length === 2 && r1 === r2 && (r1 === 1 || r1 === 8)) return 'split';
+    if (can.includes('double') && !t.soft && (t.total === 11 || (t.total === 10 && up <= 9))) return 'double';
+    if (t.soft && t.total <= 21) { if (t.total <= 17) return 'hit'; if (t.total === 18) return up <= 8 ? 'stand' : 'hit'; return 'stand'; }
+    if (t.total <= 11) return 'hit';
+    if (t.total <= 16) return up <= 6 ? 'stand' : 'hit';
+    return 'stand';
+  }
+  async function playAuto() {
+    if (busy || round) return null;
+    lastSettled = null;
+    await start(); if (!round) return null;
+    let guard = 0;
+    while (round && guard++ < 14) {
+      const v = round.view;
+      if (v.phase === 'insurance') await act('insurance', { take: false });
+      else if (v.phase === 'play') await act(basic(v));
+      else break;
+    }
+    return lastSettled;
+  }
+  attachAuto({ panel: L.controls, amount, manual: [deal, actions], playRound: playAuto, canStart: () => (round ? 'Finish the current hand first.' : null), rtp: () => 0.9943, note: 'Auto plays basic strategy: never insures, splits aces and eights, doubles on 10 and 11, stands on stiff hands when the dealer shows a six or less.' });
   const existing = openRoundFor('blackjack');
   resetTable();
   if (existing) { round = existing; amount.set(existing.amount); reconcile(existing.view, { initial: true }).then(() => renderActions(existing.view)); }

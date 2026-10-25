@@ -2073,3 +2073,74 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .flow-step .rw-ic{margin-bottom:4px}
 .rw-main .drip-head{margin-bottom:6px}
 .tier-badge.lg{gap:8px;padding-left:8px}
+
+/* ============ v18: the game window, the strip beneath it, a quieter top bar, Crash and Roulette ============ */
+/* one window: controls on the left, the board on the right, centred like the big books */
+.game-page{align-items:stretch}
+.game-wrap{width:100%;max-width:1180px;margin:0 auto;display:grid;gap:var(--s3)}
+.game-wrap>.game-recent:empty{display:none}
+.game-grid{gap:0;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;align-items:stretch}
+.panel.controls{position:static;border:0;border-radius:0;background:var(--surface-2);padding:16px;gap:12px}
+.board{border:0;border-radius:0;background:var(--bg-1);min-height:600px;padding:28px 28px 72px}
+.board::before{background:radial-gradient(70% 55% at 50% 42%,color-mix(in srgb,var(--c,#334) 10%,transparent),transparent 70%)}
+.game-recent{display:grid;gap:8px;padding:0 4px}
+.game-recent h3{font-size:11px;color:var(--fg-4)}
+@media (max-width:860px){.game-grid{border-radius:14px}.panel.controls{padding:14px}.board{min-height:420px;padding:20px 14px 64px}}
+/* the strip beneath: name, tags, tabs */
+.game-info{display:grid;gap:14px;padding:4px 4px 12px}
+.gi-head{display:flex;align-items:center;gap:16px}
+.gi-thumb{width:64px;height:64px;border-radius:12px;object-fit:cover;object-position:center 30%;flex:none;border:1px solid var(--line-2)}
+.gi-thumb.glyph{display:grid;place-items:center;background:var(--surface-2)}
+.gi-thumb.glyph svg{width:28px;height:28px;fill:var(--accent)}
+.gi-title{display:grid;gap:8px;min-width:0}
+.gi-title h2{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.gi-tags{display:flex;gap:6px;flex-wrap:wrap}
+.gi-tags .tag{height:26px;padding:0 10px;font-size:12px;font-weight:700;border-radius:8px}
+.gi-tags .tag svg{width:13px;height:13px;fill:currentColor;margin-right:4px}
+.gi-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding-bottom:0}
+.gi-tabs button{height:40px;padding:0 14px;border:0;background:transparent;color:var(--fg-3);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:0}
+.gi-tabs button:hover{color:var(--fg)}
+.gi-tabs button[aria-selected=true]{color:#fff;border-bottom-color:var(--accent)}
+.gi-body{min-height:80px}
+.gi-text{display:grid;gap:10px;max-width:72ch;color:var(--fg-2);font-size:14px;line-height:1.6}
+.gi-text p{margin:0}
+.gi-lead{font-size:16px;font-weight:600;color:var(--fg)}
+.gi-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:6px}
+.gi-fact{display:grid;gap:2px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.gi-fact .l{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-4)}
+.gi-fact b{font-size:14px}
+.gi-empty{padding:16px 0}
+/* the top bar: plain icon buttons, a round avatar with a caret */
+.top .icon-btn{background:transparent;border:0;border-radius:12px;color:var(--fg-2)}
+.top .icon-btn:hover{background:var(--surface-2);color:#fff}
+.top .avatar{width:auto;height:44px;padding:0 6px 0 3px;border:0;background:transparent;display:inline-flex;align-items:center;gap:6px;border-radius:12px}
+.top .avatar:hover{background:var(--surface-2)}
+.top .avatar .av{width:34px;height:34px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;text-transform:uppercase}
+.top .avatar .caret{width:12px;height:12px;fill:var(--fg-3)}
+.top-search{background:var(--surface-2)}
+.top-search svg{fill:var(--fg-3)}
+@media (max-width:860px){.top .avatar{width:auto;height:40px;padding:0 2px}.top .avatar .av{width:32px;height:32px}.top .avatar .caret{display:none}}
+/* Crash: a chart, a number, a rocket; nothing stamped on it */
+.crash-area{height:380px}
+.crash-area .readout{left:50%;top:40%;transform:translate(-50%,-50%);text-align:center;text-shadow:none;font-size:72px;font-weight:800;letter-spacing:-.04em;color:#fff}
+.crash-area .readout small{font-size:13px;font-weight:600;color:var(--fg-3);margin-top:10px;letter-spacing:.02em}
+.crash-area .readout.live{animation:none}
+.crash-area.crashed .readout{color:var(--down)}
+.crash-area.crashed .readout small{color:var(--down)}
+.crash-area svg path.line,.crash-area.crashed svg path.line{filter:none}
+.crash-area .stamp{display:none}
+.crash-area.betting .readout{opacity:0}
+.crash-wait{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.crash-wait .cw-num{font-size:72px;font-weight:800;letter-spacing:-.04em}
+.crash-ship{width:40px;height:44px;filter:none}
+.crash-ship svg{width:100%;height:100%;fill:none;overflow:visible}
+.crash-ship .flame{transform-origin:20px 30px;animation:cflame .12s ease-in-out infinite alternate}
+@keyframes cflame{from{transform:scaleY(.7) scaleX(.9)}to{transform:scaleY(1.15) scaleX(1.05)}}
+.crash-ship.boom{display:none}
+@media (max-width:860px){.crash-area{height:300px}.crash-area .readout{font-size:52px}.crash-wait .cw-num{font-size:52px}}
+/* Roulette: the ball has its own track; the winning pocket lights up */
+.wheel-wrap.small .wheel-pointer{display:none}
+.wheel-wrap svg g.ballg{transform-origin:0 0;transform-box:view-box}
+.rball{filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.wheel-wrap svg path.hit{filter:brightness(1.35);stroke:#fff;stroke-width:1.5}
+.wheel-readout{font-size:38px;font-weight:800}

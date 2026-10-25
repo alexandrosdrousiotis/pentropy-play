@@ -2,10 +2,11 @@ import { h, button, cardEl, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { VP_PAYTABLE, cardOf, evaluatePoker } from '../../shared/math.js';
 import { dealFrom, sleep, sound, flashGreen, winBurst, pulse, popIn, sparkle } from '../fx.js';
+import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
   const L = layout(root);
-  let round = null, hold = [false, false, false, false, false], busy = false, cards = [], dead = false;
+  let round = null, hold = [false, false, false, false, false], busy = false, cards = [], dead = false, lastSettled = null;
   const amount = betAmount(10, () => reality.update());
   const deal = button('Deal', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const draw = button('Draw', { kind: 'accent', size: 'lg block', disabled: true, onClick: () => doDraw() });
@@ -77,9 +78,30 @@ export function mount(root, meta) {
     banner.show(r.outcome.rank ? `${r.outcome.rank} · ${payoutLine(r)}` : `No hand · −${fmt(r.amount)} AGT`, r.multiplier > 1 ? true : r.multiplier === 1 ? 'push' : false);
     strip.push(r.outcome.rank ? `${r.multiplier}x` : '—', r.multiplier > 1);
     out.commit();
+    lastSettled = r;
     round = null; busy = false; deal.disabled = false; amount.setDisabled(false);
   }
+  /** Hold pairs and better, else four to a flush, else jacks or better. */
+  function autoHold(hand) {
+    const byRank = {}; hand.forEach((c, i) => (byRank[c.rank] ||= []).push(i));
+    const paired = Object.values(byRank).filter((a) => a.length >= 2).flat();
+    if (paired.length) return hand.map((_, i) => paired.includes(i));
+    const bySuit = {}; hand.forEach((c, i) => (bySuit[c.suit] ||= []).push(i));
+    const four = Object.values(bySuit).find((a) => a.length >= 4);
+    if (four) return hand.map((_, i) => four.includes(i));
+    return hand.map((c) => c.rank === 1 || c.rank >= 11);
+  }
+  async function playAuto() {
+    if (busy || round) return null;
+    lastSettled = null;
+    await start(); if (!round) return null;
+    hold = autoHold(round.view.hand); cards.forEach((c, i) => c.classList.toggle('held', hold[i]));
+    await sleep(350);
+    await doDraw();
+    return lastSettled;
+  }
   table();
+  attachAuto({ panel: L.controls, amount, manual: [deal, draw], playRound: playAuto, canStart: () => (round ? 'Finish the current hand first.' : null), rtp: () => 0.9954, note: 'Auto holds pairs and better, then four to a flush, then jacks or better.' });
   const existing = openRoundFor('videopoker');
   if (existing) {
     round = existing; amount.set(existing.amount); deal.disabled = true; amount.setDisabled(true); draw.disabled = false; label.textContent = 'Choose what to hold.';

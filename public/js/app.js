@@ -5,7 +5,7 @@ import { CATALOG, CATEGORIES, GAME_COLOR, ART, BANNERS, gameById } from './games
 import * as edu from './edu.js';
 import { replayFloats, sha256Hex } from './verify-rng.js';
 import { replayRound, canonicalOutcome } from '../shared/replay.js';
-import { gameHeader, gameIcon } from './games/common.js';
+import { gameIcon } from './games/common.js';
 import { countTo, sound } from './fx.js';
 import { openWallet } from './wallet.js';
 import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
@@ -77,7 +77,7 @@ function renderChrome() {
         h('span', { class: 'coin' }, svgUse('ph-coins', 'ic')), h('span', { class: 'bal' }, h('span', { class: 'amt num' }, fmt(u.balance)), h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta', 'data-tip': 'Net this session' }, fmtSigned(sessNet))),
         h('button', { type: 'button', class: 'go', 'data-tip': 'Open the wallet', onClick: () => openWallet('home') }, svgUse('ph-wallet'), h('span', {}, 'Wallet'))),
       h('span', { class: 'top-tools row' }, chatButton()),
-      h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': u.username, onClick: (e) => userMenu(e.currentTarget) }, u.username.slice(0, 2)))
+      h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': u.username, onClick: (e) => userMenu(e.currentTarget) }, h('span', { class: 'av' }, u.username.slice(0, 2)), svgUse('ph-caret-down', 'caret')))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login', onClick: (e) => { e.preventDefault(); authModal('login'); } }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup', onClick: (e) => { e.preventDefault(); authModal('signup'); } }, h('span', {}, 'Sign up'))),
   );
   tabbar.hidden = !u;
@@ -316,8 +316,7 @@ async function gamePage(id) {
   if (!meta) { location.hash = '#/'; return h('div'); }
   const m = me();
   const foreign = m.openRound && m.openRound.game !== id ? m.openRound : null;
-  const root = h('div', { class: 'stack page' },
-    gameHeader(meta),
+  const root = h('div', { class: 'stack page game-page' },
     foreign && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(foreign.game)?.name} · ${fmtAgt(foreign.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${foreign.game}` }, h('span', {}, 'Resume'))));
   const mountPoint = h('div', { 'data-game': id });
   root.append(mountPoint);

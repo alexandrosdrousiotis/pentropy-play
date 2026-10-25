@@ -1,7 +1,8 @@
 // Crash, live: one flight at a time for everyone at the table. Bets open for a few seconds, the
 // curve climbs, each player cashes out when they like, and the whole table sees the same crash.
 import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt, svgUse, toast } from '../ui.js';
-import { betAmount, realityPanel, layout } from './common.js';
+import { betAmount, realityPanel, layout, waitFor } from './common.js';
+import { attach as attachAuto } from './autobet.js';
 import { api, user } from '../api.js';
 import { limboWinChance, LIMBO_MAX, CRASH_K } from '../../shared/math.js';
 import { crashMultAt } from '../../shared/live.js';
@@ -36,13 +37,12 @@ export function mount(root, meta) {
   const grad = el('linearGradient', { id: 'crashfill', x1: 0, y1: 0, x2: 0, y2: 1 });
   grad.append(el('stop', { offset: 0, 'stop-color': '#e6b655', 'stop-opacity': .45 }), el('stop', { offset: 1, 'stop-color': '#e6b655', 'stop-opacity': 0 }));
   defs.append(grad); svg.append(defs, grid, fill, line);
-  const ship = h('div', { class: 'crash-ship' }, svgUse('ph-rocket-launch'), h('i', { class: 'flame' }));
+  const ship = h('div', { class: 'crash-ship', html: '<svg viewBox="0 0 40 44" aria-hidden="true"><path class="flame" d="M15 30h10l-5 13z" fill="#ffb347"/><path d="M20 2c6.5 4.5 9.5 12 9.5 20.5L26 30H14l-3.5-7.5C10.5 14 13.5 6.5 20 2z" fill="#f3f4f8"/><path d="M10.5 22 4 29.5l8 1.5zM29.5 22 36 29.5l-8 1.5z" fill="#aeb7cb"/><circle cx="20" cy="16" r="3.6" fill="#0e1117"/><circle cx="20" cy="16" r="2.2" fill="#5de4ff"/></svg>' });
   const readout = h('div', { class: 'readout num' }, '1.00x', h('small', {}, 'waiting'));
   const ticksX = h('div', { class: 'ticks-x' }), ticksY = h('div', { class: 'ticks-y' });
-  const stamp = h('div', { class: 'stamp' }, 'Crashed');
   const wait = h('div', { class: 'crash-wait' }, h('div', { class: 'cw-num num' }, '—'), h('div', { class: 't-label' }, 'next launch'));
   const cashMarks = h('div', { class: 'cash-marks' });
-  area.append(svg, cashMarks, ship, ticksX, ticksY, readout, stamp, wait);
+  area.append(svg, cashMarks, ship, ticksX, ticksY, readout, wait);
   const players = playersPanel();
   const fair = fairLine('crash');
   L.stage.append(h('div', { class: 'stack live-stage' }, hist.el, bar.el, area, fair.el));
@@ -72,7 +72,7 @@ export function mount(root, meta) {
     for (const mk of cashMarks.children) { const mm = Number(mk.dataset.m); const t = (Math.log(mm) / CRASH_K) * 1000; mk.style.left = `${(t / T) * rect.width}px`; mk.style.top = `${((60 - ((mm - 1) / (M - 1)) * 54) / 60) * rect.height}px`; mk.hidden = t > elapsed; }
     const xs = [0, .25, .5, .75, 1].map((f) => fmtS(T * f)), ys = [1, 1 + (M - 1) * .25, 1 + (M - 1) * .5, 1 + (M - 1) * .75, M].map((v) => fmtMult(v));
     const key = xs.join() + '|' + ys.join();
-    if (key !== tickKey) { tickKey = key; ticksX.replaceChildren(...xs.map((s) => h('span', {}, s))); ticksY.replaceChildren(...ys.map((s) => h('span', {}, s))); if (!grid.childElementCount) grid.replaceChildren(...[.25, .5, .75].map((f) => el('line', { x1: 0, x2: 100, y1: 60 - 54 * f, y2: 60 - 54 * f, stroke: 'rgba(255,255,255,.06)', 'stroke-width': .3 }))); }
+    if (key !== tickKey) { tickKey = key; ticksX.replaceChildren(...xs.map((s) => h('span', {}, s))); ticksY.replaceChildren(...ys.map((s) => h('span', {}, s))); if (!grid.childElementCount) grid.replaceChildren(...[.25, .5, .75].map((f) => el('line', { x1: 0, x2: 100, y1: 60 - 54 * f, y2: 60 - 54 * f, stroke: 'rgba(255,255,255,.07)', 'stroke-width': .25, 'vector-effect': 'non-scaling-stroke' })), ...[.25, .5, .75].map((f) => el('line', { x1: 100 * f, x2: 100 * f, y1: 0, y2: 60, stroke: 'rgba(255,255,255,.05)', 'stroke-width': .25, 'vector-effect': 'non-scaling-stroke' }))); }
   }
   let lastPhase = '', lastRound = 0;
   function frame() {
@@ -104,15 +104,14 @@ export function mount(root, meta) {
     if (s.phase !== lastPhase) {
       lastPhase = s.phase;
       area.classList.toggle('betting', s.phase === 'betting');
-      if (s.phase === 'running') { sound.play('launch'); readout.lastChild.textContent = s.mine[0] ? (s.mine[0].auto ? `auto at ${fmtMult(s.mine[0].auto)}` : 'you are in') : 'watching'; }
+      if (s.phase === 'running') { sound.play('launch'); readout.lastChild.textContent = s.mine[0] ? (s.mine[0].auto ? `Auto cash out at ${fmtMult(s.mine[0].auto)}` : 'You are in') : 'Current payout'; }
       if (s.phase === 'ended') {
         const point = r.result, mine = s.mine[0];
         drawFrame((Math.log(point) / CRASH_K) * 1000, point, { snap: true });
         readout.firstChild.textContent = fmtMult(point);
         area.classList.add('crashed'); ship.classList.add('boom');
-        sparkle(ship, L.board, { color: '#ff5c7a', count: 22, spread: 90 }); shockwave(ship, L.board); shake(area);
-        if (mine && mine.cashout === 0) { sound.play('crash'); flashRed(L.board); readout.lastChild.textContent = `crashed at ${fmtMult(point)} · you were still in`; }
-        else { sound.play(mine ? 'pop' : 'tick'); readout.lastChild.textContent = `crashed at ${fmtMult(point)}`; }
+        if (mine && mine.cashout === 0) { sound.play('crash'); flashRed(L.board); readout.lastChild.textContent = 'Crashed · you were still in'; }
+        else { sound.play(mine ? 'pop' : 'tick'); readout.lastChild.textContent = 'Crashed'; }
       }
     }
     // my settlements: announce once, then refresh stats quietly
@@ -157,6 +156,23 @@ export function mount(root, meta) {
     catch (e) { toast(e.message, 'bad'); }
     busy = false; paintControls(); poller.kick();
   }
+  /** One automatic round: wait for bets to open, place the bet with the auto cash out, wait for it to settle. */
+  async function playAuto(amt) {
+    await waitFor(() => dead || (state && state.phase === 'betting' && !state.mine[0] && !busy));
+    if (dead) return null;
+    busy = true; paintControls();
+    let bet;
+    try { const r = await api.liveBet('crash', { amount: amt, auto }); bet = r.bet; state.mine = [bet]; state.bets = [bet, ...state.bets]; }
+    catch (e) { toast(e.message, 'bad'); busy = false; paintControls(); return null; }
+    busy = false; paintControls(); poller.kick();
+    const roundId = state.round.id;
+    await waitFor(() => dead || state.round.id !== roundId || state.mine.some((b) => b.id === bet.id && b.payout != null));
+    if (dead) return null;
+    const m = state.mine.find((b) => b.id === bet.id);
+    if (!m || m.payout == null) return { net: 0, amount: amt, multiplier: 0 };
+    return { net: m.payout - m.amount, amount: m.amount, multiplier: m.cashout || 0 };
+  }
+  attachAuto({ panel: L.controls, amount, manual: [play], playRound: playAuto, canStart: () => (auto >= 1.01 ? null : 'Set an auto cash out first. Auto bet rides every round and cashes out there.'), rtp: () => 0.99, note: 'Places this bet on every round and cashes out at your auto value.' });
   const poller = livePoller('crash', onState);
   drawFrame(0, 1, { snap: true });
   raf = requestAnimationFrame(frame);

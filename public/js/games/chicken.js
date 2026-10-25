@@ -1,7 +1,8 @@
 // Chicken: a top-down road crossing. 25 lanes of traffic, each a column; the chicken hops right.
 // Everything on screen is drawn in CSS: vehicles with windows and lights, a chicken with a comb and
 // a shadow, grass kerbs, a camera that follows. The maths is untouched: one server step per lane.
-import { h, button, segmented, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { h, button, segmented, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { attach as attachAuto } from './autobet.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { CHICKEN_LEVELS, TRACK_LEN, trackMultiplier, trackNextSafeChance, round2 } from '../../shared/math.js';
 import { sound, sleep, shake, flashRed, flashGreen, winBurst, pulse, floatText, sparkle, haptic } from '../fx.js';
@@ -12,7 +13,7 @@ const TYPES = ['car', 'car', 'car', 'truck', 'bus'];
 
 export function mount(root, meta) {
   const L = layout(root);
-  let level = 'medium', round = null, busy = false, dead = false;
+  let level = 'medium', round = null, busy = false, dead = false, lastSettled = null, autoLanes = 3;
   const amount = betAmount(10, () => reality.update());
   const levelSeg = segmented(Object.entries(CHICKEN_LEVELS).map(([k, v]) => ({ value: k, label: v.label })), level, (v) => { level = v; build(); reality.update(); }, { block: true });
   const play = button('Start', { kind: 'primary', size: 'lg block', onClick: () => start() });
@@ -126,9 +127,10 @@ export function mount(root, meta) {
     const stride = Math.max(1, Math.ceil((TRACK_LEN + 1 - pos) / 5));
     for (let p = pos + stride; p < TRACK_LEN + 1; p += stride) await hop(p, 180);
     await hop(TRACK_LEN + 1, 300);
-    out.commit(); finish(out.round);
+    out.commit(); return finish(out.round);
   }
   function finish(r) {
+    lastSettled = r;
     const win = r.multiplier > 0; round = null;
     if (win) { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.multiplier >= 5) winBurst(L.board); chicken.classList.add('safe'); sparkle(chicken, L.board, { color: '#e6b655', count: 14, spread: 50 }); }
     banner.show(win ? `WIN ${payoutLine(r)}` : `Hit on lane ${r.outcome.lane + 1} · −${fmt(r.amount)} AGT`, win);
@@ -137,6 +139,16 @@ export function mount(root, meta) {
     mult.textContent = fmtMult(win ? r.multiplier : 0); mult.className = `bignum num ${win ? 'win' : 'loss'}`;
     busy = false; paintControls(); reality.update();
   }
+  async function playAuto() {
+    if (busy || round) return null;
+    lastSettled = null;
+    await start(); if (!round) return null;
+    for (let i = 0; i < autoLanes && round && !dead; i++) await cross();
+    if (round) await cashout();
+    return lastSettled;
+  }
+  const lanesField = numberInput({ label: 'Lanes to cross before cashing out', value: autoLanes, min: 1, max: TRACK_LEN, step: 1, unit: 'lanes', onChange: (v) => { autoLanes = Math.max(1, Math.min(TRACK_LEN, Math.round(v))); } });
+  attachAuto({ panel: L.controls, amount, manual: [play, step, cash], playRound: playAuto, canStart: () => (round ? 'Finish the current crossing first.' : null), rtp: () => 0.99, extra: [lanesField], note: 'Auto crosses the lanes you set, then cashes out.' });
   const existing = openRoundFor('chicken');
   if (existing) { round = existing; level = existing.params.level; levelSeg.set(level); amount.set(existing.amount); }
   build();

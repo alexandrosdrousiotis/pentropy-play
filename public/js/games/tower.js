@@ -1,4 +1,5 @@
-import { h, button, segmented, toy, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { h, button, segmented, numberInput, toy, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { attach as attachAuto } from './autobet.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { TOWER_LEVELS, TOWER_ROWS, towerMultiplier, round2 } from '../../shared/math.js';
 import { egg3d } from '../solid.js';
@@ -6,7 +7,7 @@ import { sleep, sound, shake, flashRed, flashGreen, winBurst, popIn, pulse, spar
 
 export function mount(root, meta) {
   const L = layout(root);
-  let level = 'medium', round = null, busy = false, dead = false;
+  let level = 'medium', round = null, busy = false, dead = false, lastSettled = null, autoRows = 3;
   const amount = betAmount(10, () => reality.update());
   const levelSeg = segmented(Object.entries(TOWER_LEVELS).map(([k, v]) => ({ value: k, label: v.label })), level, (v) => { level = v; build(); reality.update(); }, { block: true });
   const play = button('Start climb', { kind: 'primary', size: 'lg block', onClick: () => start() });
@@ -93,9 +94,10 @@ export function mount(root, meta) {
     busy = true; paintControls(); setActive(-1);
     const out = await tryAct('cashout', {}, { defer: true });
     if (!out) { busy = false; setActive(round.view.row); paintControls(); return; }
-    out.commit(); finish(out.round);
+    out.commit(); return finish(out.round);
   }
   async function finish(r) {
+    lastSettled = r;
     const win = r.multiplier > 0;
     round = null;
     if (win) { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.outcome.cleared || r.multiplier >= 5) winBurst(L.board); }
@@ -106,6 +108,17 @@ export function mount(root, meta) {
     await revealLayout(r.outcome);
     busy = false; paintControls(); reality.update();
   }
+  /** One automatic climb: random tile on each row for the rows you set, then cash out. */
+  async function playAuto() {
+    if (busy || round) return null;
+    lastSettled = null;
+    await start(); if (!round) return null;
+    for (let i = 0; i < autoRows && round && !dead; i++) { const { tiles } = TOWER_LEVELS[level]; await pick(round.view.row, Math.floor(Math.random() * tiles)); await sleep(120); }
+    if (round) await cashout();
+    return lastSettled;
+  }
+  const rowsField = numberInput({ label: 'Rows to climb before cashing out', value: autoRows, min: 1, max: TOWER_ROWS, step: 1, unit: 'rows', onChange: (v) => { autoRows = Math.max(1, Math.min(TOWER_ROWS, Math.round(v))); } });
+  attachAuto({ panel: L.controls, amount, manual: [play, cash], playRound: playAuto, canStart: () => (round ? 'Finish the current climb first.' : null), rtp: () => 0.98, extra: [rowsField], note: 'Auto picks a random tile on every row, climbs the rows you set, then cashes out.' });
   const existing = openRoundFor('tower');
   if (existing) { round = existing; level = existing.params.level; levelSeg.set(level); amount.set(existing.amount); }
   build();

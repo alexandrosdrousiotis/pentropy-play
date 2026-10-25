@@ -1,11 +1,12 @@
-import { h, button, segmented, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { h, button, segmented, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { attach as attachAuto } from './autobet.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { PUMP_LEVELS, TRACK_LEN, trackMultiplier, trackNextSafeChance, round2 } from '../../shared/math.js';
 import { sound, sleep, shake, flashRed, flashGreen, winBurst, pulse } from '../fx.js';
 
 export function mount(root, meta) {
   const L = layout(root);
-  let level = 'medium', round = null, busy = false;
+  let level = 'medium', round = null, busy = false, lastSettled = null, autoPumps = 3;
   const amount = betAmount(10, () => reality.update());
   const levelSeg = segmented(Object.entries(PUMP_LEVELS).map(([k, v]) => ({ value: k, label: v.label })), level, (v) => { level = v; paint(); reality.update(); }, { block: true });
   const play = button('Start', { kind: 'primary', size: 'lg block', onClick: () => start() });
@@ -69,9 +70,10 @@ export function mount(root, meta) {
     busy = true; paint();
     const out = await tryAct('cashout', {}, { defer: true });
     if (!out) { busy = false; paint(); return; }
-    out.commit(); finish(out.round);
+    out.commit(); return finish(out.round);
   }
   function finish(r) {
+    lastSettled = r;
     const win = r.multiplier > 0; round = null;
     if (win) { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.multiplier >= 5) winBurst(L.board); }
     banner.show(win ? `WIN ${payoutLine(r)}` : `Popped on pump ${r.outcome.pumps + 1} · −${fmt(r.amount)} AGT`, win);
@@ -81,6 +83,16 @@ export function mount(root, meta) {
     mult.textContent = fmtMult(win ? r.multiplier : 0);
     if (!win) setTimeout(() => { if (!round) { balloon.className = 'balloon'; balloon.style.opacity = '1'; shards.replaceChildren(); } }, 1200);
   }
+  async function playAuto() {
+    if (busy || round) return null;
+    lastSettled = null;
+    await start(); if (!round) return null;
+    for (let i = 0; i < autoPumps && round; i++) await doPump();
+    if (round) await cashout();
+    return lastSettled;
+  }
+  const pumpsField = numberInput({ label: 'Pumps before cashing out', value: autoPumps, min: 1, max: TRACK_LEN, step: 1, unit: 'pumps', onChange: (v) => { autoPumps = Math.max(1, Math.min(TRACK_LEN, Math.round(v))); } });
+  attachAuto({ panel: L.controls, amount, manual: [play, pump, cash], playRound: playAuto, canStart: () => (round ? 'Finish the current balloon first.' : null), rtp: () => 0.99, extra: [pumpsField], note: 'Auto pumps the number of times you set, then cashes out.' });
   const existing = openRoundFor('pump');
   if (existing) { round = existing; level = existing.params.level; levelSeg.set(level); amount.set(existing.amount); }
   paint();
