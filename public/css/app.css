@@ -2007,3 +2007,42 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .tower .cell.dim .egg3d{font-size:30px;opacity:1}
 .tower .cell{height:58px}
 @media (max-width:860px){.cell .gem3d{font-size:clamp(26px,8vw,40px)}.tower .cell{height:48px}.tower .cell .egg3d{font-size:32px}.tower .cell.dim .egg3d{font-size:26px}}
+
+/* ============ v16: the five notes on the demo ============ */
+/* the ranked row only scrolls sideways */
+.grow .cards{overflow-y:hidden}
+.cards.ranked{padding-bottom:4px;align-items:flex-end}
+.rk-num{line-height:.9;margin-bottom:-6px}
+/* game of the day: the tile shown whole, on its own colour */
+.slide[data-key=gotd]{background:radial-gradient(80% 120% at 85% 50%,color-mix(in srgb,var(--c,#334) 45%,#0a0b0d),#0a0b0d 70%)}
+.hero-img.gotd-back{opacity:.35;filter:blur(18px) saturate(1.2);transform:scale(1.15);object-position:center}
+.gotd-card{position:absolute;right:7%;top:50%;width:min(24%,190px);aspect-ratio:3/4;transform:translateY(-50%) rotate(6deg);border-radius:14px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08);z-index:1}
+.gotd-card img{width:100%;height:100%;object-fit:cover;display:block}
+.slide[data-key=gotd]::after{content:"";position:absolute;right:4%;top:50%;width:min(30%,240px);aspect-ratio:1;transform:translateY(-50%);border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--c,#fff) 35%,transparent),transparent 65%);pointer-events:none}
+@media (max-width:860px){.gotd-card{right:6%;top:auto;bottom:-6%;width:34%;transform:rotate(6deg)}.slide[data-key=gotd]::after{display:none}}
+/* boards: no painting behind the stage, a whisper of colour only */
+.board.has-art::after{display:none}
+.board::before{background:radial-gradient(70% 55% at 50% 40%,color-mix(in srgb,var(--c,#334) 12%,transparent),transparent 72%)}
+/* Keno: the flat grid it had before */
+.keno-grid{gap:6px;max-width:540px}
+.keno-grid .cell{background:var(--surface-2);box-shadow:none;border-radius:10px;font-size:14px;font-weight:700;color:var(--fg)}
+.keno-grid .cell:hover:not(:disabled){background:var(--surface-3);transform:translateY(-2px);box-shadow:none}
+.keno-grid .cell.pick{background:var(--accent);color:var(--accent-fg);box-shadow:none}
+.keno-grid .cell.hit{background:var(--up);color:#06281b;box-shadow:none}
+.keno-grid .cell.miss{background:var(--down-soft);color:var(--down);box-shadow:none}
+.keno-grid .cell.drawn{background:var(--surface-4);box-shadow:none}
+/* the numbers strip under a game: one quiet bar, the way the big books do it */
+.reality.bar{display:flex;align-items:center;flex-wrap:wrap;gap:4px 22px;min-height:52px;padding:8px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.reality.bar .rf{display:inline-flex;align-items:baseline;gap:6px;font-size:12px;color:var(--fg-3);cursor:default;border-radius:6px}
+.reality.bar .rf .l{font-weight:600}
+.reality.bar .rf .v{font-size:13px;font-weight:800;color:var(--fg)}
+.reality.bar .rf .d{font-size:11px;color:var(--fg-4);font-weight:500}
+.reality.bar .rf-links{margin-left:auto;display:inline-flex;gap:16px}
+.reality.bar .rf-links a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--fg-3)}
+.reality.bar .rf-links a:hover{color:var(--fg);text-decoration:none}
+.reality.bar .rf-links svg{width:14px;height:14px;fill:currentColor}
+.reality.bar .rf.tip-wide[data-tip]::after{bottom:calc(100% + 8px);top:auto}
+@media (max-width:860px){.reality.bar{gap:2px 14px;padding:8px 12px}.reality.bar .rf .d{display:none}.reality.bar .rf-links{width:100%;margin:4px 0 0;justify-content:flex-start}}
+.grow .cards.ranked{overflow-y:clip;align-items:flex-end}
+.rk{overflow:visible}
+.rk-num{margin-bottom:0;line-height:.8;transform:translateY(6px)}

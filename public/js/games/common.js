@@ -1,7 +1,7 @@
 // Shared pieces for every game: the bet panel, the "reality" tiles, and settlement plumbing.
 import { haptic } from '../fx.js';
 import { api, user, me } from '../api.js';
-import { h, numberInput, fmt, fmtPct, fmtMult, toast, button } from '../ui.js';
+import { svgUse, h, numberInput, fmt, fmtPct, fmtMult, toast, button } from '../ui.js';
 import { expectedLoss } from '../../shared/math.js';
 
 export const MIN_BET = 0.1;
@@ -31,9 +31,10 @@ export function betAmount(initial = 10, onChange = () => {}) {
  * `calc()` returns { winChance, multiplier, note } for the current configuration.
  */
 export function realityPanel(game, getAmount, calc) {
-  const root = h('div', { class: 'reality' });
+  const root = h('div', { class: 'reality bar' });
   const TIPS = { RTP: 'Return to player: the share of every bet the game pays back over the long run. The rest is the house edge.', 'Win chance': 'How often this exact bet wins. Multiply by the payout and you get the RTP, never more.', 'Expected loss': 'What this bet costs on average: stake times the house edge. Some rounds you win, but this is the price per spin.', 'Per 100 bets': 'The expected loss over a hundred bets of this size, in the euro value you set for a token.' };
-  const tile = (v, l, d, cls = '') => h('div', { class: `tile tip-wide ${cls}`, 'data-tip': TIPS[l] || null, tabindex: '0' }, h('div', { class: 'v num' }, v), h('div', { class: 'l' }, l), d && h('div', { class: 'd' }, d));
+  const tile = (v, l, d, cls = '') => h('span', { class: `rf tip-wide ${cls}`, 'data-tip': TIPS[l] || null, tabindex: '0' }, h('span', { class: 'l' }, l), h('b', { class: 'v num' }, v), d && h('small', { class: 'd' }, d));
+  const links = h('span', { class: 'rf-links' }, h('a', { href: '#/fair' }, svgUse('ph-shield-check'), 'Fairness'), h('a', { href: '#/learn' }, svgUse('ph-info'), 'Game info'));
   const update = () => {
     const amt = getAmount() || 0;
     const c = calc() || {};
@@ -45,6 +46,7 @@ export function realityPanel(game, getAmount, calc) {
       c.winChance != null && tile(fmtPct(c.winChance, c.winChance < 0.001 ? 5 : 2), 'Win chance', c.multiplier ? `pays ${fmtMult(c.multiplier)}` : null),
       tile('−' + fmt(el, el < 0.01 ? 4 : 2), 'Expected loss', 'per bet'),
       tile('−€' + fmt(el * 100 * notional), 'Per 100 bets', `at €${fmt(notional)} / AGT`),
+      links,
     ].filter(Boolean));
   };
   update();
