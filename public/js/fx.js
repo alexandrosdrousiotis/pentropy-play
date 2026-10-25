@@ -4,6 +4,7 @@ const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').ma
 export const ease = {
   linear: (t) => t,
   outCubic: (t) => 1 - (1 - t) ** 3,
+  outQuint: (t) => 1 - (1 - t) ** 5,
   inCubic: (t) => t * t * t,
   inOutCubic: (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2),
   outExpo: (t) => (t === 1 ? 1 : 1 - 2 ** (-10 * t)),
@@ -152,6 +153,9 @@ const CUES = {
   coins: () => { for (let i = 0; i < 9; i++) coin(i * 0.045, 2200 + Math.random() * 2200, 0.045); },
   peg: () => { tone({ freq: 2300 + Math.random() * 900, dur: 0.03, gain: 0.025 }); },
   land: () => { tone({ freq: 190, dur: 0.14, type: 'triangle', gain: 0.07, slide: -100 }); noise({ dur: 0.08, gain: 0.05, hp: 80, lp: 700 }); },
+  // a balloon: air rushing in with a rubbery creak that climbs as it stretches, and a snap when it goes
+  inflate: ({ k = 0 } = {}) => { noise({ dur: 0.26, gain: 0.045, hp: 700, lp: 1800, sweep: 3600, decay: false }); tone({ freq: 300 + k * 28, dur: 0.22, type: 'sawtooth', gain: 0.012, slide: 90 + k * 10, filter: 1400, q: 6, attack: 0.04 }); },
+  balloonpop: () => { noise({ dur: 0.06, gain: 0.4, hp: 900, lp: 11000 }); tone({ freq: 150, dur: 0.1, type: 'sine', gain: 0.12, slide: -100 }); noise({ dur: 0.22, gain: 0.04, hp: 2500, lp: 7000, at: 0.03 }); },
   launch: () => { tone({ freq: 140, dur: 0.6, type: 'sawtooth', gain: 0.035, slide: 520, filter: 900, q: 2 }); noise({ dur: 0.6, gain: 0.03, hp: 300, lp: 600, sweep: 6000, decay: false }); },
   crash: () => { noise({ dur: 0.55, gain: 0.28, hp: 40, lp: 3200, sweep: 180 }); tone({ freq: 85, dur: 0.6, type: 'sine', gain: 0.16, slide: -55 }); noise({ dur: 0.3, gain: 0.08, hp: 1500, lp: 6000, at: 0.03 }); },
   bomb: () => { noise({ dur: 0.4, gain: 0.22, hp: 50, lp: 2400, sweep: 150 }); tone({ freq: 95, dur: 0.4, type: 'sawtooth', gain: 0.1, slide: -60, filter: 500 }); },
@@ -165,10 +169,10 @@ export const sound = {
   set enabled(v) { store(SOUND_KEY, v ? 'on' : 'off'); },
   get volume() { const v = Number(read(VOL_KEY)); return Number.isFinite(v) && v > 0 ? Math.min(1, v) : 0.8; },
   set volume(v) { store(VOL_KEY, String(v)); if (bus) bus.master.gain.value = v; },
-  play(name) {
+  play(name, opts = {}) {
     if (!this.enabled) return;
-    try { ensureBus(); CUES[name]?.(); } catch { /* audio unavailable */ }
-    const hp = { bomb: [30, 30, 60], crash: [30, 30, 60], bigwin: [15, 30, 15, 30, 40], win: 18, cashout: 18, lose: 35, coins: [10, 20, 10], land: 10 }[name];
+    try { ensureBus(); CUES[name]?.(opts); } catch { /* audio unavailable */ }
+    const hp = { bomb: [30, 30, 60], balloonpop: [20, 20, 50], crash: [30, 30, 60], bigwin: [15, 30, 15, 30, 40], win: 18, cashout: 18, lose: 35, coins: [10, 20, 10], land: 10 }[name];
     if (hp) haptic(hp);
   },
 };

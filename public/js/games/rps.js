@@ -1,4 +1,5 @@
-import { h, button, fmtMult, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
+import { h, button, numberInput, fmtMult, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
+import { attach as attachAuto } from './autobet.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { CHAIN_STEP, round2 } from '../../shared/math.js';
 import { sound, sleep, flashRed, flashGreen, winBurst, pulse } from '../fx.js';
@@ -6,7 +7,7 @@ import { sound, sleep, flashRed, flashGreen, winBurst, pulse } from '../fx.js';
 const ICON = { rock: 'ph-hand-fist', paper: 'ph-cards', scissors: 'ph-x' };
 export function mount(root, meta) {
   const L = layout(root);
-  let round = null, busy = false;
+  let round = null, busy = false, lastSettled = null, autoWins = 1;
   const amount = betAmount(10, () => reality.update());
   const play = button('Start', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const cash = button('Cash out', { kind: 'orange', size: 'lg block', disabled: true, onClick: () => cashout() });
@@ -69,16 +70,28 @@ export function mount(root, meta) {
     busy = true; paint();
     const out = await tryAct('cashout', {}, { defer: true });
     if (!out) { busy = false; paint(); return; }
-    out.commit(); finish(out.round);
+    out.commit(); return finish(out.round);
   }
   function finish(r) {
+    lastSettled = r;
     const win = r.multiplier > 0; round = null;
     if (win) { sound.play(r.multiplier >= 8 ? 'bigwin' : 'cashout'); if (r.multiplier >= 8) winBurst(L.board); }
     mult.textContent = fmtMult(win ? r.multiplier : 0); mult.className = `bignum num ${win ? 'win' : 'loss'}`; mult.style.fontSize = '56px';
     banner.show(win ? `WIN ${payoutLine(r)}` : `Lost after ${r.outcome.rounds.length} · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '✗', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     paint(); trail.replaceChildren(...r.outcome.rounds.slice(-14).map(chip)); reality.update();
   }
+  async function playAuto() {
+    if (busy || round) return null;
+    lastSettled = null;
+    await start(); if (!round) return null;
+    let guard = 0;
+    while (round && (round.view?.wins ?? 0) < autoWins && guard++ < 40) await go(['rock', 'paper', 'scissors'][Math.floor(Math.random() * 3)]);
+    if (round) await cashout();
+    return lastSettled;
+  }
+  const winsField = numberInput({ label: 'Wins before cashing out', value: autoWins, min: 1, max: 20, step: 1, unit: 'wins', onChange: (v) => { autoWins = Math.max(1, Math.min(20, Math.round(v))); } });
+  attachAuto({ panel: L.controls, amount, manual: [play, cash], playRound: playAuto, canStart: () => (round ? 'Finish the current streak first.' : null), rtp: () => 0.99, extra: [winsField], note: 'Auto throws at random, replays ties, and cashes out after the wins you set.' });
   const existing = openRoundFor('rps');
   if (existing) { round = existing; amount.set(existing.amount); }
   paint();

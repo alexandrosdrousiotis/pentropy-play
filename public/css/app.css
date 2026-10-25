@@ -2073,3 +2073,254 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .flow-step .rw-ic{margin-bottom:4px}
 .rw-main .drip-head{margin-bottom:6px}
 .tier-badge.lg{gap:8px;padding-left:8px}
+
+/* ============ v18: the game window, the strip beneath it, a quieter top bar, Crash and Roulette ============ */
+/* one window: controls on the left, the board on the right, centred like the big books */
+.game-page{align-items:stretch}
+.game-wrap{width:100%;max-width:1180px;margin:0 auto;display:grid;gap:var(--s3)}
+.game-wrap>.game-recent:empty{display:none}
+.game-grid{gap:0;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;align-items:stretch}
+.panel.controls{position:static;border:0;border-radius:0;background:var(--surface-2);padding:16px;gap:12px}
+.board{border:0;border-radius:0;background:var(--bg-1);min-height:600px;padding:28px 28px 72px}
+.board::before{background:radial-gradient(70% 55% at 50% 42%,color-mix(in srgb,var(--c,#334) 10%,transparent),transparent 70%)}
+.game-recent{display:grid;gap:8px;padding:0 4px}
+.game-recent h3{font-size:11px;color:var(--fg-4)}
+@media (max-width:860px){.game-grid{border-radius:14px}.panel.controls{padding:14px}.board{min-height:420px;padding:20px 14px 64px}}
+/* the strip beneath: name, tags, tabs */
+.game-info{display:grid;gap:14px;padding:4px 4px 12px}
+.gi-head{display:flex;align-items:center;gap:16px}
+.gi-thumb{width:64px;height:64px;border-radius:12px;object-fit:cover;object-position:center 30%;flex:none;border:1px solid var(--line-2)}
+.gi-thumb.glyph{display:grid;place-items:center;background:var(--surface-2)}
+.gi-thumb.glyph svg{width:28px;height:28px;fill:var(--accent)}
+.gi-title{display:grid;gap:8px;min-width:0}
+.gi-title h2{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.gi-tags{display:flex;gap:6px;flex-wrap:wrap}
+.gi-tags .tag{height:26px;padding:0 10px;font-size:12px;font-weight:700;border-radius:8px}
+.gi-tags .tag svg{width:13px;height:13px;fill:currentColor;margin-right:4px}
+.gi-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding-bottom:0}
+.gi-tabs button{height:40px;padding:0 14px;border:0;background:transparent;color:var(--fg-3);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:0}
+.gi-tabs button:hover{color:var(--fg)}
+.gi-tabs button[aria-selected=true]{color:#fff;border-bottom-color:var(--accent)}
+.gi-body{min-height:80px}
+.gi-text{display:grid;gap:10px;max-width:72ch;color:var(--fg-2);font-size:14px;line-height:1.6}
+.gi-text p{margin:0}
+.gi-lead{font-size:16px;font-weight:600;color:var(--fg)}
+.gi-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:6px}
+.gi-fact{display:grid;gap:2px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.gi-fact .l{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-4)}
+.gi-fact b{font-size:14px}
+.gi-empty{padding:16px 0}
+/* the top bar: plain icon buttons, a round avatar with a caret */
+.top .icon-btn{background:transparent;border:0;border-radius:12px;color:var(--fg-2)}
+.top .icon-btn:hover{background:var(--surface-2);color:#fff}
+.top .avatar{width:auto;height:44px;padding:0 6px 0 3px;border:0;background:transparent;display:inline-flex;align-items:center;gap:6px;border-radius:12px}
+.top .avatar:hover{background:var(--surface-2)}
+.top .avatar .av{width:34px;height:34px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;text-transform:uppercase}
+.top .avatar .caret{width:12px;height:12px;fill:var(--fg-3)}
+.top-search{background:var(--surface-2)}
+.top-search svg{fill:var(--fg-3)}
+@media (max-width:860px){.top .avatar{width:auto;height:40px;padding:0 2px}.top .avatar .av{width:32px;height:32px}.top .avatar .caret{display:none}}
+/* Crash: a chart, a number, a rocket; nothing stamped on it */
+.crash-area{height:380px}
+.crash-area .readout{left:50%;top:40%;transform:translate(-50%,-50%);text-align:center;text-shadow:none;font-size:72px;font-weight:800;letter-spacing:-.04em;color:#fff}
+.crash-area .readout small{font-size:13px;font-weight:600;color:var(--fg-3);margin-top:10px;letter-spacing:.02em}
+.crash-area .readout.live{animation:none}
+.crash-area.crashed .readout{color:var(--down)}
+.crash-area.crashed .readout small{color:var(--down)}
+.crash-area svg path.line,.crash-area.crashed svg path.line{filter:none}
+.crash-area .stamp{display:none}
+.crash-area.betting .readout{opacity:0}
+.crash-wait{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.crash-wait .cw-num{font-size:72px;font-weight:800;letter-spacing:-.04em}
+.crash-ship{width:40px;height:44px;filter:none}
+.crash-ship svg{width:100%;height:100%;fill:none;overflow:visible}
+.crash-ship .flame{transform-origin:20px 30px;animation:cflame .12s ease-in-out infinite alternate}
+@keyframes cflame{from{transform:scaleY(.7) scaleX(.9)}to{transform:scaleY(1.15) scaleX(1.05)}}
+.crash-ship.boom{display:none}
+@media (max-width:860px){.crash-area{height:300px}.crash-area .readout{font-size:52px}.crash-wait .cw-num{font-size:52px}}
+/* Roulette: the ball has its own track; the winning pocket lights up */
+.wheel-wrap.small .wheel-pointer{display:none}
+.wheel-wrap svg g.ballg{transform-origin:0 0;transform-box:view-box}
+.rball{filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.wheel-wrap svg path.hit{filter:brightness(1.35);stroke:#fff;stroke-width:1.5}
+.wheel-readout{font-size:38px;font-weight:800}
+/* the promo slide: a dark slide and one cut-out object, no painting behind the copy */
+.slide[data-key=promo]{background:radial-gradient(90% 120% at 85% 50%,color-mix(in srgb,var(--accent) 22%,#0a0b0d),#0a0b0d 68%)}
+.slide[data-key=promo]::before{display:none}
+.promo-obj{position:absolute;right:6%;top:50%;width:min(30%,300px);aspect-ratio:1;transform:translateY(-50%);display:grid;place-items:center;z-index:1}
+.promo-obj img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 30px 50px rgba(0,0,0,.6));animation:promofloat 5s ease-in-out infinite}
+.promo-obj.ready img{animation:promofloat 2.2s ease-in-out infinite}
+.promo-obj::after{content:"";position:absolute;inset:-10%;border-radius:50%;background:radial-gradient(circle,rgba(230,182,85,.28),transparent 62%);z-index:-1}
+@keyframes promofloat{50%{transform:translateY(-10px)}}
+@media (max-width:860px){.promo-obj{right:4%;top:auto;bottom:4%;width:40%;transform:none}}
+/* what sits in a tile never sets its size: the tile stays square, the gem, egg or bomb floats at its centre */
+.cell{position:relative}
+.cell>.gem3d,.cell>.toy,.cell>.egg3d{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0}
+.cell.flip>.gem3d,.cell.flip>.toy{transform:translate(-50%,-50%) rotateY(180deg)}
+.tower .cell>.toy,.tower .cell>.egg3d,.tower .cell.gem>.toy,.tower .cell.mine>.toy{transform:translate(-50%,-50%)}
+/* tiles take their size from the grid, never from what is inside them */
+.grid5{aspect-ratio:1;grid-template-rows:repeat(5,1fr)}
+.grid5 .cell{aspect-ratio:auto;height:100%;min-height:0;align-self:stretch}
+.keno-grid{aspect-ratio:8/5;grid-template-rows:repeat(5,1fr)}
+.keno-grid .cell{aspect-ratio:auto;height:100%;min-height:0}
+/* wheel: rounded pointer; the readout pops in place, bigger for bigger wins */
+.wheel-pointer{width:24px;height:30px;margin-left:-12px;top:-8px;border:0;background:none}
+.wheel-pointer svg{width:100%;height:100%;display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))}
+.wheel-readout{transform:translate(-50%,-50%)}
+.wr-num{display:inline-block;transform-origin:50% 50%}
+.wr-num.pop{animation:wrpop .7s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes wrpop{0%{transform:scale(.4);opacity:0}45%{transform:scale(var(--pop,1.3));opacity:1}100%{transform:scale(1)}}
+/* lobby test: no hero, the two category cards carry the top */
+.cat-cards{min-height:280px}
+.cat-card{min-height:280px}
+@media (max-width:860px){.cat-cards{min-height:auto}.cat-card{min-height:170px}}
+/* no hover zoom on cards; a hover is a brighter border and a cursor, nothing moves */
+.cat-card:hover,.cat-card:hover .cc-img,.card:hover,.card:hover img,.card:hover .art,.card:hover .art img,.island:hover,.gotd-card:hover,.rk:hover .card{transform:none}
+.cat-card:hover{border-color:var(--line-3)}
+.card:hover{border-color:var(--line-3)}
+a.card:hover .art img,a.island:hover,a.card:hover{transform:none}
+/* the coin toss: up, over, down, once; the rotation rides the same 1.5 seconds */
+.coin3d.spin .c-inner{animation:none}
+.coin3d.toss .c-tilt{animation:cointoss-arc 1.5s cubic-bezier(.3,.5,.4,1)}
+.coin3d.toss .c-shadow{animation:cointoss-shadow 1.5s cubic-bezier(.3,.5,.4,1)}
+@keyframes cointoss-arc{0%{transform:translateY(0) rotateY(-24deg) rotateX(8deg)}50%{transform:translateY(-150px) rotateY(-24deg) rotateX(8deg)}100%{transform:translateY(0) rotateY(-24deg) rotateX(8deg)}}
+@keyframes cointoss-shadow{0%{transform:scale(1);opacity:1}50%{transform:scale(.55);opacity:.4}100%{transform:scale(1);opacity:1}}
+/* wallet home, simplified: the number, two buttons, four quiet links */
+.wsheet{max-width:420px}
+.whb{padding:8px 2px 6px}
+.wmain{gap:10px;padding:6px 0 2px}
+.wmain .btn{height:50px;border-radius:14px;font-size:15px}
+.wlinks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:4px}
+.wlink{display:grid;justify-items:center;gap:4px;padding:10px 4px 9px;border:0;border-radius:12px;background:var(--surface-2);color:var(--fg-2);font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;position:relative}
+.wlink:hover{background:var(--surface-3);color:#fff}
+.wlink svg{width:18px;height:18px;fill:var(--fg-3)}
+.wlink:hover svg{fill:var(--accent)}
+.wlink b{font-size:11px;color:var(--fg);font-weight:800}
+.wlink[data-tip]::after{left:50%;right:auto;transform:translate(-50%,4px);white-space:normal;width:170px;text-align:center}
+.wlink[data-tip]:hover::after{transform:translate(-50%,0)}
+.wsheet[data-view=more] .wchart{height:72px}
+.wlink[data-tip]::after{top:auto;bottom:calc(100% + 8px);transform:translate(-50%,-4px)}
+.wlink[data-tip]:hover::after,.wlink[data-tip]:focus-visible::after{transform:translate(-50%,0)}
+.wsheet{overflow:visible}
+.wsheet .wbody{overflow:visible}
+
+/* featured islands: fill the row, short copy, pill button */
+.island.lead{max-width:none}
+.islands{grid-template-columns:1.6fr 1fr 1fr;grid-auto-rows:1fr}
+.island{min-height:260px;padding:20px}
+.island-body{gap:6px}
+.island-kicker{font-size:12px;letter-spacing:.04em;text-transform:none;font-weight:600}
+.island.has-img .island-kicker{color:rgba(255,255,255,.8)}
+.island h3{font-size:24px}
+.island.lead h3{font-size:30px}
+.island .btn,.island .btn.white,.island .btn.sm{border-radius:999px;padding:0 20px;height:38px;margin-top:10px}
+.island.has-img::before{background:linear-gradient(90deg,rgba(0,0,0,.6) 0%,rgba(0,0,0,.2) 45%,transparent 70%),linear-gradient(0deg,rgba(0,0,0,.45),transparent 55%)}
+.grow .card{flex:1 0 188px;max-width:212px}
+@media (max-width:860px){
+  .islands{grid-template-columns:1fr;grid-auto-rows:auto}
+  .island{min-height:120px;padding:14px}
+  .island.lead{aspect-ratio:16/9}
+  .island h3{font-size:20px}.island.lead h3{font-size:22px}
+  .island .btn,.island .btn.white,.island .btn.sm{height:34px;padding:0 16px;margin-top:6px}
+  .grow .card,.landing .grow .card{flex:0 0 calc((100% - 16px) / 3);max-width:none}
+}
+
+/* sidebar tier card: badge + distance on one row, bar underneath */
+.side .foot.tierfoot{display:grid;gap:10px;padding:12px}
+.tf-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.tierfoot .tier-badge{height:24px;padding:0 8px 0 6px;border-radius:999px}
+.tf-next{font-size:11px;font-weight:600;color:var(--fg-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tierfoot .progress{height:5px;width:100%}
+.tierfoot .tag{justify-self:start}
+body.side-collapsed .tierfoot .tf-next,body.side-collapsed .tierfoot .progress{display:none}
+body.side-collapsed .tierfoot .tier-badge{padding:0;height:auto}
+
+/* inverse corner where the top bar and sidebar meet the content */
+.top::after{content:"";position:absolute;left:0;top:100%;width:18px;height:18px;background:var(--bg);-webkit-mask:radial-gradient(circle at 100% 100%,transparent 17.5px,#000 18px);mask:radial-gradient(circle at 100% 100%,transparent 17.5px,#000 18px);pointer-events:none}
+@media (max-width:860px){.top::after{display:none}}
+
+/* crash: the curve fills the plot, flat fill, axis on the left, tip sprite or dot */
+.board:has(.crash-area)::before{display:none}
+.crash-area{height:400px;background:transparent;border:0}
+.crash-plot{position:absolute;left:52px;right:24px;top:24px;bottom:32px}
+.crash-plot svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.crash-area svg path.line,.crash-area.crashed svg path.line{filter:none}
+.crash-area svg path.line{stroke:#e6b655}
+.crash-area svg path.fill{fill:#e6b655;opacity:.1}
+.crash-area.crashed svg path.line{stroke:var(--down)}
+.crash-area.crashed svg path.fill{fill:var(--down);opacity:.08}
+.crash-area svg .gl{stroke:rgba(255,255,255,.06);stroke-width:1}
+.crash-area .ticks-y{left:0;right:auto;width:42px;top:24px;bottom:32px;align-items:flex-end;font-size:11px;color:var(--fg-4)}
+.crash-area .ticks-x{left:52px;right:24px;bottom:6px;padding:0;font-size:11px;color:var(--fg-4)}
+.crash-area .ticks-x span:first-child{transform:translateX(-50%)}
+.crash-area .ticks-x span:last-child{transform:translateX(50%)}
+.crash-tip{position:absolute;left:0;top:0;width:48px;height:48px;margin:-24px 0 0 -24px;display:none;z-index:3;pointer-events:none}
+.crash-tip img{display:block;width:100%;height:100%;object-fit:contain}
+.crash-tip.dot{width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;border:3px solid #e6b655}
+.crash-area .crash-tip.on{display:block}
+.crash-area.crashed .crash-tip{display:none}
+.crash-ship{display:none}
+.cash-mark{box-shadow:0 0 0 2px var(--bg-1)}
+.cash-mark.me{box-shadow:0 0 0 2px var(--up)}
+.crash-area .readout{top:36%}
+@media (max-width:860px){.crash-area{height:320px}.crash-plot{left:44px;right:16px;top:16px;bottom:28px}.crash-area .ticks-y{width:36px;top:16px;bottom:28px;font-size:10px}.crash-area .ticks-x{left:44px;right:16px;font-size:10px}.crash-tip{width:36px;height:36px;margin:-18px 0 0 -18px}}
+/* all bets under the bet controls */
+.panel.controls .players{padding:12px 0 0;margin:0;background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;gap:8px}
+.panel.controls .players h3{font-size:13px}
+.panel.controls .players .t-desc{font-size:11px}
+.panel.controls .players-list{max-height:320px}
+.panel.controls .player-row{grid-template-columns:minmax(0,1.3fr) 56px 68px 64px;gap:6px;height:30px;padding:0 6px;font-size:12px}
+.panel.controls .player-row>:nth-child(4){display:block}
+/* featured islands: text left, Pentropy mark, Play bottom-right */
+.island-body{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;width:100%}
+.island{grid-template-columns:1fr}
+.ib-text{display:grid;gap:3px;min-width:0}
+.ib-brand{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.7)}
+.island:not(.has-img) .ib-brand{color:var(--fg-3)}
+.island .btn,.island .btn.white,.island .btn.sm{margin-top:0;flex:none}
+.island.has-img::before{background:linear-gradient(90deg,rgba(0,0,0,.6) 0%,rgba(0,0,0,.2) 45%,transparent 70%),linear-gradient(0deg,rgba(0,0,0,.55),transparent 55%)}
+.board:has(.crash-area){align-content:start}
+
+/* no colour haze behind any board */
+.board::before{display:none}
+/* dice: the track is the slider. uniform 18px inset all round, draggable edges, flat */
+.dice-stage{width:100%;justify-items:center;gap:14px}
+.dice-track{box-shadow:none;border:0;background:var(--surface-3);height:60px;width:100%;max-width:760px;margin:16px 0 0;padding:0;overflow:visible}
+.dice-track .rail{position:absolute;left:18px;right:18px;top:18px;bottom:18px;border-radius:999px;background:var(--surface-2);touch-action:none;cursor:pointer}
+.dice-track .rail.locked{cursor:default}
+.dice-track .zone{position:absolute;top:0;bottom:0;border-radius:999px;transition:none}
+.dice-track .zone.lose{background:var(--down);opacity:1}.dice-track .zone.win{background:var(--up);opacity:1}
+.dice-track .zone.win.lit,.dice-track .zone.lose.lit{box-shadow:none;filter:brightness(1.25)}
+.dice-track .handle{position:absolute;top:50%;width:22px;height:36px;margin:-18px 0 0 -11px;border-radius:8px;background:#fff;cursor:grab;z-index:3;display:grid;place-items:center;touch-action:none;transition:none}
+.dice-track .handle::before{content:"";width:2px;height:12px;border-radius:1px;background:#8d93a1;box-shadow:-4px 0 0 #8d93a1,4px 0 0 #8d93a1}
+.dice-track .handle.grab{cursor:grabbing;background:var(--accent)}
+.dice-track .handle.grab::before{background:#3a2a05;box-shadow:-4px 0 0 #3a2a05,4px 0 0 #3a2a05}
+.dice-track .handle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dice-track .rail.locked .handle{cursor:default}
+.dice-track .marker{position:absolute;top:-46px;width:64px;height:40px;margin-left:-32px;display:grid;place-items:center;transition:none;z-index:4;pointer-events:none}
+.dice-track .marker b{background:var(--fg);color:var(--bg);border-radius:10px;padding:7px 10px;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .2s}
+.dice-track .marker.win b{box-shadow:0 0 0 3px var(--up);transform:scale(1.12)}.dice-track .marker.loss b{box-shadow:0 0 0 3px var(--down);transform:scale(1.04)}
+.dice-stage .scale{position:relative;height:16px;width:100%;max-width:760px;padding:0 18px;display:block;box-sizing:border-box}
+.dice-stage .scale span{position:absolute;top:0;transform:translateX(-50%);font-size:11px;color:var(--fg-4);font-weight:600;font-variant-numeric:tabular-nums}
+.dice-stage .scale{padding:0}
+.dice-stage .scale span{left:calc(18px + (100% - 36px) * var(--f))}
+@media (max-width:860px){.dice-track{height:52px}.dice-track .rail{left:14px;right:14px;top:14px;bottom:14px}.dice-track .handle{width:20px;height:32px;margin:-16px 0 0 -10px}.dice-stage .scale span{left:calc(14px + (100% - 28px) * var(--f))}}
+/* limbo: just the number */
+.limbo-rocket{display:none}
+.limbo-stage{height:min(46vh,360px)}
+.bignum{text-shadow:none;transition:transform .9s cubic-bezier(.2,.7,.2,1),color .2s}
+.bignum.rolling{color:var(--fg);transform:scale(.94)}
+.bignum.win,.bignum.loss{transform:scale(1)}
+/* dragon tower fits the window */
+.board .tower{gap:4px;max-width:440px}
+.board .tower .cell{height:34px;border-radius:8px}
+.board .tower .trow .mult{font-size:10px;margin-top:-3px;line-height:1.2}
+@media (max-width:860px){.board .tower .cell{height:30px}}
+/* card turns: 320ms, eased out, no bounce */
+.pcard .inner{transition:transform .32s cubic-bezier(.3,.7,.3,1)}
+/* top bar: name and tier beside the avatar */
+.top .avatar .av-text{display:grid;gap:1px;text-align:left;line-height:1.1;margin:0 2px 0 2px}
+.top .avatar .av-text b{font-size:13px;font-weight:700;color:var(--fg);text-transform:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top .avatar .av-text small{font-size:11px;font-weight:600;text-transform:none;letter-spacing:0}
+@media (max-width:1100px){.top .avatar .av-text{display:none}}
+.dice-stage .scale span:nth-child(1){--f:0}.dice-stage .scale span:nth-child(2){--f:.25}.dice-stage .scale span:nth-child(3){--f:.5}.dice-stage .scale span:nth-child(4){--f:.75}.dice-stage .scale span:nth-child(5){--f:1}

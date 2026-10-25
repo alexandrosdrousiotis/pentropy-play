@@ -37,7 +37,7 @@ export function gem3d(colour = '#3ccf8f', size = 84) {
 
 /** A coin of `size` px. `set(side, extraTurns)` tosses it end over end and lands on `side`. */
 export function coin3d({ size = 140, thick = 12, heads = 'ph-crown', tails = 'ph-lightning' } = {}) {
-  const R = size / 2, N = 48, w = (2 * Math.PI * R) / N + 0.8;
+  const R = size / 2, N = 96, w = (2 * Math.PI * R) / N + 0.6;
   const inner = h('div', { class: 'c-inner' });
   const face = (cls, icon, tf) => { const f = h('div', { class: `c-face ${cls}` }, h('i', { class: 'c-ring' }), svgUse(icon)); f.style.transform = tf; return f; };
   inner.append(face('heads', heads, `translateZ(${thick / 2}px)`), face('tails', tails, `rotateX(180deg) translateZ(${thick / 2}px)`));
@@ -59,7 +59,7 @@ export function coin3d({ size = 140, thick = 12, heads = 'ph-crown', tails = 'ph
     /** land on `side` after `extra` full end-over-end turns, with the toss arc */
     set(side, extra = 0, animate = true) {
       turns += extra;
-      inner.style.transition = animate ? 'transform 1.4s cubic-bezier(.22,.9,.3,1)' : 'none';
+      inner.style.transition = animate ? 'transform 1.5s cubic-bezier(.25,.8,.3,1)' : 'none';
       inner.style.transform = `rotateX(${turns * 360 + (side === 'tails' ? 180 : 0)}deg)`;
       if (animate && extra) { root.classList.remove('toss'); void root.offsetWidth; root.classList.add('toss'); }
     },

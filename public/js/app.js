@@ -5,7 +5,7 @@ import { CATALOG, CATEGORIES, GAME_COLOR, ART, BANNERS, gameById } from './games
 import * as edu from './edu.js';
 import { replayFloats, sha256Hex } from './verify-rng.js';
 import { replayRound, canonicalOutcome } from '../shared/replay.js';
-import { gameHeader, gameIcon } from './games/common.js';
+import { gameIcon } from './games/common.js';
 import { countTo, sound } from './fx.js';
 import { openWallet } from './wallet.js';
 import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
@@ -77,7 +77,7 @@ function renderChrome() {
         h('span', { class: 'coin' }, svgUse('ph-coins', 'ic')), h('span', { class: 'bal' }, h('span', { class: 'amt num' }, fmt(u.balance)), h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta', 'data-tip': 'Net this session' }, fmtSigned(sessNet))),
         h('button', { type: 'button', class: 'go', 'data-tip': 'Open the wallet', onClick: () => openWallet('home') }, svgUse('ph-wallet'), h('span', {}, 'Wallet'))),
       h('span', { class: 'top-tools row' }, chatButton()),
-      h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': u.username, onClick: (e) => userMenu(e.currentTarget) }, u.username.slice(0, 2)))
+      h('button', { type: 'button', class: 'avatar', 'aria-haspopup': 'menu', 'data-tip': 'Account', onClick: (e) => userMenu(e.currentTarget) }, h('span', { class: 'av' }, u.username.slice(0, 2)), h('span', { class: 'av-text' }, h('b', {}, u.username), h('small', { style: { color: tierById(me()?.rewards?.tier).colour } }, tierById(me()?.rewards?.tier).name)), svgUse('ph-caret-down', 'caret')))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login', onClick: (e) => { e.preventDefault(); authModal('login'); } }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup', onClick: (e) => { e.preventDefault(); authModal('signup'); } }, h('span', {}, 'Sign up'))),
   );
   tabbar.hidden = !u;
@@ -90,8 +90,10 @@ function renderChrome() {
 function tierFoot(rw) {
   const t = tierById(rw.tier);
   return h('a', { class: 'foot tierfoot', href: '#/rebates' },
-    h('span', { class: 'tier-badge', style: { color: t.colour } }, svgUse('ph-medal'), t.name),
-    rw.next ? h('div', { class: 'tier-prog' }, h('div', { class: 'progress' }, h('i', { style: { width: `${rw.next.progress * 100}%` } })), h('span', {}, `${fmt(rw.next.remaining, 0)} to ${rw.next.name}`)) : h('span', {}, 'Top tier'),
+    h('div', { class: 'tf-row' },
+      h('span', { class: 'tier-badge', style: { color: t.colour } }, svgUse('ph-medal'), t.name),
+      h('span', { class: 'tf-next' }, rw.next ? `${fmt(rw.next.remaining, 0)} to ${rw.next.name}` : 'Top tier')),
+    rw.next ? h('div', { class: 'progress' }, h('i', { style: { width: `${rw.next.progress * 100}%` } })) : null,
     rw.rebatePending >= 1 ? h('span', { class: 'tag green' }, `${fmt(rw.rebatePending)} to claim`) : null);
 }
 function soundToggle() {
@@ -215,12 +217,13 @@ function promoHero(m) {
   if (chestReady) { eyebrow = 'Your chest is ready'; title = `About ${fmt(c.expected)} AGT inside`; text = 'A random 0.3% to 1.2% of what you wagered since it last opened. Expected value on the label.'; cta = button('Open chest', { kind: 'primary', size: 'lg', onClick: async () => { const { openChestFlow } = await import('./chest.js'); await openChestFlow(c.wagered); render(); } }); }
   else if (drip) { eyebrow = `${drip[1].label} unlocked`; title = `${fmt(drip[1].available)} AGT to claim`; text = drip[1].blurb; cta = button(`Claim ${fmt(drip[1].available)} AGT`, { kind: 'primary', size: 'lg', onClick: async () => { try { await api.claimDrip(drip[0]); toast('Claimed.', 'good'); render(); } catch (e) { toast(e.message, 'bad'); } } }); }
   else { const t = tierById(m.rewards?.tier); eyebrow = `Welcome back, ${m.user.username}`; title = c && c.wagered > 0 ? `Chest opens in ${until(c.nextAt - Date.now())}` : 'Play to fill the chest'; text = `${t.name} · ${(t.rate * 100).toFixed(1)}% rakeback · hourly, daily and weekly rebates on what you wager.`; cta = h('a', { class: 'btn primary lg', href: '#/rebates' }, h('span', {}, 'Rebates')); }
-  return { key: 'promo', img: heroPicture(), copy: h('div', { class: 'hero-copy' }, h('div', { class: 'eyebrow' }, eyebrow), h('h1', {}, title), h('p', { class: 'lead' }, text), h('div', { class: 'row' }, cta)), thumb: 'art/lobby-hero.webp', label: 'Rebates' };
+  const obj = h('div', { class: `promo-obj${chestReady ? ' ready' : ''}` }, h('img', { src: chestReady ? 'art/chest-open.webp' : 'art/chest-closed.webp', alt: '', decoding: 'async' }));
+  return { key: 'promo', img: obj, copy: h('div', { class: 'hero-copy' }, h('div', { class: 'eyebrow' }, eyebrow), h('h1', {}, title), h('p', { class: 'lead' }, text), h('div', { class: 'row' }, cta)), thumb: 'art/chest-closed.webp', label: 'Rebates' };
 }
 const FEATURED = [
-  { id: 'roulette', title: 'Roulette', text: 'European single zero. Every bet pays 36 to 37.' },
-  { id: 'chicken', title: 'Chicken', text: 'New. Cross 25 lanes of traffic. Cash out any time.' },
-  { id: 'crash', title: 'Crash', text: 'Up to 1,000,000x if you hold your nerve.' },
+  { id: 'roulette', title: 'Roulette', tag: 'Live table' },
+  { id: 'chicken', title: 'Chicken', tag: 'New' },
+  { id: 'crash', title: 'Crash', tag: 'Original' },
 ];
 function featured(linked) {
   return h('div', { class: 'islands' }, ...FEATURED.map((f, i) => {
@@ -228,7 +231,9 @@ function featured(linked) {
     const hasBanner = BANNERS.has(f.id);
     const isle = h(linked ? 'a' : 'div', { class: `island${hasBanner ? ' has-img' : ''}${i === 0 ? ' lead' : ''}`, href: linked ? `#/play/${f.id}` : '#/signup' },
       hasBanner ? h('img', { class: 'island-img', src: `art/${f.id}-banner.webp`, alt: '', decoding: 'async' }) : h('div', { class: 'island-art' }, svgUse(gameIcon(f.id))),
-      h('div', { class: 'island-body' }, h('div', { class: 'island-kicker' }, `${fmtPct(g.rtp, 2)} RTP · max ${g.ceiling}`), h('h3', {}, f.title), h('p', {}, f.text), h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
+      h('div', { class: 'island-body' },
+        h('div', { class: 'ib-text' }, h('div', { class: 'island-kicker' }, f.tag), h('h3', {}, f.title), h('span', { class: 'ib-brand' }, 'Pentropy')),
+        h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
     isle.style.setProperty('--c', GAME_COLOR[f.id]);
     return isle;
   }));
@@ -271,7 +276,7 @@ async function lobbyPage() {
   try { const r = await api.rounds(60); recent = [...new Set(r.rounds.map((x) => x.game))].slice(0, 8); } catch { /* fine */ }
   const by = (id) => CATALOG.filter((g) => g.cat === id);
   return h('div', { class: 'stack page' },
-    heroCarousel([promoHero(m), liveSlide(), gameOfDaySlide()]),
+    // hero carousel parked for now (heroCarousel([promoHero(m), liveSlide(), gameOfDaySlide()])); the category cards carry the top of the lobby
     open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
     h('div', { class: 'cat-cards' },
       catCard({ title: 'Live tables', text: 'One Crash flight and one wheel, for everyone at once.', href: '#/play/crash', art: 'cat-live', colour: GAME_COLOR.crash, extra: liveChip() }),
@@ -316,8 +321,7 @@ async function gamePage(id) {
   if (!meta) { location.hash = '#/'; return h('div'); }
   const m = me();
   const foreign = m.openRound && m.openRound.game !== id ? m.openRound : null;
-  const root = h('div', { class: 'stack page' },
-    gameHeader(meta),
+  const root = h('div', { class: 'stack page game-page' },
     foreign && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(foreign.game)?.name} · ${fmtAgt(foreign.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${foreign.game}` }, h('span', {}, 'Resume'))));
   const mountPoint = h('div', { 'data-game': id });
   root.append(mountPoint);

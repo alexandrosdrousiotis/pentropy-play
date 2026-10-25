@@ -196,3 +196,12 @@ Until a file exists the page shows a line glyph in its place.
 **Detail density:** Dense in the lower third, dissolving to near-empty smoke in the upper third where the headline sits.
 **Empty space:** Upper-left quarter kept clear for the headline and two buttons.
 **Aspect ratio:** 16:9 at 2400×1350, plus a 4:5 crop for phones with the clear area at the top.
+
+## Crash rocket sprite (optional)
+
+The Crash chart rides the curve with a small sprite. Without one it shows a white dot. Drop a
+`crash-rocket.png` in `docs/art` and run `python3 scripts/art.py` to switch to the rocket.
+
+| File | Prompt |
+| --- | --- |
+| `crash-rocket` | A small matte black rocket with a single red stripe, side view, nose pointing to the top-right corner at exactly 45 degrees, short stylised yellow #ffd21f flame with a white core trailing to the bottom-left, hard clean edges, no smoke, no sparks, no chips, no background: fully transparent PNG, square canvas, the rocket filling about 80% of it |

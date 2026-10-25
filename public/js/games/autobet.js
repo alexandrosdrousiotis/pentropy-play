@@ -15,7 +15,7 @@ const MIN_BET = 0.1;
  *  canStart  () => string | null   a reason auto cannot start, or null
  *  rtp       () => number           for the live expected-loss readout
  */
-export function attach({ panel, amount, manual = [], playRound, canStart = () => null, rtp = () => 0.99, onModeChange = () => {}, onStop = () => {} }) {
+export function attach({ panel, amount, manual = [], playRound, canStart = () => null, rtp = () => 0.99, onModeChange = () => {}, onStop = () => {}, extra = [], note = null }) {
   let mode = 'manual', running = false, stopRequested = false;
   const cfg = { count: 0, onWin: 'reset', onWinPct: 0, onLoss: 'reset', onLossPct: 0, stopProfit: 0, stopLoss: 0 };
   const stats = { bets: 0, profit: 0, expected: 0, wagered: 0 };
@@ -32,6 +32,7 @@ export function attach({ panel, amount, manual = [], playRound, canStart = () =>
   const startBtn = button('Start auto bet', { kind: 'primary', size: 'lg block', onClick: () => (running ? stop() : start()) });
   const readout = h('div', { class: 'auto-stats' });
   const section = h('div', { class: 'stack auto-section', hidden: true },
+    ...extra, note ? h('p', { class: 'help' }, note) : null,
     countField,
     h('div', { class: 'field' }, h('label', {}, 'On win'), winSeg), winPct,
     h('div', { class: 'field' }, h('label', {}, 'On loss'), lossSeg), lossPct,

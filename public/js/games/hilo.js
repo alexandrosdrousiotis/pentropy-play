@@ -1,11 +1,12 @@
-import { h, button, cardEl, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { h, button, numberInput, cardEl, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
+import { attach as attachAuto } from './autobet.js';
 import { betAmount, realityPanel, layout, tryBet, tryAct, payoutLine, openRoundFor } from './common.js';
 import { RANKS } from '../../shared/math.js';
 import { dealFrom, slideOut, sleep, sound, flashGreen, flashRed, shake, popIn, winBurst } from '../fx.js';
 
 export function mount(root, meta) {
   const L = layout(root);
-  let round = null, busy = false;
+  let round = null, busy = false, lastSettled = null, autoCalls = 2;
   const amount = betAmount(10, () => reality.update());
   const play = button('Deal', { kind: 'primary', size: 'lg block', onClick: () => start() });
   const cash = button('Cash out', { kind: 'orange', size: 'lg block', disabled: true, onClick: () => cashout() });
@@ -105,6 +106,7 @@ export function mount(root, meta) {
     if (out) finish(out.round); else paintControls();
   }
   function finish(r) {
+    lastSettled = r;
     const win = r.multiplier > 0;
     const last = r.outcome.steps[r.outcome.steps.length - 1];
     round = null;
@@ -114,9 +116,23 @@ export function mount(root, meta) {
     choices.replaceChildren();
     play.disabled = false; amount.setDisabled(false); cash.disabled = true; cash.querySelector('span').textContent = 'Cash out';
     banner.show(win ? `WIN ${payoutLine(r)}` : `Wrong call · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '✗', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     reality.update();
   }
+  async function playAuto() {
+    if (busy || round) return null;
+    lastSettled = null;
+    await start(); if (!round) return null;
+    for (let i = 0; i < autoCalls && round; i++) {
+      const o = round.view.options; const best = ['higher', 'lower'].filter((c) => o[c]).sort((a, b) => o[b].chance - o[a].chance)[0];
+      if (!best) break;
+      await guess(best);
+    }
+    if (round) await cashout();
+    return lastSettled;
+  }
+  const callsField = numberInput({ label: 'Correct calls before cashing out', value: autoCalls, min: 1, max: 20, step: 1, unit: 'calls', onChange: (v) => { autoCalls = Math.max(1, Math.min(20, Math.round(v))); } });
+  attachAuto({ panel: L.controls, amount, manual: [play, cash], playRound: playAuto, canStart: () => (round ? 'Finish the current hand first.' : null), rtp: () => 0.99, extra: [callsField], note: 'Auto always makes the safer call (higher or lower), then cashes out.' });
   const existing = openRoundFor('hilo');
   if (existing) { round = existing; amount.set(existing.amount); for (const s of existing.view.history) trailAdd(s); showCard(existing.view.card, { animate: false }); }
   else { const back = cardEl(null, { back: true, big: true }); back.style.position = 'absolute'; back.style.inset = '0'; slot.append(back); }

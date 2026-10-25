@@ -97,7 +97,7 @@ export function mount(root, meta) {
     round = null;
     if (win) { sound.play(r.multiplier >= 5 ? 'bigwin' : 'cashout'); flashGreen(L.board); if (r.multiplier >= 3) winBurst(L.board); }
     banner.show(win ? `WIN ${payoutLine(r)}` : `Mine on tile ${hitIndex + 1} · −${fmt(r.amount)} AGT`, win);
-    strip.push(win ? fmtMult(r.multiplier) : '💥', win);
+    strip.push(fmtMult(win ? r.multiplier : 0), win);
     play.disabled = true; cash.disabled = true; cash.querySelector('span').textContent = 'Cash out'; status.replaceChildren();
     await revealAll(r.outcome, hitIndex);
     busy = false; play.disabled = false; amount.setDisabled(false); minesField.input.disabled = false; reality.update();

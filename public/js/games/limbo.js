@@ -1,7 +1,7 @@
-import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt, svgUse } from '../ui.js';
+import { h, button, numberInput, fmtMult, fmtPct, outcomeBanner, resultsStrip, fmt } from '../ui.js';
 import { betAmount, realityPanel, layout, tryBet, payoutLine } from './common.js';
 import { limboWinChance, LIMBO_MAX } from '../../shared/math.js';
-import { sound, ticker, flashGreen, flashRed, winBurst, pulse } from '../fx.js';
+import { sound, tween, ease, flashGreen, flashRed, winBurst } from '../fx.js';
 import { attach as attachAuto } from './autobet.js';
 
 export function mount(root, meta) {
@@ -15,8 +15,7 @@ export function mount(root, meta) {
 
   const big = h('div', { class: 'bignum num' }, '1.00x');
   const sub = h('div', { class: 'bubble' }, 'place a bet to roll');
-  const rocket = h('div', { class: 'limbo-rocket' }, svgUse('ph-rocket-launch'), h('span', { class: 'flame' }));
-  L.stage.append(h('div', { class: 'limbo-stage' }, rocket, h('div', { class: 'stack', style: { justifyItems: 'center', gap: '14px' } }, big, sub)));
+  L.stage.append(h('div', { class: 'limbo-stage' }, h('div', { class: 'stack', style: { justifyItems: 'center', gap: '14px' } }, big, sub)));
   const banner = outcomeBanner(L.board);
   const strip = resultsStrip();
   L.results.append(h('h3', {}, 'Recent results'), strip.el);
@@ -30,16 +29,16 @@ export function mount(root, meta) {
     if (!out) { busy = false; play.disabled = false; amount.setDisabled(false); return null; }
     const { round } = out;
     const point = round.outcome.point;
-    big.className = 'bignum num';
+    // one clean move: the number climbs on a log scale and settles without overshoot, then takes its colour
+    big.className = 'bignum num rolling';
     sub.textContent = `target ${fmtMult(target)}`; sub.className = 'bubble';
-    rocket.className = 'limbo-rocket'; rocket.style.transform = 'translateY(0) rotate(-45deg)'; void rocket.offsetWidth;
-    const rise = Math.min(1, Math.log(point) / Math.log(50)); rocket.style.transform = `translateY(${-(80 + rise * 240)}px) rotate(-45deg)`; sound.play('launch');
-    const t0 = performance.now(); const spin = setInterval(() => { if (performance.now() - t0 < 700) sound.play('tick'); }, 70);
-    await ticker(big, point, 900, (v) => fmtMult(Math.max(1, v)), { noise: Math.max(2, point * 0.6) });
+    const t0 = performance.now(); const spin = setInterval(() => { if (performance.now() - t0 < 650) sound.play('tick'); }, 80);
+    const lg = Math.log(Math.max(1, point));
+    await tween(1150, (e) => { big.textContent = fmtMult(Math.exp(lg * e)); }, ease.outQuint);
+    big.textContent = fmtMult(point);
     clearInterval(spin);
     const win = round.multiplier > 0;
-    big.classList.add(win ? 'win' : 'loss'); pulse(big);
-    if (!win) rocket.classList.add('burst');
+    big.className = `bignum num ${win ? 'win' : 'loss'}`;
     if (win) { sound.play(round.multiplier >= 10 ? 'bigwin' : 'win'); flashGreen(L.board); if (round.multiplier >= 10) winBurst(L.board); } else { sound.play('lose'); flashRed(L.board); }
     sub.className = `bubble ${win ? 'win' : 'lose'}`;
     banner.show(win ? `WIN ${payoutLine(round)}` : `${fmtMult(point)} < ${fmtMult(target)} · −${fmt(round.amount)} AGT`, win);
