@@ -10,6 +10,8 @@ import { sound } from './fx.js';
 const listeners = new Set();
 const emit = () => listeners.forEach((f) => { try { f(); } catch { /* widget gone */ } });
 export const onSocial = (fn) => (listeners.add(fn), () => listeners.delete(fn));
+export const socialBets = () => bets;
+export const socialOnline = () => online;
 
 let bets = [], chat = [], online = 0, ambient = true, lastAt = 0, lastChat = 0, timer = 0, running = false, unread = 0, seen = new Set();
 const CHAT_KEY = 'pentropy.chat.open';

@@ -11,6 +11,7 @@ import { openWallet } from './wallet.js';
 import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
 import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout, toggleChat } from './social.js';
 import { chestCard, chestPill } from './chest.js';
+import { heroCarousel, liveSlide, gameOfDaySlide, topTen, liveChip } from './lobby.js';
 import { authPage, rememberRef } from './signup.js';
 import { userMenu, accountBody } from './menu.js';
 import { REFERRAL } from '../shared/tiers.js';
@@ -170,8 +171,8 @@ function gameRow(title, games, linked, sub, viewAll = null) {
     cards);
 }
 /** Wide category card: one line of copy and a big tinted glyph. A card, not a button. */
-function catCard({ title, text, href, art, colour }) {
-  const el = h('a', { class: 'cat-card', href }, h('img', { class: 'cc-img', src: `art/${art}.webp`, alt: '', loading: 'lazy', decoding: 'async' }), h('div', { class: 'cc-body' }, h('h3', {}, title), h('p', {}, text)));
+function catCard({ title, text, href, art, colour, extra = null }) {
+  const el = h('a', { class: 'cat-card', href }, h('img', { class: 'cc-img', src: `art/${art}.webp`, alt: '', loading: 'lazy', decoding: 'async' }), extra, h('div', { class: 'cc-body' }, h('h3', {}, title), h('p', {}, text)));
   el.style.setProperty('--c', colour);
   return el;
 }
@@ -191,9 +192,7 @@ function promoHero(m) {
   if (chestReady) { eyebrow = 'Your chest is ready'; title = `About ${fmt(c.expected)} AGT inside`; text = 'A random 0.3% to 1.2% of what you wagered since it last opened. Expected value on the label.'; cta = button('Open chest', { kind: 'primary', size: 'lg', onClick: async () => { const { openChestFlow } = await import('./chest.js'); await openChestFlow(c.wagered); render(); } }); }
   else if (drip) { eyebrow = `${drip[1].label} unlocked`; title = `${fmt(drip[1].available)} AGT to claim`; text = drip[1].blurb; cta = button(`Claim ${fmt(drip[1].available)} AGT`, { kind: 'primary', size: 'lg', onClick: async () => { try { await api.claimDrip(drip[0]); toast('Claimed.', 'good'); render(); } catch (e) { toast(e.message, 'bad'); } } }); }
   else { const t = tierById(m.rewards?.tier); eyebrow = `Welcome back, ${m.user.username}`; title = c && c.wagered > 0 ? `Chest opens in ${until(c.nextAt - Date.now())}` : 'Play to fill the chest'; text = `${t.name} · ${(t.rate * 100).toFixed(1)}% rakeback · hourly, daily and weekly rebates on what you wager.`; cta = h('a', { class: 'btn primary lg', href: '#/rebates' }, h('span', {}, 'Rebates')); }
-  return h('section', { class: 'hero-banner promo' },
-    heroPicture(),
-    h('div', { class: 'hero-copy' }, h('div', { class: 'eyebrow' }, eyebrow), h('h1', {}, title), h('p', { class: 'lead' }, text), h('div', { class: 'row' }, cta)));
+  return { key: 'promo', img: heroPicture(), copy: h('div', { class: 'hero-copy' }, h('div', { class: 'eyebrow' }, eyebrow), h('h1', {}, title), h('p', { class: 'lead' }, text), h('div', { class: 'row' }, cta)), thumb: 'art/lobby-hero.webp', label: 'Rebates' };
 }
 const FEATURED = [
   { id: 'roulette', title: 'Roulette', text: 'European single zero. Every bet pays 36 to 37.' },
@@ -249,11 +248,12 @@ async function lobbyPage() {
   try { const r = await api.rounds(60); recent = [...new Set(r.rounds.map((x) => x.game))].slice(0, 8); } catch { /* fine */ }
   const by = (id) => CATALOG.filter((g) => g.cat === id);
   return h('div', { class: 'stack page' },
-    promoHero(m),
+    heroCarousel([promoHero(m), liveSlide(), gameOfDaySlide()]),
     open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
     h('div', { class: 'cat-cards' },
-      catCard({ title: 'Live tables', text: 'One Crash flight and one wheel, for everyone at once.', href: '#/play/crash', art: 'cat-live', colour: GAME_COLOR.crash }),
+      catCard({ title: 'Live tables', text: 'One Crash flight and one wheel, for everyone at once.', href: '#/play/crash', art: 'cat-live', colour: GAME_COLOR.crash, extra: liveChip() }),
       catCard({ title: 'Originals', text: `${CATALOG.length} provably fair games. Verify any round in your browser.`, href: '#/games', art: 'cat-originals', colour: GAME_COLOR.dice })),
+    topTen((g) => gameTile(g, true)),
     gameRow('Originals', by('originals'), true, null, '#/games?cat=originals'),
     recent.length ? gameRow('Recently played', recent.map(gameById).filter(Boolean), true) : null,
     gameRow('Streak games', by('chains'), true, null, '#/games?cat=chains'),

@@ -168,3 +168,12 @@ counter, plus synthesized sound cues with a mute toggle. Reduced-motion users ge
 Tokens cannot be bought, sold, withdrawn, transferred or exchanged. There is no deposit, no
 cash-out, no leaderboard and no referral mechanism, by design. If gambling with real money is
 causing harm, the "If this stopped being a game" lesson lists free, confidential helplines.
+
+## The lobby
+
+The lobby borrows three ideas from the big entertainment lobbies. The hero rotates between the
+rebate promo, the live Crash table (the real round, counting down and flying in the hero, fed by
+the same poller the game uses) and a game of the day picked from the calendar; thumbnails steer it
+on desktop, dots and swipes on phones. "Top 10 right now" ranks games by bets in the room feed
+with Netflix-style ghosted numerals, and the Live tables card carries a live chip with the Crash
+phase. One Crash poller is shared by every widget on the page and stops itself when they leave.
