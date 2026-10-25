@@ -1420,3 +1420,5 @@ body.chat-open .tabbar .tab-chat{color:var(--accent)}
   .game-grid .board{padding-bottom:48px}
 }
 @media (max-width:860px){.kball{width:28px;height:28px;font-size:11px}.keno-balls{gap:5px;min-height:28px;flex-wrap:nowrap}}
+.lane.crossed .veh{opacity:0;transition:opacity .35s}
+.lane.hit .veh:not(.crash){opacity:0}

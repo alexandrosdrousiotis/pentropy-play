@@ -99,6 +99,7 @@ export function mount(root, meta) {
     const out = await tryAct('step', {}, { defer: true });
     if (!out) { busy = false; paintControls(); return; }
     lanes[k].classList.remove('next');
+    if (!(out.round.status === 'settled' && !out.round.outcome.cleared)) lanes[k].classList.add('crossed'); // traffic clears as the chicken lands
     await hop(k + 1);
     if (out.round.status === 'settled' && !out.round.outcome.cleared) {
       // the lane was a trap: a truck comes down the lane and the chicken does not make it
