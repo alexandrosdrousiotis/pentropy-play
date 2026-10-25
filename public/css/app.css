@@ -2144,3 +2144,12 @@ button.wlrow:hover{background:var(--surface-3);border-color:var(--line-2)}
 .rball{filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .wheel-wrap svg path.hit{filter:brightness(1.35);stroke:#fff;stroke-width:1.5}
 .wheel-readout{font-size:38px;font-weight:800}
+/* the promo slide: a dark slide and one cut-out object, no painting behind the copy */
+.slide[data-key=promo]{background:radial-gradient(90% 120% at 85% 50%,color-mix(in srgb,var(--accent) 22%,#0a0b0d),#0a0b0d 68%)}
+.slide[data-key=promo]::before{display:none}
+.promo-obj{position:absolute;right:6%;top:50%;width:min(30%,300px);aspect-ratio:1;transform:translateY(-50%);display:grid;place-items:center;z-index:1}
+.promo-obj img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 30px 50px rgba(0,0,0,.6));animation:promofloat 5s ease-in-out infinite}
+.promo-obj.ready img{animation:promofloat 2.2s ease-in-out infinite}
+.promo-obj::after{content:"";position:absolute;inset:-10%;border-radius:50%;background:radial-gradient(circle,rgba(230,182,85,.28),transparent 62%);z-index:-1}
+@keyframes promofloat{50%{transform:translateY(-10px)}}
+@media (max-width:860px){.promo-obj{right:4%;top:auto;bottom:4%;width:40%;transform:none}}
