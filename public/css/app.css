@@ -1538,3 +1538,10 @@ body.chat-open .tabbar .tab-chat{color:var(--accent)}
 @media (hover:none){[data-tip]::after{display:none}}
 .tip-wide[data-tip]::after{top:auto;bottom:calc(100% + 8px)}
 .crumb-gap{display:none}
+
+/* tile titles: bold, centred, top of the card, like the big lobbies */
+.card .art::after{inset:0 0 auto 0;height:52%;background:linear-gradient(180deg,rgba(8,10,14,.88) 0%,rgba(8,10,14,.45) 55%,transparent 100%)}
+.card .art .name{top:14px;bottom:auto;left:8px;right:8px;display:grid;justify-items:center;gap:3px;text-align:center;font-family:var(--font);font-size:17px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;line-height:1;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.7),0 0 1px rgba(0,0,0,.6)}
+.card .art .name small{font-size:9px;font-weight:700;letter-spacing:.18em;color:rgba(255,255,255,.72);text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.card .art:not(.has-img) svg{transform:translateY(8%)}
+@media (max-width:860px){.card .art .name{top:10px;font-size:13px;gap:2px}.card .art .name small{font-size:8px}}

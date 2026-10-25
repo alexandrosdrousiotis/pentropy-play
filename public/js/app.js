@@ -157,7 +157,7 @@ function gameTile(g, linked, href = null) {
     img.addEventListener('error', () => img.remove());
     art.append(img);
   }
-  art.append(h('span', { class: 'rtp-chip' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)), h('div', { class: 'name' }, g.name));
+  art.append(h('span', { class: 'rtp-chip' }, fmtPct(g.rtp, g.rtp === 0.99 || g.rtp === 0.98 ? 0 : 2)), h('div', { class: 'name' }, g.name, h('small', {}, 'Pentropy')));
   return h(linked || href ? 'a' : 'div', { class: 'card', href: href || (linked ? `#/play/${g.id}` : null) }, art);
 }
 /** A horizontally scrolling row with arrow buttons. */
