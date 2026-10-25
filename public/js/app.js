@@ -231,7 +231,9 @@ function featured(linked) {
     const hasBanner = BANNERS.has(f.id);
     const isle = h(linked ? 'a' : 'div', { class: `island${hasBanner ? ' has-img' : ''}${i === 0 ? ' lead' : ''}`, href: linked ? `#/play/${f.id}` : '#/signup' },
       hasBanner ? h('img', { class: 'island-img', src: `art/${f.id}-banner.webp`, alt: '', decoding: 'async' }) : h('div', { class: 'island-art' }, svgUse(gameIcon(f.id))),
-      h('div', { class: 'island-body' }, h('div', { class: 'island-kicker' }, f.tag), h('h3', {}, f.title), h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
+      h('div', { class: 'island-body' },
+        h('div', { class: 'ib-text' }, h('div', { class: 'island-kicker' }, f.tag), h('h3', {}, f.title), h('span', { class: 'ib-brand' }, 'Pentropy')),
+        h('span', { class: 'btn white sm' }, h('span', {}, 'Play'))));
     isle.style.setProperty('--c', GAME_COLOR[f.id]);
     return isle;
   }));

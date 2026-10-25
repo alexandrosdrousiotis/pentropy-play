@@ -29,50 +29,52 @@ export function mount(root, meta) {
   const bar = phaseBar();
   const hist = historyStrip('crash');
   const area = h('div', { class: 'crash-area' });
+  const plot = h('div', { class: 'crash-plot' });
   const svg = el('svg', { viewBox: '0 0 100 60', preserveAspectRatio: 'none' });
   const grid = el('g', {});
-  const fill = el('path', { d: '', fill: 'url(#crashfill)', opacity: .5 });
-  const line = el('path', { d: '', class: 'line', fill: 'none', stroke: '#e6b655', 'stroke-width': 1.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke' });
-  const defs = el('defs', {});
-  const grad = el('linearGradient', { id: 'crashfill', x1: 0, y1: 0, x2: 0, y2: 1 });
-  grad.append(el('stop', { offset: 0, 'stop-color': '#e6b655', 'stop-opacity': .45 }), el('stop', { offset: 1, 'stop-color': '#e6b655', 'stop-opacity': 0 }));
-  defs.append(grad); svg.append(defs, grid, fill, line);
-  const ship = h('div', { class: 'crash-ship', html: '<svg viewBox="0 0 40 44" aria-hidden="true"><path class="flame" d="M15 30h10l-5 13z" fill="#ffb347"/><path d="M20 2c6.5 4.5 9.5 12 9.5 20.5L26 30H14l-3.5-7.5C10.5 14 13.5 6.5 20 2z" fill="#f3f4f8"/><path d="M10.5 22 4 29.5l8 1.5zM29.5 22 36 29.5l-8 1.5z" fill="#aeb7cb"/><circle cx="20" cy="16" r="3.6" fill="#0e1117"/><circle cx="20" cy="16" r="2.2" fill="#5de4ff"/></svg>' });
+  const fill = el('path', { d: '', class: 'fill' });
+  const line = el('path', { d: '', class: 'line', fill: 'none', 'stroke-width': 3.5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'vector-effect': 'non-scaling-stroke' });
+  svg.append(grid, fill, line);
+  // the tip rides the curve: the painted rocket sprite when the art exists, a plain dot otherwise
+  const tip = h('div', { class: 'crash-tip' });
+  tip.append(h('img', { src: 'art/crash-rocket.webp', alt: '', decoding: 'async', onError: (e) => { e.target.remove(); tip.classList.add('dot'); } }));
   const readout = h('div', { class: 'readout num' }, '1.00x', h('small', {}, 'waiting'));
   const ticksX = h('div', { class: 'ticks-x' }), ticksY = h('div', { class: 'ticks-y' });
   const wait = h('div', { class: 'crash-wait' }, h('div', { class: 'cw-num num' }, '—'), h('div', { class: 't-label' }, 'next launch'));
   const cashMarks = h('div', { class: 'cash-marks' });
-  area.append(svg, cashMarks, ship, ticksX, ticksY, readout, wait);
-  const players = playersPanel();
+  plot.append(svg, cashMarks, tip);
+  area.append(plot, ticksX, ticksY, readout, wait);
+  const players = playersPanel('All bets');
   const fair = fairLine('crash');
   L.stage.append(h('div', { class: 'stack live-stage' }, hist.el, bar.el, area, fair.el));
   L.board.classList.add('live-board');
   const banner = outcomeBanner(L.board);
   const strip = resultsStrip();
-  L.results.append(players.el, h('h3', {}, 'My recent flights'), strip.el);
+  L.results.append(h('h3', {}, 'My recent flights'), strip.el);
   const reality = realityPanel(meta, () => amount.get(), () => (auto ? { winChance: limboWinChance(auto), multiplier: auto, note: `Auto cash out at ${fmtMult(auto)} is exactly a Limbo bet: ${fmtPct(limboWinChance(auto), 2)} × ${fmtMult(auto)} = 0.99.` } : { note: 'Whatever moment you pick, the expected return is 99%. Cashing out at 1.50x wins 66% of the time; at 10x, 9.9%. Same loss, different feeling.' }));
   L.reality.append(reality);
 
   /* ---- drawing ---- */
   let vT = 8000, vM = 2, tickKey = '';
-  const fmtS = (ms) => `${(ms / 1000).toFixed(0)}s`;
+  const fmtS = (ms) => `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`;
   function drawFrame(elapsed, m, { snap = false } = {}) {
-    const tT = Math.max(8000, elapsed * 1.12), tM = Math.max(2, m * 1.22);
+    // the head of the curve sits near the top-right of the plot; the axes stretch to keep it there
+    const tT = Math.max(4000, elapsed / 0.9), tM = Math.max(1.5, 1 + (m - 1) / 0.8);
     if (snap || elapsed === 0) { vT = tT; vM = tM; } else { vT += (tT - vT) * 0.1; vM += (tM - vM) * 0.1; }
     const T = vT, M = vM, pts = [], N = 120;
-    for (let i = 0; i <= N; i++) { const t = (elapsed * i) / N; pts.push([(t / T) * 100, 60 - ((curveAt(t) - 1) / (M - 1)) * 54]); }
+    for (let i = 0; i <= N; i++) { const t = (elapsed * i) / N; pts.push([(t / T) * 100, 60 - ((curveAt(t) - 1) / (M - 1)) * 60]); }
     const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(3)},${p[1].toFixed(3)}`).join(' ');
     line.setAttribute('d', d); fill.setAttribute('d', `${d} L${pts[N][0].toFixed(3)},60 L0,60 Z`);
-    const rect = area.getBoundingClientRect();
+    const rect = plot.getBoundingClientRect();
     const tipX = (pts[N][0] / 100) * rect.width, tipY = (pts[N][1] / 60) * rect.height;
     const prevX = (pts[N - 4][0] / 100) * rect.width, prevY = (pts[N - 4][1] / 60) * rect.height;
-    const ang = elapsed > 0 ? Math.atan2(tipY - prevY, tipX - prevX) * 180 / Math.PI : -20;
-    ship.classList.toggle('on', elapsed > 0); ship.style.left = `${tipX}px`; ship.style.top = `${tipY}px`; ship.style.transform = `translate(-50%,-50%) rotate(${ang + 45}deg)`;
+    const ang = elapsed > 0 ? Math.atan2(tipY - prevY, tipX - prevX) * 180 / Math.PI : -45;
+    tip.classList.toggle('on', elapsed > 0); tip.style.left = `${tipX}px`; tip.style.top = `${tipY}px`; tip.style.transform = tip.classList.contains('dot') ? '' : `rotate(${ang + 45}deg)`;
     // cash-out markers of everyone who got out: a dot on the curve at their multiplier
-    for (const mk of cashMarks.children) { const mm = Number(mk.dataset.m); const t = (Math.log(mm) / CRASH_K) * 1000; mk.style.left = `${(t / T) * rect.width}px`; mk.style.top = `${((60 - ((mm - 1) / (M - 1)) * 54) / 60) * rect.height}px`; mk.hidden = t > elapsed; }
+    for (const mk of cashMarks.children) { const mm = Number(mk.dataset.m); const t = (Math.log(mm) / CRASH_K) * 1000; mk.style.left = `${(t / T) * rect.width}px`; mk.style.top = `${((60 - ((mm - 1) / (M - 1)) * 60) / 60) * rect.height}px`; mk.hidden = t > elapsed; }
     const xs = [0, .25, .5, .75, 1].map((f) => fmtS(T * f)), ys = [1, 1 + (M - 1) * .25, 1 + (M - 1) * .5, 1 + (M - 1) * .75, M].map((v) => fmtMult(v));
     const key = xs.join() + '|' + ys.join();
-    if (key !== tickKey) { tickKey = key; ticksX.replaceChildren(...xs.map((s) => h('span', {}, s))); ticksY.replaceChildren(...ys.map((s) => h('span', {}, s))); if (!grid.childElementCount) grid.replaceChildren(...[.25, .5, .75].map((f) => el('line', { x1: 0, x2: 100, y1: 60 - 54 * f, y2: 60 - 54 * f, stroke: 'rgba(255,255,255,.07)', 'stroke-width': .25, 'vector-effect': 'non-scaling-stroke' })), ...[.25, .5, .75].map((f) => el('line', { x1: 100 * f, x2: 100 * f, y1: 0, y2: 60, stroke: 'rgba(255,255,255,.05)', 'stroke-width': .25, 'vector-effect': 'non-scaling-stroke' }))); }
+    if (key !== tickKey) { tickKey = key; ticksX.replaceChildren(...xs.map((s) => h('span', {}, s))); ticksY.replaceChildren(...ys.map((s) => h('span', {}, s))); if (!grid.childElementCount) grid.replaceChildren(...[.25, .5, .75].map((f) => el('line', { x1: 0, x2: 100, y1: 60 - 60 * f, y2: 60 - 60 * f, class: 'gl', 'vector-effect': 'non-scaling-stroke' })), ...[.25, .5, .75].map((f) => el('line', { x1: 100 * f, x2: 100 * f, y1: 0, y2: 60, class: 'gl', 'vector-effect': 'non-scaling-stroke' }))); }
   }
   let lastPhase = '', lastRound = 0;
   function frame() {
@@ -100,7 +102,7 @@ export function mount(root, meta) {
   function onState(s) {
     const prev = state; state = s;
     const r = s.round;
-    if (r.id !== lastRound) { lastRound = r.id; seen.clear(); cashMarks.replaceChildren(); area.classList.remove('crashed'); ship.classList.remove('boom'); readout.lastChild.textContent = 'waiting'; readout.firstChild.textContent = '1.00x'; drawFrame(0, 1, { snap: true }); banner.hide(); }
+    if (r.id !== lastRound) { lastRound = r.id; seen.clear(); cashMarks.replaceChildren(); area.classList.remove('crashed'); readout.lastChild.textContent = 'waiting'; readout.firstChild.textContent = '1.00x'; drawFrame(0, 1, { snap: true }); banner.hide(); }
     if (s.phase !== lastPhase) {
       lastPhase = s.phase;
       area.classList.toggle('betting', s.phase === 'betting');
@@ -109,7 +111,7 @@ export function mount(root, meta) {
         const point = r.result, mine = s.mine[0];
         drawFrame((Math.log(point) / CRASH_K) * 1000, point, { snap: true });
         readout.firstChild.textContent = fmtMult(point);
-        area.classList.add('crashed'); ship.classList.add('boom');
+        area.classList.add('crashed');
         if (mine && mine.cashout === 0) { sound.play('crash'); flashRed(L.board); readout.lastChild.textContent = 'Crashed · you were still in'; }
         else { sound.play(mine ? 'pop' : 'tick'); readout.lastChild.textContent = 'Crashed'; }
       }
@@ -173,6 +175,7 @@ export function mount(root, meta) {
     return { net: m.payout - m.amount, amount: m.amount, multiplier: m.cashout || 0 };
   }
   attachAuto({ panel: L.controls, amount, manual: [play], playRound: playAuto, canStart: () => (auto >= 1.01 ? null : 'Set an auto cash out first. Auto bet rides every round and cashes out there.'), rtp: () => 0.99, note: 'Places this bet on every round and cashes out at your auto value.' });
+  L.controls.append(players.el);
   const poller = livePoller('crash', onState);
   drawFrame(0, 1, { snap: true });
   raf = requestAnimationFrame(frame);

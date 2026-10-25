@@ -66,10 +66,12 @@ def main():
         if not p: continue
         im = Image.open(p).convert('RGBA'); im = im.crop(im.getbbox()); im.thumbnail((256, 256), Image.LANCZOS)
         im.save(os.path.join(OUT, 'rw', f'{r}.webp'), 'WEBP', quality=86, method=6); print(f'  rw/{r}.webp  {im.width}x{im.height}')
-    for c in ['chest-open', 'chest-closed']:
+    for c, size in [('chest-open', 640), ('chest-closed', 640), ('crash-rocket', 256)]:
         p = master(c)
-        if not p: missing.append(c); continue
-        im = Image.open(p).convert('RGBA'); im = im.crop(im.getbbox()); im.thumbnail((640, 640), Image.LANCZOS)
+        if not p:
+            if c != 'crash-rocket': missing.append(c)
+            continue
+        im = Image.open(p).convert('RGBA'); im = im.crop(im.getbbox()); im.thumbnail((size, size), Image.LANCZOS)
         save(im, c, 85)
     if missing: print('missing masters:', ', '.join(missing))
     used = {n: os.path.basename(master(n)) for n in TILES + ['chest-open', 'chest-closed', 'lobby-hero'] + [f'{b}-banner' for b in BANNERS] if master(n)}
