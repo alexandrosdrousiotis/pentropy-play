@@ -1545,3 +1545,30 @@ body.chat-open .tabbar .tab-chat{color:var(--accent)}
 .card .art .name small{font-size:9px;font-weight:700;letter-spacing:.18em;color:rgba(255,255,255,.72);text-shadow:0 1px 4px rgba(0,0,0,.6)}
 .card .art:not(.has-img) svg{transform:translateY(8%)}
 @media (max-width:860px){.card .art .name{top:10px;font-size:13px;gap:2px}.card .art .name small{font-size:8px}}
+
+/* ============ v6: painted chest, casino-floor hero ============ */
+.chest{width:calc(190px * var(--sz,1));height:calc(190px * var(--sz,1))}
+.chest .frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transition:opacity .35s ease,transform .5s cubic-bezier(.34,1.25,.5,1);filter:drop-shadow(0 18px 28px rgba(0,0,0,.55))}
+.chest .frame.opened{opacity:0;transform:scale(.96)}
+.chest.open .frame.opened{opacity:1;transform:scale(1)}
+.chest.open .frame.closed{opacity:0;transform:scale(1.04)}
+.chest .glow{inset:-20%;background:radial-gradient(circle,rgba(247,217,138,.7),rgba(230,182,85,.18) 45%,transparent 68%)}
+.chest .coins{left:14%;right:14%;top:8%;height:46%;opacity:0}
+.chest.open .coins{opacity:1}
+.chest .coins .c{width:11%;opacity:0;animation:coinfly 1.1s cubic-bezier(.2,.8,.3,1) forwards}
+.chest.open .coins .c0{left:4%;animation-delay:.05s}.chest.open .coins .c1{left:16%;animation-delay:.18s}.chest.open .coins .c2{left:28%;animation-delay:.08s}.chest.open .coins .c3{left:40%;animation-delay:.26s}.chest.open .coins .c4{left:52%;animation-delay:.12s}.chest.open .coins .c5{left:64%;animation-delay:.3s}.chest.open .coins .c6{left:76%;animation-delay:.16s}.chest.open .coins .c7{left:88%;animation-delay:.22s}.chest.open .coins .c8{left:34%;animation-delay:.36s}
+@keyframes coinfly{0%{opacity:0;transform:translateY(40%) scale(.6)}25%{opacity:1}100%{opacity:0;transform:translateY(-160%) scale(1) rotate(200deg)}}
+.chest-stage{min-height:230px}
+.chest-stage.big{min-height:300px}
+.hero-banner{align-items:flex-start}
+.hero-banner:not(.promo) .hero-img{object-position:center 45%}
+.hero-banner.promo{align-items:flex-start}
+.hero-banner.promo .hero-img{object-position:center 42%}
+.hero-banner::before{background:linear-gradient(90deg,rgba(10,11,13,.86) 0%,rgba(10,11,13,.55) 42%,rgba(10,11,13,.1) 100%),linear-gradient(180deg,rgba(10,11,13,.65),transparent 60%)}
+@media (max-width:860px){
+  .hero-banner,.hero-banner.promo{align-items:flex-start}
+  .hero-img,.hero-banner.promo .hero-img{object-position:center bottom}
+  .hero-banner::before{background:linear-gradient(180deg,rgba(10,11,13,.9) 0%,rgba(10,11,13,.72) 45%,rgba(10,11,13,.25) 75%,rgba(10,11,13,.05) 100%)}
+  .hero-banner.promo{min-height:300px}
+  .chest-stage{min-height:200px}
+}
