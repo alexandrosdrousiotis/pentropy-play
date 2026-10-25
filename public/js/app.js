@@ -272,7 +272,7 @@ async function lobbyPage() {
   try { const r = await api.rounds(60); recent = [...new Set(r.rounds.map((x) => x.game))].slice(0, 8); } catch { /* fine */ }
   const by = (id) => CATALOG.filter((g) => g.cat === id);
   return h('div', { class: 'stack page' },
-    heroCarousel([promoHero(m), liveSlide(), gameOfDaySlide()]),
+    // hero carousel parked for now (heroCarousel([promoHero(m), liveSlide(), gameOfDaySlide()])); the category cards carry the top of the lobby
     open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
     h('div', { class: 'cat-cards' },
       catCard({ title: 'Live tables', text: 'One Crash flight and one wheel, for everyone at once.', href: '#/play/crash', art: 'cat-live', colour: GAME_COLOR.crash, extra: liveChip() }),

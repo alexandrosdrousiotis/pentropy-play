@@ -20,8 +20,9 @@ export function mount(root, meta) {
   const svg = el('svg', { viewBox: '-100 -100 200 200' });
   const disc = el('g', {});
   svg.append(disc, el('circle', { r: 58, fill: 'var(--surface)' }));
-  const pointer = h('div', { class: 'wheel-pointer' });
-  const readout = h('div', { class: 'wheel-readout num' }, '—');
+  const pointer = h('div', { class: 'wheel-pointer', html: '<svg viewBox="0 0 24 30" aria-hidden="true"><path d="M4 3a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v8.5a4 4 0 0 1-.9 2.5l-6 8.3a1.3 1.3 0 0 1-2.2 0l-6-8.3A4 4 0 0 1 4 11.5z" fill="#f3f4f8"/></svg>' });
+  const readoutNum = h('span', { class: 'wr-num' }, '—');
+  const readout = h('div', { class: 'wheel-readout num' }, readoutNum);
   wrap.append(svg, pointer, readout);
   const legend = h('div', { class: 'wheel-legend' });
   L.stage.append(h('div', { class: 'stack', style: { justifyItems: 'center', width: '100%', gap: '12px' } }, wrap, legend));
@@ -62,7 +63,10 @@ export function mount(root, meta) {
     angle = to % 360; disc.style.transform = `rotate(${angle}deg)`;
     paths[idx]?.classList.add('hit'); disc.append(paths[idx]);
     const win = round.multiplier > 1;
-    readout.textContent = fmtMult(t[idx]); readout.className = `wheel-readout num ${win ? 'good' : round.multiplier === 0 ? 'bad' : ''}`; popIn(readout);
+    readoutNum.textContent = fmtMult(t[idx]); readout.className = `wheel-readout num ${win ? 'good' : round.multiplier === 0 ? 'bad' : ''}`;
+    // the pop grows with the win: a push barely moves, a 20x fills the hub
+    readoutNum.style.setProperty('--pop', String(round.multiplier >= 20 ? 2 : round.multiplier >= 5 ? 1.6 : win ? 1.3 : 1.1));
+    readoutNum.classList.remove('pop'); void readoutNum.offsetWidth; readoutNum.classList.add('pop');
     if (win) { sound.play(round.multiplier >= 5 ? 'bigwin' : 'win'); flashGreen(L.board); if (round.multiplier >= 10) winBurst(L.board); } else if (round.multiplier === 0) sound.play('lose'); else sound.play('reveal');
     banner.show(`${fmtMult(t[idx])} · ${payoutLine(round)}`, round.multiplier > 1 ? true : round.multiplier === 1 ? 'push' : false);
     strip.push(fmtMult(t[idx]), win);
