@@ -9,7 +9,7 @@ import { gameHeader, gameIcon } from './games/common.js';
 import { countTo, sound } from './fx.js';
 import { openWallet } from './wallet.js';
 import { TIERS, tierById, DRIP_IDS } from '../shared/tiers.js';
-import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout } from './social.js';
+import { liveBets, winTicker, chatButton, startSocial, stopSocial, closeChatForLogout, toggleChat } from './social.js';
 import { chestCard, chestPill } from './chest.js';
 import { authPage, rememberRef } from './signup.js';
 import { REFERRAL } from '../shared/tiers.js';
@@ -43,6 +43,7 @@ function renderChrome() {
     const found = NAV.find(([href]) => isCurrent(href, route));
     if (route === '#/signup') return [h('b', {}, 'Create account')];
     if (route === '#/login') return [h('b', {}, 'Log in')];
+    if (route.startsWith('#/account')) return [h('b', {}, 'You')];
     return [h('b', {}, found ? found[1] : 'Home')];
   })();
   const sessNet = u ? sessionNet() : 0;
@@ -55,12 +56,16 @@ function renderChrome() {
         svgUse('ph-coins', 'ic'), h('span', { class: 'amt num' }, fmt(u.balance)),
         h('span', { class: `delta ${sessNet > 0 ? 'up' : sessNet < 0 ? 'down' : ''}`, id: 'session-delta' }, fmtSigned(sessNet)),
         h('button', { type: 'button', class: 'go', onClick: () => openWallet('deposit') }, 'Wallet')),
-      chatButton(), soundToggle(),
+      h('span', { class: 'top-tools row' }, chatButton(), soundToggle()),
       h('a', { class: 'avatar', href: '#/account', title: u.username }, u.username.slice(0, 2)))
       : h('div', { class: 'row', style: { gap: '8px' } }, h('a', { class: 'btn ghost sm', href: '#/login' }, h('span', {}, 'Log in')), h('a', { class: 'btn primary sm', href: '#/signup' }, h('span', {}, 'Sign up'))),
   );
   tabbar.hidden = !u;
-  tabbar.replaceChildren(...NAV.map(([href, label, icon]) => h('a', { href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label)));
+  // phone tab bar: the four places a player actually goes, plus chat. Learn and Fairness live under Account.
+  const TABS = [['#/', 'Home', 'ph-house'], ['#/rebates', 'Rebates', 'ph-gift'], ['chat', 'Chat', 'ph-chat-circle-dots'], ['#/stats', 'Stats', 'ph-chart-bar'], ['#/account', 'You', 'ph-user']];
+  tabbar.replaceChildren(...TABS.map(([href, label, icon]) => href === 'chat'
+    ? h('button', { type: 'button', class: 'tab-chat', onClick: () => toggleChat() }, svgUse(icon), label)
+    : h('a', { href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label)));
 }
 function tierFoot(rw) {
   const t = tierById(rw.tier);
@@ -567,6 +572,8 @@ function accountPage() {
         h('div', { class: 'kv' }, h('span', {}, 'Balance'), h('b', {}, fmtAgt(m.user.balance))),
         h('div', { class: 'kv' }, h('span', {}, 'Refills'), h('b', {}, m.user.refills)),
         h('div', { class: 'kv' }, h('span', {}, 'Lessons read'), h('b', {}, `${m.user.lessonsRead.length} / ${edu.LESSONS.length}`)),
+        h('div', { class: 'kv' }, h('span', {}, 'Sound'), soundToggle()),
+        h('div', { class: 'more-links' }, h('a', { class: 'btn tertiary sm', href: '#/learn' }, h('span', {}, 'Learn')), h('a', { class: 'btn tertiary sm', href: '#/fair' }, h('span', {}, 'Fairness')), h('a', { class: 'btn tertiary sm', href: '#/rebates' }, h('span', {}, 'Rebates'))),
         h('label', { class: 'check-row' }, h('input', { type: 'checkbox', checked: Boolean(m.user.ghost), onChange: async (e) => { try { await api.updateProfile({ ghost: e.target.checked }); toast(e.target.checked ? 'Ghost mode on. The feed shows you as Hidden.' : 'Ghost mode off.', 'good'); } catch (x) { toast(x.message, 'bad'); } } }), h('span', {}, svgUse('ph-ghost', 'inline-ic'), ' Ghost mode: hide my name in the live feed and leaderboard.')),
         h('p', { class: 'help' }, 'We hold a username, a password hash, your seeds and your bet history. Nothing else. Deleting the account removes all of it immediately.'),
         button('Delete account', { kind: 'danger', size: 'sm', onClick: async () => {

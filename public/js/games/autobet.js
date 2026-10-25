@@ -21,6 +21,7 @@ export function attach({ panel, amount, manual = [], playRound, canStart = () =>
   const stats = { bets: 0, profit: 0, expected: 0, wagered: 0 };
 
   const tabs = segmented([{ value: 'manual', label: 'Manual' }, { value: 'auto', label: 'Auto' }], mode, (v) => setMode(v), { block: true });
+  tabs.classList.add('auto-tabs');
   const countField = numberInput({ label: 'Number of bets', value: 0, min: 0, max: 10000, step: 1, unit: '0 = ∞', onChange: (v) => { cfg.count = Math.max(0, Math.round(v)); } });
   const winSeg = segmented([{ value: 'reset', label: 'Reset' }, { value: 'increase', label: 'Increase by' }], 'reset', (v) => { cfg.onWin = v; winPct.hidden = v !== 'increase'; }, { block: true });
   const winPct = numberInput({ label: 'On win, increase by', value: 0, min: 0, max: 1000, step: 1, unit: '%', onChange: (v) => { cfg.onWinPct = Math.max(0, v); } }); winPct.hidden = true;

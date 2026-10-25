@@ -18,6 +18,7 @@ export function betAmount(initial = 10, onChange = () => {}) {
       { label: 'Max', fn: () => Math.floor((user()?.balance ?? 0) * 100) / 100 },
     ],
   });
+  field.classList.add('amount');
   field.get = () => amount;
   field.set = (v) => { amount = Math.round(Number(v) * 100) / 100; field.input.value = String(amount); };
   field.setDisabled = (d) => field.querySelectorAll('input,button').forEach((el) => (el.disabled = d));
