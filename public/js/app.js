@@ -29,22 +29,46 @@ const NAV = [
 ];
 const isCurrent = (href, route) => route === href || (href !== '#/' && route.startsWith(href));
 
+const SIDE_KEY = 'pentropy.side';
+const sideCollapsed = () => { try { return localStorage.getItem(SIDE_KEY) === '1'; } catch { return false; } };
+function toggleSide() { const next = !sideCollapsed(); try { localStorage.setItem(SIDE_KEY, next ? '1' : '0'); } catch { /* fine */ } renderChrome(); }
 function renderChrome() {
   const u = user();
-  const route = (location.hash || '#/').split('?')[0];
-  const navItem = (href, label, icon) => h('a', { class: 'nav-item', href, 'aria-current': isCurrent(href, route) ? 'page' : null }, svgUse(icon), label);
+  const hash = location.hash || '#/';
+  const route = hash.split('?')[0];
+  const collapsed = sideCollapsed();
+  document.body.classList.toggle('side-collapsed', collapsed);
+  // exact match for links that carry a query, prefix match for the rest; All games only without a category
+  const current = (href) => (href.includes('?') ? hash === href : href === '#/games' ? route === '#/games' && !hash.includes('cat=') : isCurrent(href, route));
+  const navItem = (href, label, icon, extra = {}) => h('a', { class: 'nav-item', href, 'data-tip': label, 'aria-current': current(href) ? 'page' : null, ...extra }, svgUse(icon), h('span', { class: 'lbl' }, label));
+  const learn = route === '#/learn' || route.startsWith('#/learn/');
   side.replaceChildren(
-    h('a', { class: 'logo', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning')), h('span', {}, h('b', {}, 'Pentropy'), h('small', {}, 'Play money casino'))),
-    h('div', { class: 'group' }, ...NAV.map(([href, label, icon]) => navItem(href, label, icon))),
-    ...CATEGORIES.map((cat) => h('div', { class: 'group' }, h('div', { class: 'group-title' }, cat.label), ...CATALOG.filter((g) => g.cat === cat.id).map((g) => h('a', { class: 'nav-item', href: `#/play/${g.id}`, 'aria-current': route === `#/play/${g.id}` ? 'page' : null }, svgUse(gameIcon(g.id)), g.name)))),
-    u && me()?.rewards ? tierFoot(me().rewards) : h('div', { class: 'foot' }, svgUse('ph-info'), 'Tokens have no cash value'),
+    h('div', { class: 'side-head' },
+      h('button', { type: 'button', class: 'side-toggle', 'aria-label': collapsed ? 'Expand sidebar' : 'Collapse sidebar', 'data-tip': collapsed ? 'Expand' : 'Collapse', onClick: toggleSide }, svgUse('ph-sidebar-simple')),
+      h('div', { class: 'mode-switch' }, h('a', { class: 'mode', href: '#/', 'aria-current': String(!learn) }, 'Casino'), h('a', { class: 'mode', href: '#/learn', 'aria-current': String(learn) }, 'Learn'))),
+    h('div', { class: 'group' },
+      navItem('#/', 'Home', 'ph-house'),
+      navItem('#/rebates', 'Rebates', 'ph-gift'),
+      navItem('#/stats', 'My bets', 'ph-receipt'),
+      navItem('#/fair', 'Fairness', 'ph-shield-check'),
+      h('div', { class: 'side-sep' }),
+      h('div', { class: 'group-title' }, 'Games'),
+      navItem('#/play/crash', 'Live tables', 'ph-broadcast'),
+      navItem('#/games?cat=originals', 'Originals', 'ph-sparkle'),
+      navItem('#/games?cat=chains', 'Streak games', 'ph-lightning'),
+      navItem('#/games?cat=table', 'Table games', 'ph-spade'),
+      navItem('#/games', 'All games', 'ph-squares-four')),
+    h('div', { class: 'group' },
+      navItem('#/learn', 'Learn', 'ph-graduation-cap'),
+      u ? h('button', { type: 'button', class: 'nav-item', 'data-tip': 'Chat', onClick: () => toggleChat() }, svgUse('ph-chat-circle-dots'), h('span', { class: 'lbl' }, 'Chat')) : null),
+    u && me()?.rewards ? tierFoot(me().rewards) : h('div', { class: 'foot' }, svgUse('ph-info'), h('span', { class: 'lbl' }, 'No cash value')),
   );
   const playing = /^#\/play\//.test(route);
   const searchIn = h('input', { type: 'search', placeholder: 'Search games', 'aria-label': 'Search games', autocomplete: 'off' });
   searchIn.addEventListener('keydown', (e) => { if (e.key === 'Enter' && searchIn.value.trim()) { location.hash = `#/games?q=${encodeURIComponent(searchIn.value.trim())}`; searchIn.blur(); } });
   const sessNet = u ? sessionNet() : 0;
   top.replaceChildren(
-    h('a', { class: 'logo brand-sm', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning'))),
+    h('a', { class: 'logo brand-sm', href: '#/' }, h('span', { class: 'mark' }, svgUse('ph-lightning')), h('b', {}, 'Pentropy')),
     playing ? h('a', { href: '#/', class: 'crumb-back', 'aria-label': 'Back to games', 'data-tip': 'Back to games' }, svgUse('ph-caret-left')) : h('span', { class: 'crumb-gap', hidden: true }),
     h('label', { class: 'top-search' }, svgUse('ph-search'), searchIn),
     h('div', { class: 'spacer' }),

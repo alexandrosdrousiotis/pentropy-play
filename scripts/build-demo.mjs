@@ -17,7 +17,7 @@ const page = `<title>Pentropy Play</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="pentropy-mode" content="demo">
 <meta name="color-scheme" content="dark">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="css/app.css">
 <style>html,body{height:auto}.demo-ribbon{position:fixed;left:0;right:0;top:0;z-index:40;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;text-align:center;padding:3px 8px;background:#f6b73c;color:#1a1405}.shell{padding-top:22px}.top{top:22px}</style>
 <div class="demo-ribbon">Demo build · runs entirely in your browser · the production deployment is server-side</div>
