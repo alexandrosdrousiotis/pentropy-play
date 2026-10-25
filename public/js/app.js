@@ -170,8 +170,8 @@ function gameRow(title, games, linked, sub, viewAll = null) {
     cards);
 }
 /** Wide category card: one line of copy and a big tinted glyph. A card, not a button. */
-function catCard({ title, text, href, icon, colour }) {
-  const el = h('a', { class: 'cat-card', href }, h('div', { class: 'cc-art' }, svgUse(icon)), h('div', { class: 'cc-body' }, h('h3', {}, title), h('p', {}, text)));
+function catCard({ title, text, href, art, colour }) {
+  const el = h('a', { class: 'cat-card', href }, h('img', { class: 'cc-img', src: `art/${art}.webp`, alt: '', loading: 'lazy', decoding: 'async' }), h('div', { class: 'cc-body' }, h('h3', {}, title), h('p', {}, text)));
   el.style.setProperty('--c', colour);
   return el;
 }
@@ -252,8 +252,8 @@ async function lobbyPage() {
     promoHero(m),
     open && h('div', { class: 'banner' }, h('b', {}, 'Round in progress'), h('span', {}, `${gameById(open.game)?.name} · ${fmtAgt(open.amount)}`), h('div', { class: 'spacer' }), h('a', { class: 'btn accent sm', href: `#/play/${open.game}` }, h('span', {}, 'Resume'))),
     h('div', { class: 'cat-cards' },
-      catCard({ title: 'Live tables', text: 'One Crash flight and one wheel, for everyone at once.', href: '#/play/crash', icon: 'ph-users-three', colour: GAME_COLOR.crash }),
-      catCard({ title: 'Originals', text: `${CATALOG.length} provably fair games. Verify any round in your browser.`, href: '#/games', icon: 'ph-sparkle', colour: GAME_COLOR.dice })),
+      catCard({ title: 'Live tables', text: 'One Crash flight and one wheel, for everyone at once.', href: '#/play/crash', art: 'cat-live', colour: GAME_COLOR.crash }),
+      catCard({ title: 'Originals', text: `${CATALOG.length} provably fair games. Verify any round in your browser.`, href: '#/games', art: 'cat-originals', colour: GAME_COLOR.dice })),
     gameRow('Originals', by('originals'), true, null, '#/games?cat=originals'),
     recent.length ? gameRow('Recently played', recent.map(gameById).filter(Boolean), true) : null,
     gameRow('Streak games', by('chains'), true, null, '#/games?cat=chains'),
