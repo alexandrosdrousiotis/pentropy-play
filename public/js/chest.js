@@ -43,7 +43,7 @@ export function chestCard(initial) {
   }
   async function open() {
     btn.disabled = true;
-    const r = await openChestFlow();
+    const r = await openChestFlow(c.wagered);
     if (r) c = r.chest;
     paint();
   }
@@ -56,7 +56,7 @@ export function chestCard(initial) {
 export function chestPill(initial) {
   let c = initial;
   const label = h('span', { class: 'num' });
-  const el = h('button', { type: 'button', class: 'chest-pill', onClick: async () => { if (isReady(c) && c.wagered > 0) { const r = await openChestFlow(); if (r) { c = r.chest; paint(); } } else location.hash = '#/rebates'; } }, svgUse('ph-gift'), label);
+  const el = h('button', { type: 'button', class: 'chest-pill', onClick: async () => { if (isReady(c) && c.wagered > 0) { const r = await openChestFlow(c.wagered); if (r) { c = r.chest; paint(); } } else location.hash = '#/rebates'; } }, svgUse('ph-gift'), label);
   function paint() {
     const ready = isReady(c);
     el.classList.toggle('ready', ready && c.wagered > 0);
@@ -68,8 +68,8 @@ export function chestPill(initial) {
 }
 
 /** Open the chest: server decides the amount, the browser makes a show of it. Resolves with the new rewards or null. */
-export async function openChestFlow() {
-  const wageredBefore = me()?.rewards?.chest?.wagered ?? 0;
+export async function openChestFlow(wagered = null) {
+  const wageredBefore = wagered ?? me()?.rewards?.chest?.wagered ?? 0;
   let r;
   try { r = await api.openChest(); } catch (e) { toast(e.message, 'bad'); return null; }
   const chest = chestEl(1.6);

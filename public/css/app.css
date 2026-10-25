@@ -1205,3 +1205,10 @@ button,a,input,.cell,.rcell{touch-action:manipulation;-webkit-tap-highlight-colo
   .wallet{padding:0 10px}
   .icon-btn,.sound-toggle,.avatar{width:36px;height:36px;border-radius:9px}
 }
+@media (max-width:860px){
+  .crumb-back{font-size:0;gap:0}
+  .crumb-back svg{width:20px;height:20px}
+  .crumb-sep{display:none}
+  .top .crumb b{font-size:15px}
+}
+@media (max-width:560px){.wallet .ic{display:none}.wallet{padding:0 10px}}
