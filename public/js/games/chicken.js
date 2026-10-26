@@ -10,6 +10,16 @@ import { sound, sleep, shake, flashRed, flashGreen, winBurst, pulse, floatText, 
 const LANE_W = 76;
 const COLOURS = ['#ff5c7a', '#8b9cff', '#e6b655', '#3ccf8f', '#c084fc', '#e5e7eb', '#f0a040', '#38bdf8'];
 const TYPES = ['car', 'car', 'car', 'truck', 'bus'];
+// top-down sprites, front of the vehicle at the top; lanes that drive upward rotate them
+const WHEELS = (ys, h = 14) => ys.map((y) => `<rect x="1" y="${y}" width="7" height="${h}" rx="2" fill="#14161c"/><rect x="40" y="${y}" width="7" height="${h}" rx="2" fill="#14161c"/>`).join('');
+const VEH_SVG = {
+  car: `<svg viewBox="0 0 48 80" aria-hidden="true">${WHEELS([10, 54])}<rect x="5" y="2" width="38" height="76" rx="11" fill="currentColor"/><rect x="5" y="2" width="38" height="76" rx="11" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/><rect x="10" y="24" width="28" height="32" rx="6" fill="rgba(0,0,0,.22)"/><path d="M11 25h26l-4-11H15z" fill="#cfe7ff"/><path d="M12 55h24l-3 8H15z" fill="#a9cbe8"/><rect x="9" y="3" width="8" height="4" rx="2" fill="#fff4c2"/><rect x="31" y="3" width="8" height="4" rx="2" fill="#fff4c2"/><rect x="9" y="73" width="8" height="4" rx="2" fill="#ff5c5c"/><rect x="31" y="73" width="8" height="4" rx="2" fill="#ff5c5c"/></svg>`,
+  truck: `<svg viewBox="0 0 48 110" aria-hidden="true">${WHEELS([8, 46, 86])}<rect x="5" y="2" width="38" height="32" rx="8" fill="currentColor"/><rect x="5" y="2" width="38" height="32" rx="8" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/><path d="M11 22h26l-4-10H15z" fill="#cfe7ff"/><rect x="9" y="3" width="8" height="4" rx="2" fill="#fff4c2"/><rect x="31" y="3" width="8" height="4" rx="2" fill="#fff4c2"/><rect x="4" y="36" width="40" height="72" rx="5" fill="#d9dde6"/><rect x="4" y="36" width="40" height="72" rx="5" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/><rect x="8" y="40" width="32" height="64" rx="3" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="1.5"/><rect x="9" y="103" width="8" height="4" rx="2" fill="#ff5c5c"/><rect x="31" y="103" width="8" height="4" rx="2" fill="#ff5c5c"/></svg>`,
+  bus: `<svg viewBox="0 0 48 120" aria-hidden="true">${WHEELS([14, 90])}<rect x="4" y="2" width="40" height="116" rx="9" fill="currentColor"/><rect x="4" y="2" width="40" height="116" rx="9" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/><path d="M10 20h28l-3-12H13z" fill="#cfe7ff"/><rect x="16" y="26" width="16" height="84" rx="4" fill="rgba(255,255,255,.14)"/>${[30, 46, 62, 78, 94].map((y) => `<rect x="7" y="${y}" width="6" height="10" rx="1.5" fill="#cfe7ff"/><rect x="35" y="${y}" width="6" height="10" rx="1.5" fill="#cfe7ff"/>`).join('')}<rect x="8" y="3" width="9" height="4" rx="2" fill="#fff4c2"/><rect x="31" y="3" width="9" height="4" rx="2" fill="#fff4c2"/><rect x="8" y="113" width="9" height="4" rx="2" fill="#ff5c5c"/><rect x="31" y="113" width="9" height="4" rx="2" fill="#ff5c5c"/></svg>`,
+};
+// the chicken from above, facing right
+const CHICK_SVG = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 24c-4-2-7-6-9-11 4 2 7 5 10 8zM11 24c-4 2-7 6-9 11 4-2 7-5 10-8zM10 24c-5 0-8-1-10-1 2 2 5 3 10 3z" fill="#d9deea"/><ellipse cx="23" cy="24" rx="15" ry="12.5" fill="#f4f5f8"/><path d="M11 17c7-5 15-5 22-1-4 3-9 5-14 5-4 0-6-1-8-4z" fill="#e0e4ee"/><path d="M11 31c7 5 15 5 22 1-4-3-9-5-14-5-4 0-6 1-8 4z" fill="#e0e4ee"/><circle cx="36" cy="24" r="9" fill="#fafbfd"/><path d="M28.5 24c1-2.5 2.5-3.5 4-2.5 1-2.5 3-2.5 4 0 1-2.5 3-2.5 4 0 1.5-1 3-.5 4 2.5z" fill="#ff4d5e"/><rect x="29" y="23" width="14" height="3.5" rx="1.75" fill="#ff4d5e"/><circle cx="38.5" cy="18.5" r="1.6" fill="#15171c"/><circle cx="38.5" cy="29.5" r="1.6" fill="#15171c"/><path d="M44.5 21l7 3-7 3z" fill="#ffa03a"/></svg>`;
+
 
 export function mount(root, meta) {
   const L = layout(root);
@@ -33,12 +43,18 @@ export function mount(root, meta) {
   L.reality.append(reality);
 
   let lanes = [], chicken = null, pos = 0; // pos: 0 = start kerb, 1..25 = lane index+1, 26 = far kerb
+  // sprites: clean top-down SVG shapes now; a painted art/sprite-<name>.webp takes over when it exists
+  const sprite = (name, svg) => {
+    const el = h('div', { class: 'spr', html: svg });
+    el.append(h('img', { src: `art/sprite-${name}.webp`, alt: '', decoding: 'async', onLoad: () => el.classList.add('painted'), onError: (e) => e.target.remove() }));
+    return el;
+  };
   const vehicle = (type, colour, { delay, dur, flip }) => {
-    const v = h('div', { class: `veh ${type}${flip ? ' flip' : ''}` }, h('i', { class: 'w' }), h('i', { class: 'w b' }), h('i', { class: 'hl' }), h('i', { class: 'hl r' }));
+    const v = h('div', { class: `veh ${type}${flip ? ' flip' : ''}` }, sprite(type, VEH_SVG[type]));
     v.style.setProperty('--c', colour); v.style.animationDelay = `${delay}s`; v.style.animationDuration = `${dur}s`;
     return v;
   };
-  const chickenEl = () => h('div', { class: 'chick' }, h('i', { class: 'shadow' }), h('div', { class: 'sprite' }, h('i', { class: 'tail' }), h('i', { class: 'body' }), h('i', { class: 'wing' }), h('i', { class: 'head' }), h('i', { class: 'comb' }), h('i', { class: 'eye' }), h('i', { class: 'beak' }), h('i', { class: 'wattle' }), h('i', { class: 'leg l' }), h('i', { class: 'leg r' })));
+  const chickenEl = () => h('div', { class: 'chick' }, h('i', { class: 'shadow' }), h('div', { class: 'sprite' }, sprite('chicken', CHICK_SVG)));
   function build(outcome = null) {
     const hz = CHICKEN_LEVELS[level].hazards; const k = round?.view?.lane ?? outcome?.lane ?? 0;
     world.replaceChildren(); lanes = [];

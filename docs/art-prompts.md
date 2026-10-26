@@ -205,3 +205,16 @@ The Crash chart rides the curve with a small sprite. Without one it shows a whit
 | File | Prompt |
 | --- | --- |
 | `crash-rocket` | A small matte black rocket with a single red stripe, side view, nose pointing to the top-right corner at exactly 45 degrees, short stylised yellow #ffd21f flame with a white core trailing to the bottom-left, hard clean edges, no smoke, no sparks, no chips, no background: fully transparent PNG, square canvas, the rocket filling about 80% of it |
+
+## Chicken sprites (optional)
+
+The road crossing draws its chicken and vehicles as flat top-down shapes. Drop any of these in
+`docs/art` and run `python3 scripts/art.py`; each one replaces its drawn shape on its own.
+All four are seen straight from above, transparent PNG, square canvas, the subject filling ~85%.
+
+| File | Prompt |
+| --- | --- |
+| `sprite-chicken` | A plump white hen seen directly from above, facing right, small red comb along the top of the head, orange beak, two wings tucked against the body, short tail feathers at the left, soft painterly shading, hard clean edge, no ground shadow, no background |
+| `sprite-car` | A compact hatchback seen directly from above, front at the top, neutral light grey paint (the game tints it), dark roof and glass, two warm headlights at the top, two red tail lights at the bottom, four black tyres just visible at the sides, no background |
+| `sprite-truck` | A small box truck seen directly from above, cab at the top in light grey, white cargo box behind it, six tyres at the sides, no background |
+| `sprite-bus` | A city bus seen directly from above, front at the top, light grey roof with a row of small windows down each side, no background |

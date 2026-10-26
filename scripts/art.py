@@ -66,10 +66,10 @@ def main():
         if not p: continue
         im = Image.open(p).convert('RGBA'); im = im.crop(im.getbbox()); im.thumbnail((256, 256), Image.LANCZOS)
         im.save(os.path.join(OUT, 'rw', f'{r}.webp'), 'WEBP', quality=86, method=6); print(f'  rw/{r}.webp  {im.width}x{im.height}')
-    for c, size in [('chest-open', 640), ('chest-closed', 640), ('crash-rocket', 256)]:
+    for c, size in [('chest-open', 640), ('chest-closed', 640), ('crash-rocket', 256), ('sprite-chicken', 256), ('sprite-car', 256), ('sprite-truck', 320), ('sprite-bus', 320)]:
         p = master(c)
         if not p:
-            if c != 'crash-rocket': missing.append(c)
+            if c in ('chest-open', 'chest-closed'): missing.append(c)
             continue
         im = Image.open(p).convert('RGBA'); im = im.crop(im.getbbox()); im.thumbnail((size, size), Image.LANCZOS)
         save(im, c, 85)
